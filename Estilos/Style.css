@@ -1,0 +1,19 @@
+.main-pane {
+  /* Diseño automático de Figma */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px;
+
+  /* ⚠️ AJUSTE: Figma te da el tamaño exacto de tu lienzo, pero en web es mejor usar porcentajes */
+  /* width: 1180px; */
+  /* height: 900px; */
+  width: 100%;
+  min-height: 100vh; /* Para que al menos mida el alto de la pantalla */
+
+  /* Dentro del diseño automático */
+  /* flex: none;  <-- Figma a veces se contradice. Esto choca con el flex-grow de abajo, puedes borrarlo */
+  order: 1;
+  align-self: stretch;
+  flex-grow: 1; /* Esto es clave para que el panel tome todo el espacio sobrante al lado del menú */
+}
