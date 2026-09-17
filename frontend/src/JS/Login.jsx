@@ -1,7 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Eye } from 'lucide-react';
+import { loginUser } from './api';
 
 export default function IniciarSesion({ alIniciarSesion }) {
+  const [email, setEmail] = useState('recepcion@cyberfit.com');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      // Llamada a la API de Spring Boot
+      const data = await loginUser(email, password);
+      console.log('Login exitoso:', data);
+      
+      // Aquí puedes guardar el token y redirigir
+      if (alIniciarSesion) {
+        alIniciarSesion(data);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error al iniciar sesión. Verifica tus credenciales.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 font-sans">
       <div className="bg-white flex flex-col md:flex-row w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl">
@@ -32,14 +55,15 @@ export default function IniciarSesion({ alIniciarSesion }) {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Iniciar Sesión</h2>
           <p className="text-sm text-gray-500 mb-8">Ingresa tus credenciales autorizadas</p>
           
-          <form onSubmit={(e) => { e.preventDefault(); alIniciarSesion(); }}>
+          <form onSubmit={handleSubmit}>
             <div className="mb-5">
               <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">
                 Correo Electrónico
               </label>
               <input 
                 type="email" 
-                defaultValue="recepcion@cyberfit.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-sm"
               />
             </div>
@@ -50,13 +74,17 @@ export default function IniciarSesion({ alIniciarSesion }) {
               </label>
               <input 
                 type="password" 
-                defaultValue="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••••"
                 className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-sm"
               />
               <button type="button" className="absolute right-4 top-9 text-gray-400 hover:text-gray-600">
                 <Eye size={18} />
               </button>
             </div>
+
+            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
             <button 
               type="submit"
