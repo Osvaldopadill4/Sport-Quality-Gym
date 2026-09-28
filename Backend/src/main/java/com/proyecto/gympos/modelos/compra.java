@@ -1,4 +1,4 @@
 package com.proyecto.gympos.modelos;
 
-public class compra {
+public class Compra {
 }

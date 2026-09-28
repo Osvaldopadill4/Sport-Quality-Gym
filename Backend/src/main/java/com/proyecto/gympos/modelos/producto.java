@@ -1,4 +1,4 @@
 package com.proyecto.gympos.modelos;
 
-public class producto {
+public class Producto {
 }

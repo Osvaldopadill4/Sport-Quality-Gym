@@ -1,4 +1,4 @@
 package com.proyecto.gympos.modelos;
 
-public class corte_caja {
+public class Corte_caja {
 }

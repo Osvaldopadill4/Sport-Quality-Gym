@@ -1,6 +1,6 @@
 package com.proyecto.gympos.modelos;
 
-public class acceso {
+public class Acceso {
     private String id_acceso;
     private String id_cliente;
     private String fecha;

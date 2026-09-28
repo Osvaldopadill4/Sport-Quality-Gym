@@ -1,4 +1,4 @@
 package com.proyecto.gympos.modelos;
 
-public class membresia {
+public class Membresia {
 }
