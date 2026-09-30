@@ -6,17 +6,49 @@ export default function Login({ alIniciarSesion }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     
-    // Simulación del login para que tú puedas probar la vista sin backend
-    if (email && password) {
-      if (alIniciarSesion) {
-        alIniciarSesion({ token: 'mock-token' });
-      }
-    } else {
+    if (!email || !password) {
       setError('Por favor, ingresa tus credenciales.');
+      return;
+    }
+
+    try {
+      // 1. Hacemos la petición real a Spring Boot
+      const respuesta = await fetch('http://localhost:8080/api/login', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        // 2. Convertimos el correo y contraseña a formato JSON para que Java los entienda
+        body: JSON.stringify({ 
+          correo: email, 
+          contrasena: password 
+        })
+      });
+
+      // 3. Spring Boot regresa texto vacío si el usuario era null (login fallido)
+      const textoRespuesta = await respuesta.text();
+
+      if (textoRespuesta) {
+        // Si hay respuesta, el login fue un éxito. Lo convertimos a objeto Javascript
+        const usuarioLogueado = JSON.parse(textoRespuesta);
+        
+        if (alIniciarSesion) {
+          // Mandamos los datos del usuario real para que te deje entrar al sistema
+          alIniciarSesion(usuarioLogueado);
+        }
+      } else {
+        // Si llegó vacío, las credenciales no existen en la BD
+        setError('Correo o contraseña incorrectos.');
+      }
+
+    } catch (error) {
+      console.error("Error al conectar con Spring Boot:", error);
+      setError('Error al conectar con el servidor. ¿Está encendido Spring Boot?');
     }
   };
 

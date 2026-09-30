@@ -109,25 +109,39 @@ export default function Dashboard({ alCerrarSesion }) {
     </div>
   );
 
-  // Vista genérica para los otros módulos usando DaisyUI
-  const renderModuloGenerico = () => (
+  // --- ESTADO PARA GUARDAR LOS USUARIOS DE LA BASE DE DATOS ---
+  const [usuariosDb, setUsuariosDb] = React.useState([]);
+
+  // Cada vez que cambie de módulo, revisamos si entró al de "usuarios"
+  React.useEffect(() => {
+    if (activeModule === 'usuarios') {
+      // Hacemos petición GET al backend para traer la lista de usuarios reales
+      fetch('http://localhost:8080/api/usuario')
+        .then(respuesta => respuesta.json())
+        .then(datos => {
+          // Nos aseguramos de que los datos sean una lista (arreglo) antes de guardarlos
+          if (Array.isArray(datos)) {
+            setUsuariosDb(datos);
+          } else {
+            console.error("El servidor respondió con algo que no es una lista:", datos);
+            setUsuariosDb([]);
+          }
+        })
+        .catch(error => console.error("Error cargando usuarios:", error));
+    }
+  }, [activeModule]);
+
+  // --- VISTA ESPECÍFICA PARA EL CRUD DE USUARIOS ---
+  const renderUsuarios = () => (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-base-200 p-5 rounded-xl shadow-lg border border-base-300 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white capitalize">
-            Gestión de {activeModule}
-          </h2>
-          <p className="text-sm text-gray-400 mt-1">
-            Administra los registros y detalles de este módulo.
-          </p>
+          <h2 className="text-xl font-bold text-white capitalize">Gestión de Usuarios</h2>
+          <p className="text-sm text-gray-400 mt-1">Administra los accesos y roles del sistema.</p>
         </div>
         <div className="flex gap-3">
-          <button className="btn btn-outline border-base-300 text-gray-300 hover:bg-base-300 hover:border-gray-500">
-            Exportar
-          </button>
           <button className="btn btn-primary">
-            <Plus className="w-4 h-4" />
-            Nuevo Registro
+            <Plus className="w-4 h-4" /> Nuevo Usuario
           </button>
         </div>
       </div>
@@ -138,50 +152,75 @@ export default function Dashboard({ alCerrarSesion }) {
             <thead className="text-gray-400 border-base-300 bg-black/20">
               <tr>
                 <th>ID</th>
-                <th>Nombre / Descripción</th>
+                <th>Nombre</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
                 <th>Estado</th>
-                <th>Fecha</th>
                 <th className="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {[1, 2, 3].map((item) => (
-                <tr key={item} className="border-base-300 hover:bg-base-300 transition-colors text-gray-200">
-                  <td className="font-medium text-white">#000{item}</td>
-                  <td>Ejemplo de Dato {item}</td>
-                  <td>
-                    <span className="badge badge-success badge-sm text-black font-bold">
-                      Activo
-                    </span>
-                  </td>
-                  <td className="text-gray-400">27 Oct 2026</td>
-                  <td className="text-right space-x-2">
-                    <button className="btn btn-ghost btn-sm text-gray-400 hover:text-primary">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button className="btn btn-ghost btn-sm text-gray-400 hover:text-error">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              {/* Aquí recorremos los usuarios de forma súper segura */}
+              {Array.isArray(usuariosDb) && usuariosDb.length > 0 ? (
+                usuariosDb.map((user) => (
+                  <tr key={user.id} className="border-base-300 hover:bg-base-300 transition-colors text-gray-200">
+                    <td className="font-medium text-white">#{user.id}</td>
+                    <td>{user.nombre} {user.apellido}</td>
+                    <td>{user.correo}</td>
+                    <td>{user.telefono}</td>
+                    <td>
+                      <span className="badge badge-success badge-sm text-black font-bold">
+                        {user.estado}
+                      </span>
+                    </td>
+                    <td className="text-right space-x-2">
+                      <button className="btn btn-ghost btn-sm text-gray-400 hover:text-primary">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button 
+                        className="btn btn-ghost btn-sm text-gray-400 hover:text-error"
+                        onClick={() => {
+                          fetch(`http://localhost:8080/api/usuario/${user.id}`, { method: 'DELETE' })
+                            .then(() => {
+                              setUsuariosDb(usuariosDb.filter(u => u.id !== user.id));
+                            });
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                /* Si no hay usuarios o hubo un error al leerlos, mostramos esto */
+                <tr>
+                  <td colSpan="6" className="text-center py-4 text-gray-400">
+                    No hay usuarios registrados o no se pudieron cargar.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-        
-        <div className="flex items-center justify-between px-6 py-4 bg-base-200 border-t border-base-300">
-          <span className="text-sm text-gray-400">
-            Mostrando <span className="font-medium text-white">1</span> a <span className="font-medium text-white">3</span> de <span className="font-medium text-white">24</span>
-          </span>
-          <div className="flex space-x-2">
-            <button className="btn btn-sm btn-outline border-base-300 text-gray-300 hover:bg-base-300">
-              Anterior
-            </button>
-            <button className="btn btn-sm btn-primary">
-              Siguiente
-            </button>
-          </div>
+      </div>
+    </>
+  );
+
+  // Vista genérica para los otros módulos usando DaisyUI
+  const renderModuloGenerico = () => (
+    <>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-base-200 p-5 rounded-xl shadow-lg border border-base-300 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-white capitalize">
+            Gestión de {activeModule}
+          </h2>
+          <p className="text-sm text-gray-400 mt-1">
+            Módulo en construcción (Próximamente leerá datos de la BD).
+          </p>
         </div>
+      </div>
+      <div className="p-10 text-center text-gray-400 border border-dashed border-base-300 rounded-xl">
+        Aún no hay pantalla específica para {activeModule}. 
       </div>
     </>
   );
@@ -192,7 +231,10 @@ export default function Dashboard({ alCerrarSesion }) {
       activeModule={activeModule}
       setActiveModule={setActiveModule}
     >
-      {activeModule === 'inicio' ? renderInicio() : renderModuloGenerico()}
+      {/* Controlamos qué pantalla mostrar según el botón del menú presionado */}
+      {activeModule === 'inicio' ? renderInicio() : 
+       activeModule === 'usuarios' ? renderUsuarios() : 
+       renderModuloGenerico()}
     </AdminLayout>
   );
 }
