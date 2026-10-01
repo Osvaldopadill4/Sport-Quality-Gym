@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Power } from 'lucide-react';
-import '../CSS/Usuarios.css';
+import '../../CSS/Usuarios.css';
 
 export default function Usuarios({ loggedUser }) {
   const [usuarios, setUsuarios] = useState([]);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Login from './Vista/Login';
-import Dashboard from './Vista/Dashboard';
+import Login from './Vista/Modulos/Login';
+import Dashboard from './Vista/Modulos/Dashboard';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

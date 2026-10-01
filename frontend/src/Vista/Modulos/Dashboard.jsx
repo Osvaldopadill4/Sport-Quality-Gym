@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import AdminLayout from './Layout/AdminLayout';
-import Usuarios from './Modulos/Usuarios';
+import AdminLayout from '../Layout/AdminLayout';
+import Usuarios from './Usuarios';
 import { Users, Banknote, Dumbbell, CreditCard, Package } from 'lucide-react';
 
 export default function Dashboard({ alCerrarSesion }) {

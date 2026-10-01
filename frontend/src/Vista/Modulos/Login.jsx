@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import '../CSS/Login.css';
+import '../../CSS/Login.css';
 
 export default function Login({ alIniciarSesion }) {
   const [email, setEmail] = useState('recepcion@cyberfit.com');
