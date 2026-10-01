@@ -1,6 +1,6 @@
 package com.proyecto.gympos.modelos;
 
-public class Cliente {
+public class cliente {
     private String id_cliente;
     private String nombre;
     private String telefono;
