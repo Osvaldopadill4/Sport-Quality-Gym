@@ -12,6 +12,7 @@ public interface UsuarioDao {
 
     void registrar(Usuario usuario);
 
-    // Método nuevo para revisar si el correo y contraseña existen
-    Usuario verificarCredenciales(String correo, String contrasena);
+    void actualizar(Usuario usuario);
+
+    boolean verificarCredenciales(Usuario usuario);
 }

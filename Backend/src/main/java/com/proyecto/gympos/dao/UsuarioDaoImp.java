@@ -29,26 +29,32 @@ public class UsuarioDaoImp implements UsuarioDao {
 
     @Override
     public void registrar(Usuario usuario) {
+        entityManager.persist(usuario);
+    }
+
+    @Override
+    public void actualizar(Usuario usuario) {
         entityManager.merge(usuario);
     }
 
     @Override
-    public Usuario verificarCredenciales(String correo, String contrasena) {
-        // Hacemos una consulta a la BD buscando exactamente ese correo y contraseña
-        String query = "FROM Usuario WHERE correo = :correo AND contrasena = :contrasena";
-        
-        // Guardamos los resultados en una lista
-        List<Usuario> lista = entityManager.createQuery(query, Usuario.class)
-                .setParameter("correo", correo)
-                .setParameter("contrasena", contrasena)
+    public boolean verificarCredenciales(Usuario usuario) {
+        String query = "FROM Usuario WHERE correo = :correo";
+        System.out.println("Ejecutando query: " + query);
+        System.out.println("Parámetro - correo: " + usuario.getCorreo());
+
+        List<Usuario> lista = entityManager.createQuery(query)
+                .setParameter("correo", usuario.getCorreo())
+                .setParameter("contrasena",usuario.getContrasena())
                 .getResultList();
 
-        // Si la lista está vacía, significa que las credenciales son incorrectas
-        if (lista.isEmpty()) {
-            return null; // Retornamos nulo (login fallido)
+        System.out.println("Resultados encontrados: " + lista.size());
+
+        if (!lista.isEmpty()) {
+            System.out.println("Usuario encontrado: " + lista.get(0).getNombre());
+            return lista.get(0);
         }
-        
-        // Si sí se encontró, regresamos al usuario completo
-        return lista.get(0);
+        System.out.println("No se encontró usuario con ese correo");
+        return null;
     }
 }
