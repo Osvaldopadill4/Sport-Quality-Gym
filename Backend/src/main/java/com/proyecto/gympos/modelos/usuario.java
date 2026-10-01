@@ -6,7 +6,7 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "usuarios")
-public class Usuario {
+public class usuario {
     
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)

@@ -8,11 +8,11 @@ export default function Dashboard() {
       <aside className="sidebar">
         <div className="logo-section">GymPOS</div>
         <nav className="menu-items">
-          {/* Aquí irán los botones del menú */}
+          {/*botones del menú*/}
         </nav>
       </aside>
 
-      {/* Panel principal blanco */}
+      {/* Panel principal */}
       <main className="main-pane">
         <header className="topbar">
           <h2>Panel de Inicio</h2>
@@ -20,7 +20,7 @@ export default function Dashboard() {
         </header>
         
         <section className="dashboard-content">
-          {/* Aquí irán las tarjetas y gráficas */}
+          {/* tarjetas */}
         </section>
       </main>
     </div>
