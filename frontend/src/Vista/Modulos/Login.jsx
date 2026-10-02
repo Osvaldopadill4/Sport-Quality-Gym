@@ -10,18 +10,33 @@ export default function Login({ alIniciarSesion }) {
     e.preventDefault();
     setError(null);
 
-    // Saltar validación y pasar directamente al dashboard
-    const usuarioFalso = {
-      id: 1,
-      nombre: "Usuario",
-      apellido: "Prueba",
-      correo: email || "test@test.com",
-      id_rol: 1,
-      estado: "Activo"
-    };
+    try {
+      const datos = {
+        correo: email,
+        contrasena: password
+      };
 
-    if (alIniciarSesion) {
-      alIniciarSesion(usuarioFalso);
+      const request = await fetch('http://localhost:8080/api/login', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(datos)
+      });
+
+      const respuesta = await request.json();
+
+      if (respuesta) {
+        if (alIniciarSesion) {
+          alIniciarSesion(respuesta);
+        }
+      } else {
+        setError('Credenciales incorrectas');
+      }
+    } catch (error) {
+      setError('Error al conectar con el servidor');
+      console.error(error);
     }
   };
 

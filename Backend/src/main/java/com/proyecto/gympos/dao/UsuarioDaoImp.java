@@ -39,22 +39,22 @@ public class UsuarioDaoImp implements UsuarioDao {
 
     @Override
     public boolean verificarCredenciales(Usuario usuario) {
-        String query = "FROM Usuario WHERE correo = :correo";
+        String query = "FROM Usuario WHERE correo = :correo AND contrasena = :contrasena";
         System.out.println("Ejecutando query: " + query);
         System.out.println("Parámetro - correo: " + usuario.getCorreo());
 
         List<Usuario> lista = entityManager.createQuery(query)
                 .setParameter("correo", usuario.getCorreo())
-                .setParameter("contrasena",usuario.getContrasena())
+                .setParameter("contrasena", usuario.getContrasena())
                 .getResultList();
 
         System.out.println("Resultados encontrados: " + lista.size());
 
         if (!lista.isEmpty()) {
             System.out.println("Usuario encontrado: " + lista.get(0).getNombre());
-            return lista.get(0);
+            return true;
         }
-        System.out.println("No se encontró usuario con ese correo");
-        return null;
+        System.out.println("No se encontró usuario con esas credenciales");
+        return false;
     }
 }
