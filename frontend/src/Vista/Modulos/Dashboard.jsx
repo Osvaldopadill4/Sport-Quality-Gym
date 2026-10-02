@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import AdminLayout from '../Layout/AdminLayout';
 import Usuarios from './Usuarios';
+import Clientes from './Clientes';
+import Proveedores from './Proveedores';
 import { Users, Banknote, Dumbbell, CreditCard, Package } from 'lucide-react';
 
-export default function Dashboard({ alCerrarSesion }) {
+export default function Dashboard({ usuario, alCerrarSesion }) {
   // Inicializamos en 'inicio'
   const [activeModule, setActiveModule] = useState('inicio');
 
@@ -110,9 +112,6 @@ export default function Dashboard({ alCerrarSesion }) {
     </div>
   );
 
-  // --- VISTA ESPECÍFICA PARA EL CRUD DE USUARIOS ---
-  const renderUsuarios = () => <Usuarios />;
-
   // Vista genérica para los otros módulos usando DaisyUI
   const renderModuloGenerico = () => (
     <>
@@ -140,7 +139,9 @@ export default function Dashboard({ alCerrarSesion }) {
     >
       {/* Controlamos qué pantalla mostrar según el botón del menú presionado */}
       {activeModule === 'inicio' ? renderInicio() : 
-       activeModule === 'usuarios' ? renderUsuarios() : 
+       activeModule === 'usuarios' ? <Usuarios loggedUser={usuario} /> : 
+       activeModule === 'clientes' ? <Clientes loggedUser={usuario} /> : 
+       activeModule === 'proveedores' ? <Proveedores loggedUser={usuario} /> : 
        renderModuloGenerico()}
     </AdminLayout>
   );
