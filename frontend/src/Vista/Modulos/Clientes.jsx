@@ -178,49 +178,47 @@ export default function Clientes({ loggedUser }) {
         </div>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-lg text-gray-800">{modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}</h3>
+      <dialog className={`modal ${showModal ? "modal-open" : ""}`}>
+        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
+              <h3 className="font-bold text-lg text-base-content">{modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
             
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
-                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                <label className="block text-sm font-medium text-base-content mb-1">Nombre Completo</label>
+                <input type="text" className="input input-bordered w-full" 
                   value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                <label className="block text-sm font-medium text-base-content mb-1">Teléfono</label>
+                <input type="text" className="input input-bordered w-full" 
                   value={formData.telefono || ''} onChange={e => setFormData({...formData, telefono: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contacto de Emergencia</label>
-                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                <label className="block text-sm font-medium text-base-content mb-1">Contacto de Emergencia</label>
+                <input type="text" className="input input-bordered w-full" 
                   value={formData.contacto_emergencia || ''} onChange={e => setFormData({...formData, contacto_emergencia: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono de Emergencia</label>
-                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                <label className="block text-sm font-medium text-base-content mb-1">Teléfono de Emergencia</label>
+                <input type="text" className="input input-bordered w-full" 
                   value={formData.telefono_emergencia || ''} onChange={e => setFormData({...formData, telefono_emergencia: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Registro</label>
-                <input type="date" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                <label className="block text-sm font-medium text-base-content mb-1">Fecha de Registro</label>
+                <input type="date" className="input input-bordered w-full" 
                   value={formData.fecha_registro || ''} onChange={e => setFormData({...formData, fecha_registro: e.target.value})} />
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 bg-white border rounded-lg hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleSave} className="px-4 py-2 text-white bg-[#10b981] rounded-lg hover:bg-[#059669]">Guardar</button>
+            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
+              <button onClick={() => setShowModal(false)} className="btn btn-ghost">Cancelar</button>
+              <button onClick={handleSave} className="btn btn-primary">Guardar</button>
             </div>
           </div>
-        </div>
-      )}
+      </dialog>
     </div>
   );
 }
