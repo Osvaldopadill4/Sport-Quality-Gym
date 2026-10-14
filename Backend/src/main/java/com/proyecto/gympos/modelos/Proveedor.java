@@ -7,7 +7,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "proveedor")
 public class Proveedor {
-
+//Provedor
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     @Getter @Setter @Column(name = "id")
