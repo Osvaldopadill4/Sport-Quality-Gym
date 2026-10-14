@@ -37,6 +37,7 @@ public class UsuarioDaoImp implements UsuarioDao {
         entityManager.merge(usuario);
     }
 
+    //Login
     @Override
     public boolean verificarCredenciales(Usuario usuario) {
         String query = "FROM Usuario WHERE correo = :correo AND contrasena = :contrasena";
