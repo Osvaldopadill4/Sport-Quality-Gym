@@ -1,20 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../Layout/AdminLayout';
 import Usuarios from './Usuarios';
 import Clientes from './Clientes';
 import Proveedores from './Proveedores';
 import { Users, Banknote, Dumbbell, CreditCard, Package } from 'lucide-react';
+import Toast from '../Componentes/Toast';
 
 export default function Dashboard({ usuario, alCerrarSesion }) {
-  // Inicializamos en 'inicio'
   const [activeModule, setActiveModule] = useState('inicio');
+  const [alerta, setAlerta] = useState(null);
 
-  // Vista especial para el Panel de Inicio (Dashboard Principal) con DaisyUI
+  // Obtener usuario actual (prop o localStorage)
+  const usuarioActual = usuario || (() => {
+    try {
+      const u = localStorage.getItem('gymton_current_user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const nombreUsuario = usuarioActual?.nombre 
+    ? `${usuarioActual.nombre} ${usuarioActual.apellido || ''}`.trim() 
+    : 'Usuario';
+
+  // Mostrar mensaje de bienvenida al iniciar sesión
+  useEffect(() => {
+    const debeMostrar = sessionStorage.getItem('gymton_mostrar_bienvenida');
+    if (debeMostrar) {
+      sessionStorage.removeItem('gymton_mostrar_bienvenida');
+      setAlerta({
+        tipo: 'success',
+        mensaje: `Bienvenido - ${nombreUsuario}`
+      });
+    }
+  }, [nombreUsuario]);
+
+  // Vista especial para el Panel de Inicio (Dashboard Principal)
   const renderInicio = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Panel de Resumen</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            Bienvenido - {nombreUsuario} 👋
+          </h2>
+          <p className="text-sm text-gray-400 mt-1">
+            Panel de control operativo y resumen de actividades del gimnasio.
+          </p>
+        </div>
+      </div>
       
-      {/* Tarjetas de Estadísticas (Usando DaisyUI stats) */}
+      {/* Tarjetas de Estadísticas */}
       <div className="stats stats-vertical lg:stats-horizontal shadow w-full bg-base-200 border border-base-300">
         <div className="stat">
           <div className="stat-figure text-primary">
@@ -44,7 +80,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
         </div>
       </div>
 
-      {/* Grid para otras gráficas o tablas rápidas */}
+      {/* Grid para actividad reciente y atajos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Panel de Actividad Reciente */}
         <div className="card bg-base-200 shadow-xl border border-base-300">
@@ -112,7 +148,6 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
     </div>
   );
 
-  // Vista genérica para los otros módulos usando DaisyUI
   const renderModuloGenerico = () => (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-base-200 p-5 rounded-xl shadow-lg border border-base-300 mb-6">
@@ -136,12 +171,16 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       alCerrarSesion={alCerrarSesion} 
       activeModule={activeModule}
       setActiveModule={setActiveModule}
+      usuario={usuarioActual}
     >
-      {/* Controlamos qué pantalla mostrar según el botón del menú presionado */}
+      {/* Toast de Bienvenida */}
+      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
+
+      {/* Control de pantallas */}
       {activeModule === 'inicio' ? renderInicio() : 
-       activeModule === 'usuarios' ? <Usuarios loggedUser={usuario} /> : 
-       activeModule === 'clientes' ? <Clientes loggedUser={usuario} /> : 
-       activeModule === 'proveedores' ? <Proveedores loggedUser={usuario} /> : 
+       activeModule === 'usuarios' ? <Usuarios loggedUser={usuarioActual} /> : 
+       activeModule === 'clientes' ? <Clientes loggedUser={usuarioActual} /> : 
+       activeModule === 'proveedores' ? <Proveedores loggedUser={usuarioActual} /> : 
        renderModuloGenerico()}
     </AdminLayout>
   );
