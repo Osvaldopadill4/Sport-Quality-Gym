@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Power, X } from 'lucide-react';
 import '../../CSS/Usuarios.css';
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from '../../JS/usuarios';
@@ -401,103 +401,56 @@ export default function Usuarios({ loggedUser }) {
         </div>
       </div>
 
-      {/* Modal para Agregar y Guardar (Editar) */}
-      <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
-          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-            <h3 className="font-bold text-lg text-base-content">
-              {modalMode === 'create' ? 'Nuevo Usuario' : 'Editar Usuario'}
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+      {/* MODAL (DaisyUI style logic but using custom fixed overlay) */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-lg text-gray-800">
+                {modalMode === 'create' ? 'Nuevo Usuario' : 'Editar Usuario'}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="input input-bordered w-full"
-                  placeholder="Ej. Sofía"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                  value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Apellido
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. Martínez"
-                  value={formData.apellido || ''}
-                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                  value={formData.apellido || ''} onChange={e => setFormData({...formData, apellido: e.target.value})} />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Correo Electrónico *
-                </label>
-                <input
-                  type="email"
-                  required
-                  className="input input-bordered w-full"
-                  placeholder="ejemplo@gymton.com"
-                  value={formData.correo || ''}
-                  onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Correo</label>
+                <input type="email" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                  value={formData.correo || ''} onChange={e => setFormData({...formData, correo: e.target.value})} />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="+56 9 1234 5678"
-                  value={formData.telefono || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <input type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                  value={formData.telefono || ''} onChange={e => setFormData({...formData, telefono: e.target.value})} />
               </div>
 
               {modalMode === 'create' && (
                 <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    className="input input-bordered w-full"
-                    placeholder="••••••••"
-                    value={formData.contrasena || ''}
-                    onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                  <input type="password" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                    value={formData.contrasena || ''} onChange={e => setFormData({...formData, contrasena: e.target.value})} />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Rol del Usuario
-                </label>
-                <select
-                  className="input input-bordered w-full"
-                  value={formData.id_rol}
-                  onChange={(e) => setFormData({ ...formData, id_rol: Number(e.target.value) })}
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                <select className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#10b981] outline-none" 
+                  value={formData.id_rol} onChange={e => setFormData({...formData, id_rol: Number(e.target.value)})}>
                   <option value={1}>Administrador</option>
                   <option value={2}>Recepcionista</option>
                 </select>
@@ -518,21 +471,13 @@ export default function Usuarios({ loggedUser }) {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="btn btn-ghost"
-              >
-                Cancelar
-              </button>
-              <button type="submit" className="btn btn-primary">
-                {modalMode === 'create' ? 'Agregar Usuario' : 'Guardar Cambios'}
-              </button>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 bg-white border rounded-lg hover:bg-gray-50">Cancelar</button>
+              <button onClick={handleSave} className="px-4 py-2 text-white bg-[#10b981] rounded-lg hover:bg-[#059669]">Guardar</button>
             </div>
-          </form>
+          </div>
         </div>
-      </dialog>
+      )}
     </div>
   );
 }
