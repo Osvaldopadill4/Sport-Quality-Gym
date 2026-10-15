@@ -17,9 +17,9 @@ public class Producto {
     @Getter @Setter @Column(name = "descripcion")
     private String descripcion;
     @Getter @Setter @Column(name = "precio")
-    private String precio;
+    private float precio;
     @Getter @Setter @Column(name = "stock")
-    private String stock;
+    private int stock;
     @Getter @Setter @Column(name = "categoria")
     private String categoria;
     @Getter @Setter @Column(name = "estado")
