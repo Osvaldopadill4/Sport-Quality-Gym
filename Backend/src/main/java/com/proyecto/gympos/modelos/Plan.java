@@ -19,7 +19,7 @@ public class Plan {
     @Getter @Setter @Column(name = "descripcion")
     private String descripcion;
     @Getter @Setter @Column(name = "precio")
-    private String precio;
+    private float precio;
     @Getter @Setter @Column(name = "duracion_dias")
     private String duracion_dias;
     @Getter @Setter @Column(name = "estado")
