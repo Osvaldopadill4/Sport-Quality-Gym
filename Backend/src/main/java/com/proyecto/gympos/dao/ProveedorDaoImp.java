@@ -1,5 +1,4 @@
 package com.proyecto.gympos.dao;
-
 import com.proyecto.gympos.modelos.Proveedor;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -7,7 +6,6 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-
 @Repository
 @Transactional
 public class ProveedorDaoImp implements ProveedorDao {
@@ -33,5 +31,4 @@ public class ProveedorDaoImp implements ProveedorDao {
     public void actualizar(Proveedor proveedor) {
         entityManager.merge(proveedor);
     }
-
 }
