@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
-export default function AdminLayout({ children, alCerrarSesion, activeModule, setActiveModule, usuario }) {
+export default function AdminLayout({ children, alCerrarSesion, activeModule, setActiveModule }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -30,10 +30,9 @@ export default function AdminLayout({ children, alCerrarSesion, activeModule, se
         <Topbar 
           onMenuClick={() => setIsSidebarOpen(true)} 
           activeModule={activeModule}
-          usuario={usuario}
         />
 
-        {/* Aquí se inyecta el contenido de cada pantalla */}
+        {/* Aquí se inyecta el contenido de cada pantalla (evita que el código se acumule) */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
           <div className="max-w-7xl mx-auto">
             {children}
