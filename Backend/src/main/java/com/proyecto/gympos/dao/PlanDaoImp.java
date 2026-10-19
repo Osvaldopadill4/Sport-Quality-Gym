@@ -1,6 +1,7 @@
 package com.proyecto.gympos.dao;
 
-import com.proyecto.gympos.modelos.Cliente;
+import com.proyecto.gympos.modelos.Plan;
+import com.proyecto.gympos.modelos.Producto;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -9,26 +10,26 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 @Repository
 @Transactional
-public class ClienteDaoImp implements ClienteDao {
+public class PlanDaoImp implements PlanDao {
     @PersistenceContext
     EntityManager entityManager;
 
     @Override
-    public List<Cliente> getClientes() {
-        String query = "FROM Cliente";
+    public List<Plan> getPlanes() {
+        String query = "FROM Plan";
         return entityManager.createQuery(query).getResultList();
     }
     @Override
     public void eliminar(int id) {
-        Cliente cliente = entityManager.find(Cliente.class, id);
-        entityManager.remove(cliente);
+        Plan plan = entityManager.find(Plan.class, id);
+        entityManager.remove(plan);
     }
     @Override
-    public void registrar(Cliente cliente) {
-        entityManager.persist(cliente);
+    public void registrar(Plan plan) {
+        entityManager.persist(plan);
     }
     @Override
-    public void actualizar(Cliente cliente) {
-        entityManager.merge(cliente);
+    public void actualizar(Plan plan) {
+        entityManager.merge(plan);
     }
 }

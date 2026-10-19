@@ -1,26 +1,67 @@
 package com.proyecto.gympos.modelos;
 
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-
-@Entity
-@Table(name = "cliente")
 public class Cliente {
-    @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    @Getter @Setter @Column(name = "id")
-    private int id;
-    @Getter @Setter @Column(name = "nombre")
+    private String id_cliente;
     private String nombre;
-    @Getter @Setter @Column(name = "telefono")
     private String telefono;
-    @Getter @Setter @Column(name = "contacto_emergencia")
     private String contacto_emergencia;
-    @Getter @Setter @Column(name = "fecha_registro")
     private String fecha_registro;
-    @Getter @Setter @Column(name = "estado")
     private String estado;
-    @Getter @Setter @Column(name = "token_qr")
     private String token_qr;
+
+    public String getId_cliente() {
+        return id_cliente;
+    }
+
+    public void setId_cliente(String id_cliente) {
+        this.id_cliente = id_cliente;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
+    }
+
+    public String getContacto_emergencia() {
+        return contacto_emergencia;
+    }
+
+    public void setContacto_emergencia(String contacto_emergencia) {
+        this.contacto_emergencia = contacto_emergencia;
+    }
+
+    public String getFecha_registro() {
+        return fecha_registro;
+    }
+
+    public void setFecha_registro(String fecha_registro) {
+        this.fecha_registro = fecha_registro;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
+    }
+
+    public String getToken_qr() {
+        return token_qr;
+    }
+
+    public void setToken_qr(String token_qr) {
+        this.token_qr = token_qr;
+    }
 }
