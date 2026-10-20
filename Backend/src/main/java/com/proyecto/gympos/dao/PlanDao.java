@@ -5,12 +5,11 @@ import com.proyecto.gympos.modelos.Plan;
 import java.util.List;
 
 public interface PlanDao {
-        List<Plan> getPlanes();
+    List<Plan> getPlanes();
 
-        void eliminar(int id);
+    void eliminar(int id);
 
-        void registrar(Plan plan);
+    void registrar(Plan plan);
 
-        void actualizar(Plan plan);
-    }
-
+    void actualizar(Plan plan);
+}

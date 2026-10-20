@@ -1,7 +1,6 @@
 package com.proyecto.gympos.dao;
 
 import com.proyecto.gympos.modelos.Plan;
-import com.proyecto.gympos.modelos.Producto;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
@@ -11,6 +10,7 @@ import java.util.List;
 @Repository
 @Transactional
 public class PlanDaoImp implements PlanDao {
+
     @PersistenceContext
     EntityManager entityManager;
 

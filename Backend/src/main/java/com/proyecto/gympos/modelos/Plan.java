@@ -3,15 +3,13 @@ package com.proyecto.gympos.modelos;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
 @Entity
 @Table(name = "plan")
 public class Plan {
-
+    //Plan
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    @Getter
-    @Setter
+    @Getter @Setter
     @Column(name = "id")
     private int id;
     @Getter @Setter @Column(name = "nombre")
@@ -19,7 +17,7 @@ public class Plan {
     @Getter @Setter @Column(name = "descripcion")
     private String descripcion;
     @Getter @Setter @Column(name = "precio")
-    private String precio;
+    private float precio;
     @Getter @Setter @Column(name = "duracion_dias")
     private String duracion_dias;
     @Getter @Setter @Column(name = "estado")
