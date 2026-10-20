@@ -3,7 +3,13 @@ import AdminLayout from '../Layout/AdminLayout';
 import Usuarios from './Usuarios';
 import Clientes from './Clientes';
 import Proveedores from './Proveedores';
-import { Users, Banknote, Dumbbell, CreditCard, Package } from 'lucide-react';
+import Productos from './Productos';
+import Planes from './Planes';
+import Acceso from './Acceso';
+import PuntoVenta from './PuntoVenta';
+import CorteCaja from './CorteCaja';
+import Membresias from './Membresias';
+import { Users, Banknote, Dumbbell, Package, Key, ClipboardList } from 'lucide-react';
 
 export default function Dashboard({ usuario, alCerrarSesion }) {
   // Inicializamos en 'inicio'
@@ -49,7 +55,10 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
         {/* Panel de Actividad Reciente */}
         <div className="card bg-base-200 shadow-xl border border-base-300">
           <div className="card-body">
-            <h2 className="card-title text-white">Accesos Recientes</h2>
+            <h2 className="card-title text-white flex items-center justify-between">
+              <span>Accesos Recientes</span>
+              <span className="badge badge-primary badge-outline text-xs">En Vivo</span>
+            </h2>
             <div className="overflow-x-auto">
               <table className="table table-sm">
                 <thead>
@@ -61,25 +70,36 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
                 </thead>
                 <tbody>
                   <tr className="border-base-300">
-                    <td className="text-gray-200">Juan Pérez</td>
-                    <td className="text-gray-400">10:45 AM</td>
+                    <td className="text-gray-200">Juan Pérez García</td>
+                    <td className="text-gray-400">07:15 AM</td>
                     <td><span className="badge badge-success badge-sm text-black font-bold">Permitido</span></td>
                   </tr>
                   <tr className="border-base-300">
-                    <td className="text-gray-200">María Gómez</td>
-                    <td className="text-gray-400">10:30 AM</td>
+                    <td className="text-gray-200">Carolina Gómez Soto</td>
+                    <td className="text-gray-400">08:30 AM</td>
+                    <td><span className="badge badge-success badge-sm text-black font-bold">Permitido</span></td>
+                  </tr>
+                  <tr className="border-base-300">
+                    <td className="text-gray-200">Sofía Mendoza Luna</td>
+                    <td className="text-gray-400">09:02 AM</td>
+                    <td><span className="badge badge-warning badge-sm text-black font-bold">Por Vencer (3d)</span></td>
+                  </tr>
+                  <tr className="border-base-300">
+                    <td className="text-gray-200">Roberto Sánchez Ruiz</td>
+                    <td className="text-gray-400">09:45 AM</td>
                     <td><span className="badge badge-error badge-sm text-white font-bold">Vencido</span></td>
-                  </tr>
-                  <tr className="border-base-300">
-                    <td className="text-gray-200">Carlos López</td>
-                    <td className="text-gray-400">09:15 AM</td>
-                    <td><span className="badge badge-success badge-sm text-black font-bold">Permitido</span></td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div className="card-actions justify-end mt-4">
-              <button className="btn btn-sm btn-outline btn-primary">Ver Todos</button>
+              <button 
+                onClick={() => setActiveModule('acceso')} 
+                className="btn btn-sm btn-outline btn-primary flex items-center gap-2"
+              >
+                <Key className="w-4 h-4" />
+                Ir a Torniquetes
+              </button>
             </div>
           </div>
         </div>
@@ -89,21 +109,21 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
           <div className="card-body">
             <h2 className="card-title text-white">Atajos Rápidos</h2>
             <div className="grid grid-cols-2 gap-4 mt-2">
-              <button onClick={() => setActiveModule('membresia')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-6 gap-3">
-                <CreditCard className="w-8 h-8" />
-                Nueva Membresía
+              <button onClick={() => setActiveModule('acceso')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
+                <Key className="w-7 h-7 text-emerald-400" />
+                Torniquetes / Acceso
               </button>
-              <button onClick={() => setActiveModule('caja')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-6 gap-3">
-                <Banknote className="w-8 h-8" />
-                Cobrar
+              <button onClick={() => setActiveModule('planes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
+                <ClipboardList className="w-7 h-7 text-primary" />
+                Planes y Precios
               </button>
-              <button onClick={() => setActiveModule('clientes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-6 gap-3">
-                <Users className="w-8 h-8" />
-                Buscar Cliente
+              <button onClick={() => setActiveModule('clientes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
+                <Users className="w-7 h-7 text-blue-400" />
+                Socios / Clientes
               </button>
-              <button onClick={() => setActiveModule('productos')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-6 gap-3">
-                <Package className="w-8 h-8" />
-                Vender Producto
+              <button onClick={() => setActiveModule('productos')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
+                <Package className="w-7 h-7 text-amber-400" />
+                Inventario Productos
               </button>
             </div>
           </div>
@@ -142,6 +162,12 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
        activeModule === 'usuarios' ? <Usuarios loggedUser={usuario} /> : 
        activeModule === 'clientes' ? <Clientes loggedUser={usuario} /> : 
        activeModule === 'proveedores' ? <Proveedores loggedUser={usuario} /> : 
+       activeModule === 'productos' ? <Productos loggedUser={usuario} /> : 
+       activeModule === 'planes' ? <Planes loggedUser={usuario} /> : 
+       activeModule === 'acceso' ? <Acceso loggedUser={usuario} /> : 
+       activeModule === 'caja' ? <PuntoVenta loggedUser={usuario} /> : 
+       activeModule === 'corte' ? <CorteCaja loggedUser={usuario} /> : 
+       activeModule === 'membresia' ? <Membresias loggedUser={usuario} /> : 
        renderModuloGenerico()}
     </AdminLayout>
   );

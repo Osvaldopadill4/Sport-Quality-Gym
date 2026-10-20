@@ -1,22 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Power, X, Building2 } from 'lucide-react';
 import '../../CSS/Proveedor.css';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from '../../JS/proveedor';
+import Toast from '../Componentes/Toast';
 
 export default function Proveedores({ loggedUser }) {
+  const usuarioActivo = loggedUser || (() => {
+    try {
+      const u = localStorage.getItem('gymton_current_user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   const [proveedores, setProveedores] = useState([]);
   const [filtro, setFiltro] = useState('todos');
+  const [busqueda, setBusqueda] = useState('');
+  const [alerta, setAlerta] = useState(null);
 
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
-  const [formData, setFormData] = useState({ nombre_empresa: '', telefono: '', correo: '', estado: 1 });
+  const [formData, setFormData] = useState({ nombre: '', nombre_empresa: '', telefono: '', correo: '', estado: 1 });
+
+  const mostrarAlerta = (mensaje, tipo = 'success') => {
+    setAlerta({ mensaje, tipo });
+  };
+
+  const guardarLocalmente = (lista) => {
+    setProveedores(lista);
+    try {
+      localStorage.setItem('gymton_proveedores', JSON.stringify(lista));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const cargarDatos = () => {
     getProveedores().then(data => {
       if (Array.isArray(data) && data.length > 0) {
         setProveedores(data);
+        localStorage.setItem('gymton_proveedores', JSON.stringify(data));
       } else {
-        setProveedores([{ id: 1, nombre_empresa: 'Suplementos XYZ', telefono: '555-0011', correo: 'contacto@xyz.com', estado: 1 }]);
+        const local = localStorage.getItem('gymton_proveedores');
+        if (local) {
+          try {
+            setProveedores(JSON.parse(local));
+            return;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        const fallback = [
+          { id: 1, nombre: 'Carlos Ortiz', nombre_empresa: 'Suplementos GymFit MX', telefono: '555-0192', correo: 'contacto@gymfit.com', estado: 1 },
+          { id: 2, nombre: 'Ana Morales', nombre_empresa: 'Equipamiento IronForce', telefono: '555-8832', correo: 'ventas@ironforce.com', estado: 1 },
+          { id: 3, nombre: 'Jorge Luna', nombre_empresa: 'Bebidas e Hidratación Sport', telefono: '555-4311', correo: 'distribucion@sportdrink.mx', estado: 0 }
+        ];
+        setProveedores(fallback);
+        localStorage.setItem('gymton_proveedores', JSON.stringify(fallback));
       }
     });
   };
@@ -35,23 +76,51 @@ export default function Proveedores({ loggedUser }) {
     return 'Usuario';
   };
 
-  const handleDarDeBaja = async (p) => {
-    const nuevoEstado = (p.estado === 1 || p.estado === 'Activo') ? 0 : 1;
+  // ACCIÓN: Poner en activo
+  const handlePonerEnActivo = async (p) => {
     try {
-      await updateProveedor(p.id, { ...p, estado: nuevoEstado });
-      cargarDatos();
+      const proveedorActualizado = { ...p, estado: 1 };
+      await updateProveedor(p.id, proveedorActualizado);
+      const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Puesto en activo correctamente', 'success');
     } catch (error) {
       console.error(error);
+      mostrarAlerta('Error al activar proveedor', 'error');
     }
   };
 
+  // ACCIÓN: Dar de baja
+  const handleDarDeBaja = async (p) => {
+    try {
+      const proveedorActualizado = { ...p, estado: 0 };
+      await updateProveedor(p.id, proveedorActualizado);
+      const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Dado de baja correctamente', 'info');
+    } catch (error) {
+      console.error(error);
+      mostrarAlerta('Error al dar de baja', 'error');
+    }
+  };
+
+  const handleToggleEstado = (p) => {
+    const esActivo = p.estado === 1 || p.estado === 'Activo';
+    if (esActivo) handleDarDeBaja(p);
+    else handlePonerEnActivo(p);
+  };
+
+  // ACCIÓN: Eliminar
   const handleEliminar = async (id) => {
-    if(window.confirm("¿Estás seguro de eliminar este proveedor?")) {
+    if (window.confirm("¿Estás seguro de eliminar este proveedor?")) {
       try {
         await deleteProveedor(id);
-        cargarDatos();
+        const nuevaLista = proveedores.filter(p => p.id !== id);
+        guardarLocalmente(nuevaLista);
+        mostrarAlerta('Registro eliminado correctamente', 'success');
       } catch(error) {
         console.error(error);
+        mostrarAlerta('Error al eliminar proveedor', 'error');
       }
     }
   };
@@ -59,49 +128,122 @@ export default function Proveedores({ loggedUser }) {
   const openModal = (mode, proveedor = null) => {
     setModalMode(mode);
     if (mode === 'edit' && proveedor) {
-      setFormData(proveedor);
+      setFormData({
+        id: proveedor.id,
+        nombre: proveedor.nombre || '',
+        nombre_empresa: proveedor.nombre_empresa || '',
+        telefono: proveedor.telefono || '',
+        correo: proveedor.correo || '',
+        estado: (proveedor.estado === 1 || proveedor.estado === 'Activo') ? 1 : 0
+      });
     } else {
-      setFormData({ nombre_empresa: '', telefono: '', correo: '', estado: 1 });
+      setFormData({ nombre: '', nombre_empresa: '', telefono: '', correo: '', estado: 1 });
     }
     setShowModal(true);
   };
 
-  const handleSave = async () => {
+  // ACCIONES: Registrar y Modificar
+  const handleSave = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    if (!formData.nombre_empresa.trim()) {
+      mostrarAlerta('Por favor ingresa el nombre de la empresa', 'error');
+      return;
+    }
+
     try {
       if (modalMode === 'create') {
-        await createProveedor(formData);
+        const res = await createProveedor(formData);
+        const nuevo = (res && res.id) ? res : { ...formData, id: Date.now() };
+        const nuevaLista = [nuevo, ...proveedores];
+        guardarLocalmente(nuevaLista);
+        setShowModal(false);
+        mostrarAlerta('Registro completado correctamente', 'success');
       } else {
         await updateProveedor(formData.id, formData);
+        const nuevaLista = proveedores.map(item => item.id === formData.id ? { ...item, ...formData } : item);
+        guardarLocalmente(nuevaLista);
+        setShowModal(false);
+        mostrarAlerta('Datos actualizados correctamente', 'success');
       }
-      setShowModal(false);
-      cargarDatos();
     } catch(error) {
       console.error(error);
+      mostrarAlerta('Error al procesar la solicitud', 'error');
     }
   };
 
+  // FILTRO EN TIEMPO REAL con useState y filter
+  const proveedoresFiltrados = proveedores.filter(p => {
+    const coincideEstado =
+      filtro === 'todos' ? true :
+      filtro === 'activos' ? (p.estado === 1 || p.estado === 'Activo') :
+      (p.estado === 0 || p.estado === 'Inactivo');
+
+    const termino = busqueda.toLowerCase().trim();
+    if (!termino) return coincideEstado;
+
+    const empresa = (p.nombre_empresa || '').toLowerCase();
+    const contacto = (p.nombre || '').toLowerCase();
+    const telefono = (p.telefono || '').toLowerCase();
+    const correo = (p.correo || '').toLowerCase();
+
+    const coincideBusqueda =
+      empresa.includes(termino) ||
+      contacto.includes(termino) ||
+      telefono.includes(termino) ||
+      correo.includes(termino);
+
+    return coincideEstado && coincideBusqueda;
+  });
+
   return (
     <div className="proveedor-wrapper">
+      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
+
+      {/* Top Header */}
       <div className="proveedor-header">
         <h1 className="proveedor-title">Gestión de Proveedores</h1>
         <div className="proveedor-top-actions">
-          <div className="proveedor-search-container">
-            <div className="proveedor-search-icon"><Search size={20} /></div>
-            <input type="text" className="proveedor-search-input" placeholder="Buscar empresas..." />
+          {/* Buscador en tiempo real */}
+          <div className="proveedor-search-container relative flex items-center">
+            <div className="proveedor-search-icon">
+              <Search size={20} />
+            </div>
+            <input 
+              type="text" 
+              className="proveedor-search-input" 
+              placeholder="Buscar por empresa, contacto..." 
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+            />
+            {busqueda && (
+              <button 
+                type="button" 
+                className="absolute right-3 text-gray-400 hover:text-white"
+                onClick={() => setBusqueda('')}
+                title="Limpiar búsqueda"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
-          <div className="proveedor-terminal-badge"><span className="proveedor-terminal-dot"></span> Terminal Activo</div>
+          <div className="proveedor-terminal-badge">
+            <span className="proveedor-terminal-dot"></span> Terminal Activo
+          </div>
           <div className="proveedor-profile">
             <div className="proveedor-profile-info">
-              <div className="proveedor-profile-name">{loggedUser ? `${loggedUser.nombre} ${loggedUser.apellido}` : 'Cargando...'}</div>
-              <div className="proveedor-profile-role">{loggedUser ? getRolName(loggedUser.id_rol) : '...'}</div>
-            </div>
-            <div className="proveedor-profile-avatar">
-              <img src={`https://i.pravatar.cc/150?u=${loggedUser?.id || 11}`} alt="avatar" />
+              <div className="proveedor-profile-name">
+                {usuarioActivo ? `${usuarioActivo.nombre} ${usuarioActivo.apellido || ''}`.trim() : 'Usuario Activo'}
+              </div>
+              <div className="proveedor-profile-role">
+                {usuarioActivo ? getRolName(usuarioActivo.id_rol) : 'Administrador'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Tabs y Botón Nuevo */}
       <div className="proveedor-filters-bar">
         <div className="proveedor-filters">
           <button className={`proveedor-filter-btn ${filtro === 'todos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('todos')}>Todos ({total})</button>
@@ -113,11 +255,13 @@ export default function Proveedores({ loggedUser }) {
         </button>
       </div>
 
+      {/* Tabla de Proveedores */}
       <div className="proveedor-table-container">
         <table className="proveedor-table">
           <thead>
             <tr>
               <th>Empresa</th>
+              <th>Contacto</th>
               <th>Correo</th>
               <th>Teléfono</th>
               <th>Estado</th>
@@ -125,47 +269,61 @@ export default function Proveedores({ loggedUser }) {
             </tr>
           </thead>
           <tbody>
-            {proveedores.filter(p => {
-              if (filtro === 'activos') return p.estado === 1 || p.estado === 'Activo';
-              if (filtro === 'inactivos') return p.estado === 0 || p.estado === 'Inactivo';
-              return true;
-            }).map(p => (
-              <tr key={p.id}>
-                <td className="proveedor-td-user">
-                  <div className="proveedor-td-avatar">
-                    <img src={`https://i.pravatar.cc/150?u=empresa${p.id}`} alt="avatar" />
-                  </div>
-                  <span className="proveedor-td-name">{p.nombre_empresa}</span>
-                </td>
-                <td className="proveedor-td-text">{p.correo || 'N/A'}</td>
-                <td className="proveedor-td-text">{p.telefono || 'N/A'}</td>
-                <td>
-                  {(p.estado === 1 || p.estado === 'Activo') ? (
-                    <span className="proveedor-badge activo">Activo</span>
-                  ) : (
-                    <span className="proveedor-badge inactivo">Inactivo</span>
-                  )}
-                </td>
-                <td>
-                  <div className="proveedor-table-actions">
-                    <button className="proveedor-action-btn edit" title="Editar" onClick={() => openModal('edit', p)}>
-                      <Edit size={16} />
-                    </button>
-                    <button className={`proveedor-action-btn ${(p.estado === 1 || p.estado === 'Activo') ? 'power-off' : 'power-on'}`} title={(p.estado === 1 || p.estado === 'Activo') ? "Dar de baja" : "Dar de alta"} onClick={() => handleDarDeBaja(p)}>
-                      <Power size={16} />
-                    </button>
-                    <button className="proveedor-action-btn delete" title="Eliminar" onClick={() => handleEliminar(p.id)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+            {proveedoresFiltrados.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="text-center py-8 text-gray-400 italic">
+                  {busqueda ? `No se encontraron proveedores con el término "${busqueda}"` : 'No hay proveedores registrados'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              proveedoresFiltrados.map(p => {
+                const esActivo = p.estado === 1 || p.estado === 'Activo';
+                return (
+                  <tr key={p.id}>
+                    <td className="proveedor-td-user">
+                      <span className="proveedor-td-name font-bold flex items-center gap-2">
+                        <Building2 size={16} className="text-primary" /> {p.nombre_empresa}
+                      </span>
+                    </td>
+                    <td className="proveedor-td-text">{p.nombre || 'N/A'}</td>
+                    <td className="proveedor-td-text">{p.correo || 'N/A'}</td>
+                    <td className="proveedor-td-text">{p.telefono || 'N/A'}</td>
+                    <td>
+                      {esActivo ? (
+                        <span className="proveedor-badge activo">Activo</span>
+                      ) : (
+                        <span className="proveedor-badge inactivo">Inactivo</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="proveedor-table-actions">
+                        <button className="proveedor-action-btn edit" title="Editar datos" onClick={() => openModal('edit', p)}>
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          className={`proveedor-action-btn ${esActivo ? 'power-off' : 'power-on'}`} 
+                          title={esActivo ? "Dar de baja" : "Poner en activo"} 
+                          onClick={() => handleToggleEstado(p)}
+                        >
+                          <Power size={16} />
+                        </button>
+                        <button className="proveedor-action-btn delete" title="Eliminar" onClick={() => handleEliminar(p.id)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
         
         <div className="proveedor-pagination">
-          <span className="proveedor-pagination-text">Mostrando {proveedores.length} de {total} proveedores</span>
+          <span className="proveedor-pagination-text">
+            Mostrando {proveedoresFiltrados.length} de {total} proveedores
+            {busqueda && ` (filtrado por "${busqueda}")`}
+          </span>
           <div className="proveedor-pagination-buttons">
             <button className="proveedor-page-btn prev">Anterior</button>
             <button className="proveedor-page-btn next">Siguiente</button>
@@ -173,36 +331,82 @@ export default function Proveedores({ loggedUser }) {
         </div>
       </div>
 
+      {/* Modal para Registrar / Modificar */}
       <dialog className={`modal ${showModal ? "modal-open" : ""}`}>
         <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-              <h3 className="font-bold text-lg text-base-content">{modalMode === 'create' ? 'Nuevo Proveedor' : 'Editar Proveedor'}</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-            </div>
-            
+          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
+            <h3 className="font-bold text-lg text-base-content">
+              {modalMode === 'create' ? 'Nuevo Proveedor' : 'Editar Proveedor'}
+            </h3>
+            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+              <X size={20} />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Nombre de la Empresa</label>
-                <input type="text" className="input input-bordered w-full" 
-                  value={formData.nombre_empresa} onChange={e => setFormData({...formData, nombre_empresa: e.target.value})} />
+                <label className="block text-sm font-medium text-base-content mb-1">Nombre de la Empresa *</label>
+                <input 
+                  type="text" 
+                  required
+                  className="input input-bordered w-full" 
+                  placeholder="Ej. Suplementos GymFit MX"
+                  value={formData.nombre_empresa} 
+                  onChange={e => setFormData({...formData, nombre_empresa: e.target.value})} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-base-content mb-1">Persona de Contacto</label>
+                <input 
+                  type="text" 
+                  className="input input-bordered w-full" 
+                  placeholder="Ej. Carlos Ortiz"
+                  value={formData.nombre} 
+                  onChange={e => setFormData({...formData, nombre: e.target.value})} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">Correo Electrónico</label>
-                <input type="email" className="input input-bordered w-full" 
-                  value={formData.correo || ''} onChange={e => setFormData({...formData, correo: e.target.value})} />
+                <input 
+                  type="email" 
+                  className="input input-bordered w-full" 
+                  placeholder="contacto@empresa.com"
+                  value={formData.correo || ''} 
+                  onChange={e => setFormData({...formData, correo: e.target.value})} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">Teléfono</label>
-                <input type="text" className="input input-bordered w-full" 
-                  value={formData.telefono || ''} onChange={e => setFormData({...formData, telefono: e.target.value})} />
+                <input 
+                  type="text" 
+                  className="input input-bordered w-full" 
+                  placeholder="555-0192"
+                  value={formData.telefono || ''} 
+                  onChange={e => setFormData({...formData, telefono: e.target.value})} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-base-content mb-1">Estado</label>
+                <select 
+                  className="input input-bordered w-full"
+                  value={formData.estado}
+                  onChange={e => setFormData({...formData, estado: Number(e.target.value)})}
+                >
+                  <option value={1}>Activo</option>
+                  <option value={0}>Inactivo</option>
+                </select>
               </div>
             </div>
 
             <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
-              <button onClick={() => setShowModal(false)} className="btn btn-ghost">Cancelar</button>
-              <button onClick={handleSave} className="btn btn-primary">Guardar</button>
+              <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost">Cancelar</button>
+              <button type="submit" className="btn btn-primary">
+                {modalMode === 'create' ? 'Agregar Proveedor' : 'Guardar Cambios'}
+              </button>
             </div>
-          </div>
+          </form>
+        </div>
       </dialog>
     </div>
   );

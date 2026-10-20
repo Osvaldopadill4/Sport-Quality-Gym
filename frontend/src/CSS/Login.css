@@ -175,3 +175,48 @@
 .login-button:hover {
   background-color: #10b981;
 }
+
+/* Animación de la Mancuerna al Iniciar Sesión */
+@keyframes dumbbellLift {
+  0% {
+    transform: translateY(0px) scale(1) rotate(0deg);
+  }
+  30% {
+    transform: translateY(-20px) scale(1.03) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-26px) scale(1.05) rotate(0deg);
+  }
+  70% {
+    transform: translateY(-20px) scale(1.03) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0px) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes dumbbellShadowPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(0.65, 0.45);
+    opacity: 0.12;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+}
+
+.dumbbell-floating {
+  animation: dumbbellLift 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  transform-origin: center center;
+}
+
+.dumbbell-ground-shadow {
+  animation: dumbbellShadowPulse 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  transform-origin: center center;
+}
+

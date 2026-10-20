@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Printer, X } from 'lucide-react';
+import { Plus, Printer, X } from 'lucide-react';
 import '../../CSS/CorteCaja.css';
 import { getCorteCaja, createCorteCaja } from '../../JS/corte_caja';
 
