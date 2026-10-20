@@ -7,6 +7,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+
 @Repository
 @Transactional
 public class ClienteDaoImp implements ClienteDao {
@@ -18,15 +19,23 @@ public class ClienteDaoImp implements ClienteDao {
         String query = "FROM Cliente";
         return entityManager.createQuery(query).getResultList();
     }
+
+    @Override
+    public Cliente getClientePorId(int id) {
+        return entityManager.find(Cliente.class, id);
+    }
+
     @Override
     public void eliminar(int id) {
         Cliente cliente = entityManager.find(Cliente.class, id);
         entityManager.remove(cliente);
     }
+
     @Override
     public void registrar(Cliente cliente) {
         entityManager.persist(cliente);
     }
+
     @Override
     public void actualizar(Cliente cliente) {
         entityManager.merge(cliente);
