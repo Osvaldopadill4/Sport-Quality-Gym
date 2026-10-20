@@ -4,6 +4,14 @@ import '../../CSS/Usuarios.css';
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from '../../JS/usuarios';
 import Toast from '../Componentes/Toast';
 
+// Helper robusto para determinar si el estado es Activo,
+// soportando "1", 1, "Activo", "activo", true, etc. provenientes de la BD MySQL/API.
+export const esEstadoActivo = (estado) => {
+  if (estado === undefined || estado === null) return false;
+  const s = String(estado).trim().toLowerCase();
+  return s === '1' || s === 'activo' || s === 'true' || estado === 1 || estado === true;
+};
+
 export default function Usuarios({ loggedUser }) {
   const usuarioActivo = loggedUser || (() => {
     try {
@@ -45,81 +53,92 @@ export default function Usuarios({ loggedUser }) {
     try {
       localStorage.setItem('gymton_usuarios', JSON.stringify(nuevosUsuarios));
     } catch (e) {
-      console.error('Error guardando en localStorage:', e);
+      console.error('Error guardando usuarios en localStorage:', e);
     }
   };
 
-  const cargarDatos = () => {
-    getUsuarios().then((data) => {
+  const cargarDatos = async () => {
+    try {
+      const data = await getUsuarios();
       if (Array.isArray(data) && data.length > 0) {
         setUsuarios(data);
         localStorage.setItem('gymton_usuarios', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_usuarios');
-        if (local) {
-          try {
-            setUsuarios(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        // Fallback por defecto si no hay conexión
-        const fallback = [
-          { id: 1, id_rol: 1, nombre: 'Sofía', apellido: 'Martínez', telefono: '+56 9 8765 4321', correo: 'sofia.mtz@gmail.com', estado: 1 },
-          { id: 2, id_rol: 2, nombre: 'Alejandro', apellido: 'Silva', telefono: '+56 9 1234 5678', correo: 'ale.silva@outlook.com', estado: 1 }
-        ];
-        setUsuarios(fallback);
-        localStorage.setItem('gymton_usuarios', JSON.stringify(fallback));
+        return;
       }
-    });
+    } catch (err) {
+      console.warn('Error al cargar usuarios de la API:', err);
+    }
+
+    const local = localStorage.getItem('gymton_usuarios');
+    if (local) {
+      try {
+        setUsuarios(JSON.parse(local));
+        return;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Fallback por defecto si no hay conexión
+    const fallback = [
+      { id: 1, id_rol: 1, nombre: 'Fabian', apellido: 'Alvarez', telefono: '3481084815', correo: 'fabi77@gmail.com', estado: "1" },
+      { id: 2, id_rol: 1, nombre: 'Osvaldo', apellido: 'Padilla', telefono: '3471012962', correo: 'osvaldivo60@gmail.com', estado: "1" },
+      { id: 3, id_rol: 2, nombre: 'Ismael', apellido: 'De anda', telefono: '3471021512', correo: 'Cr7@gmail.com', estado: "1" },
+      { id: 4, id_rol: 2, nombre: 'Andy', apellido: 'Qlon', telefono: '34854747512', correo: 'Qlito@gmail.com', estado: "1" }
+    ];
+    setUsuarios(fallback);
+    localStorage.setItem('gymton_usuarios', JSON.stringify(fallback));
   };
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
+  // Contadores calculados con el helper para reflejar exactamente el estado de la BD
   const total = usuarios.length;
-  const activos = usuarios.filter(u => u.estado === 1 || u.estado === 'Activo').length;
+  const activos = usuarios.filter(u => esEstadoActivo(u.estado)).length;
   const inactivos = total - activos;
 
   const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
+    const rolNum = Number(id_rol);
+    if (rolNum === 1) return 'Administrador';
+    if (rolNum === 2) return 'Recepcionista';
     return 'Usuario';
   };
 
-  // ACCIÓN: Poner en activo
+  // ACCIÓN: Poner en activo (envía petición a la BD vía API)
   const handlePonerEnActivo = async (u) => {
     try {
-      const usuarioActualizado = { ...u, estado: 1 };
+      const usuarioActualizado = { ...u, estado: "1" };
       await updateUsuario(u.id, usuarioActualizado);
-      const nuevaLista = usuarios.map(item => item.id === u.id ? usuarioActualizado : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Puesto en activo correctamente', 'success');
+      await cargarDatos();
     } catch (error) {
       console.error('Error al poner en activo:', error);
-      mostrarAlerta('Error al poner en activo al usuario', 'error');
+      const nuevaLista = usuarios.map(item => item.id === u.id ? { ...item, estado: "1" } : item);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
-  // ACCIÓN: Dar de baja (desactivar)
+  // ACCIÓN: Dar de baja (envía petición a la BD vía API)
   const handleDarDeBaja = async (u) => {
     try {
-      const usuarioActualizado = { ...u, estado: 0 };
+      const usuarioActualizado = { ...u, estado: "0" };
       await updateUsuario(u.id, usuarioActualizado);
-      const nuevaLista = usuarios.map(item => item.id === u.id ? usuarioActualizado : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Dado de baja correctamente', 'info');
+      await cargarDatos();
     } catch (error) {
       console.error('Error al dar de baja:', error);
-      mostrarAlerta('Error al desactivar al usuario', 'error');
+      const nuevaLista = usuarios.map(item => item.id === u.id ? { ...item, estado: "0" } : item);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
 
   // Alternador de estado rápido
   const handleToggleEstado = (u) => {
-    const esActivo = u.estado === 1 || u.estado === 'Activo';
+    const esActivo = esEstadoActivo(u.estado);
     if (esActivo) {
       handleDarDeBaja(u);
     } else {
@@ -127,17 +146,18 @@ export default function Usuarios({ loggedUser }) {
     }
   };
 
-  // ACCIÓN: Eliminar
+  // ACCIÓN: Eliminar (envía petición a la BD vía API)
   const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este usuario?')) {
+    if (window.confirm('¿Estás seguro de eliminar este usuario de la base de datos?')) {
       try {
         await deleteUsuario(id);
-        const nuevaLista = usuarios.filter(u => u.id !== id);
-        guardarLocalmente(nuevaLista);
         mostrarAlerta('Registro eliminado correctamente', 'success');
+        await cargarDatos();
       } catch (error) {
         console.error('Error eliminando:', error);
-        mostrarAlerta('Error al eliminar el usuario', 'error');
+        const nuevaLista = usuarios.filter(u => u.id !== id);
+        guardarLocalmente(nuevaLista);
+        mostrarAlerta('Registro eliminado localmente', 'info');
       }
     }
   };
@@ -148,13 +168,13 @@ export default function Usuarios({ loggedUser }) {
     if (mode === 'edit' && usuario) {
       setFormData({
         id: usuario.id,
-        id_rol: usuario.id_rol || 2,
+        id_rol: Number(usuario.id_rol) || 2,
         nombre: usuario.nombre || '',
         apellido: usuario.apellido || '',
         telefono: usuario.telefono || '',
         correo: usuario.correo || '',
         contrasena: usuario.contrasena || '',
-        estado: (usuario.estado === 1 || usuario.estado === 'Activo') ? 1 : 0
+        estado: esEstadoActivo(usuario.estado) ? 1 : 0
       });
     } else {
       setFormData({
@@ -170,7 +190,7 @@ export default function Usuarios({ loggedUser }) {
     setShowModal(true);
   };
 
-  // ACCIONES: Agregar (create) y Guardar (update)
+  // ACCIONES: Agregar (create) y Guardar (update) enviando información a la BD
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
@@ -185,25 +205,37 @@ export default function Usuarios({ loggedUser }) {
     }
 
     try {
+      const payload = {
+        ...formData,
+        id_rol: Number(formData.id_rol),
+        estado: esEstadoActivo(formData.estado) ? "1" : "0"
+      };
+
       if (modalMode === 'create') {
-        // ACCIÓN: Agregar
-        const res = await createUsuario(formData);
-        const nuevoUsuario = (res && res.id) ? res : { ...formData, id: Date.now() };
-        const nuevaLista = [nuevoUsuario, ...usuarios];
-        guardarLocalmente(nuevaLista);
+        // ACCIÓN: Agregar a la BD vía API
+        await createUsuario(payload);
         setShowModal(false);
         mostrarAlerta('Registro completado correctamente', 'success');
+        await cargarDatos();
       } else {
-        // ACCIÓN: Guardar cambios (Editar)
-        await updateUsuario(formData.id, formData);
-        const nuevaLista = usuarios.map(u => u.id === formData.id ? { ...u, ...formData } : u);
-        guardarLocalmente(nuevaLista);
+        // ACCIÓN: Guardar cambios en la BD vía API
+        await updateUsuario(formData.id, payload);
         setShowModal(false);
         mostrarAlerta('Datos actualizados correctamente', 'success');
+        await cargarDatos();
       }
     } catch (error) {
-      console.error('Error al guardar usuario:', error);
-      mostrarAlerta('Ocurrió un error al procesar la solicitud', 'error');
+      console.error('Error al guardar usuario en BD:', error);
+      mostrarAlerta('Ocurrió un error al procesar la solicitud en el servidor', 'error');
+      // Fallback local en caso de que la red falle
+      if (modalMode === 'create') {
+        const nuevo = { ...formData, id: Date.now(), estado: esEstadoActivo(formData.estado) ? "1" : "0" };
+        guardarLocalmente([nuevo, ...usuarios]);
+      } else {
+        const lista = usuarios.map(u => u.id === formData.id ? { ...u, ...formData, estado: esEstadoActivo(formData.estado) ? "1" : "0" } : u);
+        guardarLocalmente(lista);
+      }
+      setShowModal(false);
     }
   };
 
@@ -212,8 +244,8 @@ export default function Usuarios({ loggedUser }) {
     // 1. Filtro por pestaña de estado
     const coincideEstado =
       filtro === 'todos' ? true :
-      filtro === 'activos' ? (u.estado === 1 || u.estado === 'Activo') :
-      (u.estado === 0 || u.estado === 'Inactivo');
+      filtro === 'activos' ? esEstadoActivo(u.estado) :
+      !esEstadoActivo(u.estado);
 
     // 2. Filtro en tiempo real por búsqueda de texto
     const termino = busqueda.toLowerCase().trim();
@@ -236,7 +268,13 @@ export default function Usuarios({ loggedUser }) {
   return (
     <div className="usuarios-wrapper">
       {/* Toast Alert flotante */}
-      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
+      {alerta && (
+        <Toast 
+          mensaje={alerta.mensaje} 
+          tipo={alerta.tipo} 
+          onClose={() => setAlerta(null)} 
+        />
+      )}
 
       {/* Top Header */}
       <div className="usuarios-header">
@@ -333,7 +371,7 @@ export default function Usuarios({ loggedUser }) {
               </tr>
             ) : (
               usuariosFiltrados.map((u) => {
-                const esActivo = u.estado === 1 || u.estado === 'Activo';
+                const esActivo = esEstadoActivo(u.estado);
                 return (
                   <tr key={u.id}>
                     <td className="usuarios-td-user">
@@ -473,21 +511,19 @@ export default function Usuarios({ loggedUser }) {
                 />
               </div>
 
-              {modalMode === 'create' && (
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    className="input input-bordered w-full"
-                    placeholder="••••••••"
-                    value={formData.contrasena || ''}
-                    onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-base-content mb-1">
+                  Contraseña {modalMode === 'create' ? '*' : '(Opcional)'}
+                </label>
+                <input
+                  type="password"
+                  required={modalMode === 'create'}
+                  className="input input-bordered w-full"
+                  placeholder="••••••••"
+                  value={formData.contrasena || ''}
+                  onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">

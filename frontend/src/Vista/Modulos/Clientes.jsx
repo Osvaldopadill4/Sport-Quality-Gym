@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Power, X, Eye, EyeOff, QrCode, Copy, Check, Sparkles } from 'lucide-react';
 import '../../CSS/Clientes.css';
 import { getClientes, createCliente, updateCliente, deleteCliente } from '../../JS/cliente';
 import Toast from '../Componentes/Toast';
+
+// Helper robusto para evaluar el estado activo de clientes (soporta "1", 1, "Activo", true, etc.)
+export const esEstadoActivo = (estado) => {
+  if (estado === undefined || estado === null) return false;
+  const s = String(estado).trim().toLowerCase();
+  return s === '1' || s === 'activo' || s === 'true' || estado === 1 || estado === true;
+};
+
+// Generador de Token QR / UUID seguro para acceso y móvil
+const generarUUID = () => {
+  const aleatorio = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `GYM-QR-${Date.now().toString().slice(-4)}-${aleatorio}`;
+};
 
 export default function Clientes({ loggedUser }) {
   const usuarioActivo = loggedUser || (() => {
@@ -23,16 +36,22 @@ export default function Clientes({ loggedUser }) {
   // useState para notificaciones / alertas
   const [alerta, setAlerta] = useState(null);
 
+  // Estados para mostrar/ocultar contraseñas en la tabla
+  const [mostrarPasswords, setMostrarPasswords] = useState({});
+  const [copiadoToken, setCopiadoToken] = useState(null);
+
   // Estados del modal
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
+    contrasena: '',
     contacto_emergencia: '',
     telefono_emergencia: '',
     fecha_registro: '',
-    estado: 1
+    estado: 1,
+    token_qr: ''
   });
 
   const mostrarAlerta = (mensaje, tipo = 'success') => {
@@ -48,93 +67,112 @@ export default function Clientes({ loggedUser }) {
     }
   };
 
-  const cargarDatos = () => {
-    getClientes().then((data) => {
+  const cargarDatos = async () => {
+    try {
+      const data = await getClientes();
       if (Array.isArray(data) && data.length > 0) {
         setClientes(data);
         localStorage.setItem('gymton_clientes', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_clientes');
-        if (local) {
-          try {
-            setClientes(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        // Fallback por defecto si no hay conexión o tabla vacía
-        const fallback = [
-          {
-            id: 1,
-            nombre: 'Juan Pérez',
-            telefono: '555-1234',
-            contacto_emergencia: 'María Pérez',
-            telefono_emergencia: '555-4321',
-            fecha_registro: '2023-01-15',
-            estado: 1
-          },
-          {
-            id: 2,
-            nombre: 'Carolina Gómez',
-            telefono: '555-9876',
-            contacto_emergencia: 'Carlos Gómez',
-            telefono_emergencia: '555-6789',
-            fecha_registro: '2023-03-20',
-            estado: 1
-          }
-        ];
-        setClientes(fallback);
-        localStorage.setItem('gymton_clientes', JSON.stringify(fallback));
+        return;
       }
-    });
+    } catch (err) {
+      console.warn('Error al cargar clientes de la API:', err);
+    }
+
+    const local = localStorage.getItem('gymton_clientes');
+    if (local) {
+      try {
+        setClientes(JSON.parse(local));
+        return;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Fallback con los atributos de la base de datos (incluyendo contrasena y token_qr para el móvil)
+    const fallback = [
+      {
+        id: 1,
+        nombre: 'Juan Pérez',
+        telefono: '555-1234',
+        contrasena: 'gym1234',
+        contacto_emergencia: 'María Pérez',
+        telefono_emergencia: '555-4321',
+        fecha_registro: '2023-01-15',
+        estado: '1',
+        token_qr: 'GYM-QR-0001-JP'
+      },
+      {
+        id: 2,
+        nombre: 'Carolina Gómez',
+        telefono: '555-9876',
+        contrasena: 'caro2024',
+        contacto_emergencia: 'Carlos Gómez',
+        telefono_emergencia: '555-6789',
+        fecha_registro: '2023-03-20',
+        estado: '1',
+        token_qr: 'GYM-QR-0002-CG'
+      }
+    ];
+    setClientes(fallback);
+    localStorage.setItem('gymton_clientes', JSON.stringify(fallback));
   };
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
+  // Métricas con el helper
   const total = clientes.length;
-  const activos = clientes.filter(c => c.estado === 1 || c.estado === 'Activo').length;
+  const activos = clientes.filter(c => esEstadoActivo(c.estado)).length;
   const inactivos = total - activos;
 
-  const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
-    return 'Usuario';
+  const togglePasswordVisible = (id) => {
+    setMostrarPasswords(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // ACCIÓN: Poner en activo
+  const copiarAlPortapapeles = (texto, id) => {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto).then(() => {
+      setCopiadoToken(id);
+      setTimeout(() => setCopiadoToken(null), 2000);
+      mostrarAlerta('Token QR copiado al portapapeles', 'info');
+    });
+  };
+
+  // ACCIÓN: Poner en activo (actualiza en BD vía API)
   const handlePonerEnActivo = async (c) => {
     try {
-      const clienteActualizado = { ...c, estado: 1 };
+      const clienteActualizado = { ...c, estado: "1" };
       await updateCliente(c.id, clienteActualizado);
-      const nuevaLista = clientes.map(item => item.id === c.id ? clienteActualizado : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Puesto en activo correctamente', 'success');
+      await cargarDatos();
     } catch (error) {
       console.error('Error al poner en activo:', error);
-      mostrarAlerta('Error al poner en activo al cliente', 'error');
+      const nuevaLista = clientes.map(item => item.id === c.id ? { ...item, estado: "1" } : item);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
-  // ACCIÓN: Dar de baja (desactivar)
+  // ACCIÓN: Dar de baja (actualiza en BD vía API)
   const handleDarDeBaja = async (c) => {
     try {
-      const clienteActualizado = { ...c, estado: 0 };
+      const clienteActualizado = { ...c, estado: "0" };
       await updateCliente(c.id, clienteActualizado);
-      const nuevaLista = clientes.map(item => item.id === c.id ? clienteActualizado : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Dado de baja correctamente', 'info');
+      await cargarDatos();
     } catch (error) {
       console.error('Error al dar de baja:', error);
-      mostrarAlerta('Error al desactivar al cliente', 'error');
+      const nuevaLista = clientes.map(item => item.id === c.id ? { ...item, estado: "0" } : item);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
 
   // Alternador de estado rápido
   const handleToggleEstado = (c) => {
-    const esActivo = c.estado === 1 || c.estado === 'Activo';
+    const esActivo = esEstadoActivo(c.estado);
     if (esActivo) {
       handleDarDeBaja(c);
     } else {
@@ -142,17 +180,18 @@ export default function Clientes({ loggedUser }) {
     }
   };
 
-  // ACCIÓN: Eliminar
+  // ACCIÓN: Eliminar (elimina de la BD vía API)
   const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
+    if (window.confirm('¿Estás seguro de eliminar este cliente de la base de datos?')) {
       try {
         await deleteCliente(id);
-        const nuevaLista = clientes.filter(c => c.id !== id);
-        guardarLocalmente(nuevaLista);
         mostrarAlerta('Registro eliminado correctamente', 'success');
+        await cargarDatos();
       } catch (error) {
         console.error('Error eliminando:', error);
-        mostrarAlerta('Error al eliminar el cliente', 'error');
+        const nuevaLista = clientes.filter(c => c.id !== id);
+        guardarLocalmente(nuevaLista);
+        mostrarAlerta('Registro eliminado localmente', 'info');
       }
     }
   };
@@ -165,26 +204,30 @@ export default function Clientes({ loggedUser }) {
         id: cliente.id,
         nombre: cliente.nombre || '',
         telefono: cliente.telefono || '',
+        contrasena: cliente.contrasena || '',
         contacto_emergencia: cliente.contacto_emergencia || '',
         telefono_emergencia: cliente.telefono_emergencia || '',
         fecha_registro: cliente.fecha_registro || '',
-        estado: (cliente.estado === 1 || cliente.estado === 'Activo') ? 1 : 0
+        estado: esEstadoActivo(cliente.estado) ? 1 : 0,
+        token_qr: cliente.token_qr || generarUUID()
       });
     } else {
       const hoy = new Date().toISOString().split('T')[0];
       setFormData({
         nombre: '',
         telefono: '',
+        contrasena: '',
         contacto_emergencia: '',
         telefono_emergencia: '',
         fecha_registro: hoy,
-        estado: 1
+        estado: 1,
+        token_qr: generarUUID()
       });
     }
     setShowModal(true);
   };
 
-  // ACCIONES: Agregar (create) y Guardar (update)
+  // ACCIONES: Agregar (create) y Guardar (update) mandando los datos a la BD vía API
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
@@ -195,25 +238,37 @@ export default function Clientes({ loggedUser }) {
     }
 
     try {
+      const payload = {
+        ...formData,
+        estado: esEstadoActivo(formData.estado) ? "1" : "0",
+        token_qr: formData.token_qr ? formData.token_qr.trim() : generarUUID()
+      };
+
       if (modalMode === 'create') {
-        // ACCIÓN: Agregar
-        const res = await createCliente(formData);
-        const nuevoCliente = (res && res.id) ? res : { ...formData, id: Date.now() };
-        const nuevaLista = [nuevoCliente, ...clientes];
-        guardarLocalmente(nuevaLista);
+        // Enviar a la BD vía API
+        await createCliente(payload);
         setShowModal(false);
         mostrarAlerta('Registro completado correctamente', 'success');
+        await cargarDatos();
       } else {
-        // ACCIÓN: Guardar cambios (Editar)
-        await updateCliente(formData.id, formData);
-        const nuevaLista = clientes.map(item => item.id === formData.id ? { ...item, ...formData } : item);
-        guardarLocalmente(nuevaLista);
+        // Actualizar en la BD vía API
+        await updateCliente(formData.id, payload);
         setShowModal(false);
         mostrarAlerta('Datos actualizados correctamente', 'success');
+        await cargarDatos();
       }
     } catch (error) {
-      console.error('Error guardando cliente:', error);
-      mostrarAlerta('Ocurrió un error al procesar la solicitud', 'error');
+      console.error('Error guardando cliente en BD:', error);
+      mostrarAlerta('Ocurrió un error al procesar la solicitud en el servidor', 'error');
+      // Fallback local
+      if (modalMode === 'create') {
+        const nuevo = { ...formData, id: Date.now(), estado: esEstadoActivo(formData.estado) ? "1" : "0" };
+        guardarLocalmente([nuevo, ...clientes]);
+      } else {
+        const lista = clientes.map(item => item.id === formData.id ? { ...item, ...formData, estado: esEstadoActivo(formData.estado) ? "1" : "0" } : item);
+        guardarLocalmente(lista);
+      }
+      setShowModal(false);
     }
   };
 
@@ -222,10 +277,10 @@ export default function Clientes({ loggedUser }) {
     // 1. Filtro por pestaña de estado
     const coincideEstado =
       filtro === 'todos' ? true :
-      filtro === 'activos' ? (c.estado === 1 || c.estado === 'Activo') :
-      (c.estado === 0 || c.estado === 'Inactivo');
+      filtro === 'activos' ? esEstadoActivo(c.estado) :
+      !esEstadoActivo(c.estado);
 
-    // 2. Filtro en tiempo real por búsqueda de texto
+    // 2. Filtro en tiempo real por búsqueda de texto (busca también por token_qr y teléfono)
     const termino = busqueda.toLowerCase().trim();
     if (!termino) return coincideEstado;
 
@@ -234,13 +289,15 @@ export default function Clientes({ loggedUser }) {
     const contactoEmergencia = (c.contacto_emergencia || '').toLowerCase();
     const telEmergencia = (c.telefono_emergencia || '').toLowerCase();
     const fechaRegistro = (c.fecha_registro || '').toLowerCase();
+    const tokenQr = (c.token_qr || '').toLowerCase();
 
     const coincideBusqueda =
       nombre.includes(termino) ||
       telefono.includes(termino) ||
       contactoEmergencia.includes(termino) ||
       telEmergencia.includes(termino) ||
-      fechaRegistro.includes(termino);
+      fechaRegistro.includes(termino) ||
+      tokenQr.includes(termino);
 
     return coincideEstado && coincideBusqueda;
   });
@@ -248,11 +305,22 @@ export default function Clientes({ loggedUser }) {
   return (
     <div className="clientes-wrapper">
       {/* Toast Alert flotante */}
-      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
+      {alerta && (
+        <Toast 
+          mensaje={alerta.mensaje} 
+          tipo={alerta.tipo} 
+          onClose={() => setAlerta(null)} 
+        />
+      )}
 
       {/* Top Header */}
       <div className="clientes-header">
-        <h1 className="clientes-title">Gestión de Clientes</h1>
+        <div>
+          <h1 className="clientes-title">Gestión de Clientes / Socios</h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Incluye credenciales de acceso para App Móvil y Token QR para torniquetes.
+          </p>
+        </div>
         <div className="clientes-top-actions">
           {/* Buscador en tiempo real con useState y filter */}
           <div className="clientes-search-container">
@@ -262,7 +330,7 @@ export default function Clientes({ loggedUser }) {
             <input
               type="text"
               className="clientes-search-input"
-              placeholder="Buscar clientes por nombre, teléfono..."
+              placeholder="Buscar por nombre, teléfono, token QR..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
@@ -287,7 +355,7 @@ export default function Clientes({ loggedUser }) {
                 {usuarioActivo ? `${usuarioActivo.nombre} ${usuarioActivo.apellido || ''}`.trim() : 'Usuario Activo'}
               </div>
               <div className="clientes-profile-role">
-                {usuarioActivo ? getRolName(usuarioActivo.id_rol) : 'Administrador'}
+                Recepción Gymton
               </div>
             </div>
           </div>
@@ -321,13 +389,15 @@ export default function Clientes({ loggedUser }) {
         </button>
       </div>
 
-      {/* Tabla de Clientes */}
+      {/* Tabla de Clientes con TODOS los atributos de la BD */}
       <div className="clientes-table-container">
         <table className="clientes-table">
           <thead>
             <tr>
               <th>Cliente</th>
               <th>Teléfono</th>
+              <th>Contraseña (Móvil)</th>
+              <th>Token QR / UUID</th>
               <th>Contacto Emergencia</th>
               <th>Tel. Emergencia</th>
               <th>Fecha Registro</th>
@@ -338,7 +408,7 @@ export default function Clientes({ loggedUser }) {
           <tbody>
             {clientesFiltrados.length === 0 ? (
               <tr>
-                <td colSpan="7" className="table-empty-row">
+                <td colSpan="9" className="table-empty-row">
                   {busqueda
                     ? `No se encontraron clientes con el término "${busqueda}"`
                     : 'No hay clientes registrados'}
@@ -346,16 +416,66 @@ export default function Clientes({ loggedUser }) {
               </tr>
             ) : (
               clientesFiltrados.map((c) => {
-                const esActivo = c.estado === 1 || c.estado === 'Activo';
+                const esActivo = esEstadoActivo(c.estado);
+                const passwordVisible = mostrarPasswords[c.id];
                 return (
                   <tr key={c.id}>
+                    {/* Cliente */}
                     <td className="clientes-td-user">
                       <span className="clientes-td-name">{c.nombre}</span>
+                      <span className="text-xs text-gray-400 block font-mono">ID #{c.id}</span>
                     </td>
+
+                    {/* Teléfono */}
                     <td className="clientes-td-text">{c.telefono || 'N/A'}</td>
+
+                    {/* Contraseña para App Móvil */}
+                    <td className="clientes-td-text">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs px-2 py-1 bg-zinc-800 text-zinc-200 rounded border border-zinc-700">
+                          {passwordVisible ? (c.contrasena || 'Sin asignar') : '••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePasswordVisible(c.id)}
+                          className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
+                          title={passwordVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
+                        >
+                          {passwordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* Token QR / UUID */}
+                    <td className="clientes-td-text">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/30 flex items-center gap-1">
+                          <QrCode size={13} />
+                          <span>{c.token_qr ? (c.token_qr.length > 15 ? c.token_qr.slice(0, 15) + '...' : c.token_qr) : 'Sin Token'}</span>
+                        </span>
+                        {c.token_qr && (
+                          <button
+                            type="button"
+                            onClick={() => copiarAlPortapapeles(c.token_qr, c.id)}
+                            className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
+                            title="Copiar Token QR"
+                          >
+                            {copiadoToken === c.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Contacto Emergencia */}
                     <td className="clientes-td-text">{c.contacto_emergencia || 'N/A'}</td>
+
+                    {/* Teléfono Emergencia */}
                     <td className="clientes-td-text">{c.telefono_emergencia || 'N/A'}</td>
+
+                    {/* Fecha Registro */}
                     <td className="clientes-td-text">{c.fecha_registro || 'N/A'}</td>
+
+                    {/* Estado con Badge */}
                     <td>
                       {esActivo ? (
                         <span className="clientes-badge activo">Activo</span>
@@ -363,6 +483,8 @@ export default function Clientes({ loggedUser }) {
                         <span className="clientes-badge inactivo">Inactivo</span>
                       )}
                     </td>
+
+                    {/* Opciones */}
                     <td>
                       <div className="clientes-table-actions">
                         {/* Opción Guardar / Editar */}
@@ -413,11 +535,12 @@ export default function Clientes({ loggedUser }) {
         </div>
       </div>
 
-      {/* Modal para Agregar y Guardar (Editar) */}
+      {/* Modal para Agregar y Guardar (Editar) Clientes */}
       <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
+        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-lg flex flex-col max-h-[90vh]">
           <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-            <h3 className="font-bold text-lg text-base-content">
+            <h3 className="font-bold text-lg text-base-content flex items-center gap-2">
+              <QrCode size={20} className="text-emerald-400" />
               {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
             </h3>
             <button
@@ -431,6 +554,8 @@ export default function Clientes({ loggedUser }) {
 
           <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
             <div className="p-6 space-y-4 overflow-y-auto">
+              
+              {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
                   Nombre Completo *
@@ -445,69 +570,116 @@ export default function Clientes({ loggedUser }) {
                 />
               </div>
 
+              {/* Teléfono */}
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono
+                  Teléfono *
                 </label>
                 <input
                   type="text"
+                  required
                   className="input input-bordered w-full"
-                  placeholder="Ej. 555-1234"
+                  placeholder="Ej. 3471012962"
                   value={formData.telefono || ''}
                   onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                 />
               </div>
 
+              {/* Contraseña para App Móvil */}
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Contacto de Emergencia
+                  Contraseña para App Móvil *
                 </label>
                 <input
                   type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. María Pérez"
-                  value={formData.contacto_emergencia || ''}
-                  onChange={(e) => setFormData({ ...formData, contacto_emergencia: e.target.value })}
+                  required
+                  className="input input-bordered w-full font-mono"
+                  placeholder="Contraseña que usará en la App"
+                  value={formData.contrasena || ''}
+                  onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
                 />
+                <span className="text-xs text-gray-400 mt-1 block">
+                  El cliente usará su teléfono y esta contraseña para iniciar sesión en la aplicación móvil.
+                </span>
               </div>
 
+              {/* Token QR / UUID */}
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono de Emergencia
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-base-content">
+                    Token QR / UUID (Torniquete y App)
+                  </label>
+                  <button
+                    type="button"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                    onClick={() => setFormData({ ...formData, token_qr: generarUUID() })}
+                  >
+                    <Sparkles size={13} /> Generar Nuevo
+                  </button>
+                </div>
                 <input
                   type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. 555-4321"
-                  value={formData.telefono_emergencia || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value })}
+                  className="input input-bordered w-full font-mono text-xs"
+                  placeholder="GYM-QR-XXXX-XXXX"
+                  value={formData.token_qr || ''}
+                  onChange={(e) => setFormData({ ...formData, token_qr: e.target.value })}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Fecha de Registro
-                </label>
-                <input
-                  type="date"
-                  className="input input-bordered w-full"
-                  value={formData.fecha_registro || ''}
-                  onChange={(e) => setFormData({ ...formData, fecha_registro: e.target.value })}
-                />
+              {/* Contacto de Emergencia */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-base-content mb-1">
+                    Contacto de Emergencia
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    placeholder="Ej. María Pérez"
+                    value={formData.contacto_emergencia || ''}
+                    onChange={(e) => setFormData({ ...formData, contacto_emergencia: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-base-content mb-1">
+                    Teléfono Emergencia
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    placeholder="Ej. 555-4321"
+                    value={formData.telefono_emergencia || ''}
+                    onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value })}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Estado
-                </label>
-                <select
-                  className="input input-bordered w-full"
-                  value={formData.estado}
-                  onChange={(e) => setFormData({ ...formData, estado: Number(e.target.value) })}
-                >
-                  <option value={1}>Activo</option>
-                  <option value={0}>Inactivo</option>
-                </select>
+              {/* Fecha de Registro y Estado */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-base-content mb-1">
+                    Fecha de Registro
+                  </label>
+                  <input
+                    type="date"
+                    className="input input-bordered w-full"
+                    value={formData.fecha_registro || ''}
+                    onChange={(e) => setFormData({ ...formData, fecha_registro: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-base-content mb-1">
+                    Estado
+                  </label>
+                  <select
+                    className="input input-bordered w-full"
+                    value={formData.estado}
+                    onChange={(e) => setFormData({ ...formData, estado: Number(e.target.value) })}
+                  >
+                    <option value={1}>Activo</option>
+                    <option value={0}>Inactivo</option>
+                  </select>
+                </div>
               </div>
             </div>
 
