@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X, Package, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Power, X, Package, AlertTriangle, Truck, ArrowDownCircle, CheckCircle2 } from 'lucide-react';
 import '../../CSS/Productos.css';
 import { getProductos, createProductos, updateProductos, deleteProductos } from '../../JS/producto';
 import Toast from '../Componentes/Toast';
+
+// Helper de estado activo compatible con BD (soporta "1", 1, "Activo", true)
+const esEstadoActivo = (estado) => {
+  if (estado === undefined || estado === null) return false;
+  const s = String(estado).trim().toLowerCase();
+  return s === '1' || s === 'activo' || s === 'true' || estado === 1 || estado === true;
+};
+
+// Helper que replica la vista SQL `vw_inventario_bajo`:
+// (stock <= stock_minimo O stock <= 5)
+export const esInventarioBajo = (p) => {
+  const stock = Number(p.stock) || 0;
+  const min = Number(p.stock_minimo) || 5;
+  return stock <= min || stock <= 5;
+};
 
 export default function Productos({ loggedUser }) {
   const usuarioActivo = loggedUser || (() => {
@@ -15,10 +30,11 @@ export default function Productos({ loggedUser }) {
   })();
 
   const [productos, setProductos] = useState([]);
-  const [filtro, setFiltro] = useState('todos');
+  const [filtro, setFiltro] = useState('todos'); // 'todos' | 'activos' | 'inactivos' | 'bajo_stock'
   const [busqueda, setBusqueda] = useState('');
   const [alerta, setAlerta] = useState(null);
 
+  // Estados modal Crear / Editar
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [formData, setFormData] = useState({ 
@@ -29,6 +45,15 @@ export default function Productos({ loggedUser }) {
     stock: '', 
     stock_minimo: 5, 
     estado: 1 
+  });
+
+  // Estados modal Reabastecer Inventario (sp_registrar_compra_inventario)
+  const [showModalCompra, setShowModalCompra] = useState(false);
+  const [compraData, setCompraData] = useState({
+    id_producto: '',
+    id_proveedor: 1,
+    cantidad: 10,
+    costo: 50
   });
 
   const mostrarAlerta = (mensaje, tipo = 'success') => {
@@ -77,8 +102,11 @@ export default function Productos({ loggedUser }) {
   }, []);
 
   const total = productos.length;
-  const activos = productos.filter(p => p.estado === 1 || p.estado === 'Activo').length;
+  const activos = productos.filter(p => esEstadoActivo(p.estado)).length;
   const inactivos = total - activos;
+  
+  // Conteo directo de la vista `vw_inventario_bajo`
+  const bajoStockCount = productos.filter(p => esInventarioBajo(p)).length;
 
   const getRolName = (id_rol) => {
     if (id_rol === 1) return 'Administrador';
@@ -89,11 +117,12 @@ export default function Productos({ loggedUser }) {
   // ACCIÓN: Poner en activo
   const handlePonerEnActivo = async (p) => {
     try {
-      const prodActualizado = { ...p, estado: 1 };
+      const prodActualizado = { ...p, estado: "1" };
       await updateProductos(p.id, prodActualizado);
       const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
       guardarLocalmente(nuevaLista);
       mostrarAlerta('Puesto en activo correctamente', 'success');
+      cargarDatos();
     } catch (e) {
       console.error(e);
       mostrarAlerta('Error al activar producto', 'error');
@@ -103,11 +132,12 @@ export default function Productos({ loggedUser }) {
   // ACCIÓN: Dar de baja
   const handleDarDeBaja = async (p) => {
     try {
-      const prodActualizado = { ...p, estado: 0 };
+      const prodActualizado = { ...p, estado: "0" };
       await updateProductos(p.id, prodActualizado);
       const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
       guardarLocalmente(nuevaLista);
       mostrarAlerta('Dado de baja correctamente', 'info');
+      cargarDatos();
     } catch (e) {
       console.error(e);
       mostrarAlerta('Error al desactivar producto', 'error');
@@ -115,7 +145,7 @@ export default function Productos({ loggedUser }) {
   };
 
   const handleToggleEstado = (p) => {
-    const esActivo = p.estado === 1 || p.estado === 'Activo';
+    const esActivo = esEstadoActivo(p.estado);
     if (esActivo) handleDarDeBaja(p);
     else handlePonerEnActivo(p);
   };
@@ -128,6 +158,7 @@ export default function Productos({ loggedUser }) {
         const nuevaLista = productos.filter(p => p.id !== id);
         guardarLocalmente(nuevaLista);
         mostrarAlerta('Registro eliminado correctamente', 'success');
+        cargarDatos();
       } catch (e) {
         console.error(e);
         mostrarAlerta('Error al eliminar producto', 'error');
@@ -146,94 +177,144 @@ export default function Productos({ loggedUser }) {
         precio: prod.precio ?? '',
         stock: prod.stock ?? '',
         stock_minimo: prod.stock_minimo ?? 5,
-        estado: (prod.estado === 1 || prod.estado === 'Activo') ? 1 : 0
+        estado: esEstadoActivo(prod.estado) ? 1 : 0
       });
     } else {
-      setFormData({ 
-        nombre: '', 
-        descripcion: '', 
+      setFormData({
+        nombre: '',
+        descripcion: '',
         categoria: 'Suplementos',
-        precio: '', 
-        stock: '', 
-        stock_minimo: 5, 
-        estado: 1 
+        precio: '',
+        stock: '',
+        stock_minimo: 5,
+        estado: 1
       });
     }
     setShowModal(true);
   };
 
-  // ACCIONES: Registrar y Modificar
+  // Modal para ejecutar la lógica de `sp_registrar_compra_inventario`
+  const openModalCompra = (prod = null) => {
+    setCompraData({
+      id_producto: prod ? prod.id : (productos[0]?.id || ''),
+      id_proveedor: 1,
+      cantidad: 10,
+      costo: prod ? Math.round(Number(prod.precio) * 0.6) : 50
+    });
+    setShowModalCompra(true);
+  };
+
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
     if (!formData.nombre.trim()) {
-      mostrarAlerta('Por favor ingresa el nombre del producto', 'error');
+      mostrarAlerta('Ingresa el nombre del producto', 'error');
       return;
     }
     if (formData.precio === '' || Number(formData.precio) < 0) {
-      mostrarAlerta('Ingresa un precio válido en MXN', 'error');
+      mostrarAlerta('Ingresa un precio válido', 'error');
       return;
     }
 
-    const payload = {
-      ...formData,
-      precio: parseFloat(formData.precio),
-      stock: parseInt(formData.stock) || 0,
-      stock_minimo: parseInt(formData.stock_minimo) || 0
-    };
-
     try {
+      const payload = {
+        ...formData,
+        precio: Number(formData.precio),
+        stock: Number(formData.stock) || 0,
+        stock_minimo: Number(formData.stock_minimo) || 5,
+        estado: esEstadoActivo(formData.estado) ? "1" : "0"
+      };
+
       if (modalMode === 'create') {
         const res = await createProductos(payload);
         const nuevo = (res && res.id) ? res : { ...payload, id: Date.now() };
-        const nuevaLista = [nuevo, ...productos];
-        guardarLocalmente(nuevaLista);
-        setShowModal(false);
+        guardarLocalmente([nuevo, ...productos]);
         mostrarAlerta('Registro completado correctamente', 'success');
       } else {
-        await updateProductos(payload.id, payload);
-        const nuevaLista = productos.map(item => item.id === payload.id ? { ...item, ...payload } : item);
-        guardarLocalmente(nuevaLista);
-        setShowModal(false);
+        await updateProductos(formData.id, payload);
+        const lista = productos.map(p => p.id === formData.id ? { ...p, ...payload } : p);
+        guardarLocalmente(lista);
         mostrarAlerta('Datos actualizados correctamente', 'success');
       }
+      setShowModal(false);
+      cargarDatos();
     } catch (e) {
       console.error(e);
       mostrarAlerta('Error al procesar la solicitud', 'error');
     }
   };
 
-  // FILTRO EN TIEMPO REAL con useState y filter
+  // Lógica del procedimiento almacenado `sp_registrar_compra_inventario`
+  const handleRegistrarCompraInventario = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const cant = Number(compraData.cantidad);
+    const costo = Number(compraData.costo);
+    const idProd = Number(compraData.id_producto);
+
+    if (cant <= 0 || costo < 0) {
+      mostrarAlerta('Cantidad o costo no válido', 'error');
+      return;
+    }
+
+    // Actualiza stock en producto sumando la cantidad comprada:
+    // UPDATE producto SET stock = stock + p_cantidad WHERE id = p_id_producto;
+    const prod = productos.find(p => p.id === idProd);
+    if (!prod) return;
+
+    const nuevoStock = (Number(prod.stock) || 0) + cant;
+    const prodActualizado = { ...prod, stock: nuevoStock };
+
+    try {
+      await updateProductos(idProd, prodActualizado);
+      const lista = productos.map(p => p.id === idProd ? prodActualizado : p);
+      guardarLocalmente(lista);
+      setShowModalCompra(false);
+      mostrarAlerta(`Entrada de inventario registrada (sp_registrar_compra_inventario): +${cant} uds. para "${prod.nombre}"`, 'success');
+      cargarDatos();
+    } catch (err) {
+      console.error(err);
+      mostrarAlerta('Error al registrar compra de inventario', 'error');
+    }
+  };
+
+  // FILTRO EN TIEMPO REAL con soporte para la vista `vw_inventario_bajo`
   const productosFiltrados = productos.filter(p => {
-    const coincideEstado =
-      filtro === 'todos' ? true :
-      filtro === 'activos' ? (p.estado === 1 || p.estado === 'Activo') :
-      (p.estado === 0 || p.estado === 'Inactivo');
+    let coincideFiltro = true;
+    if (filtro === 'activos') coincideFiltro = esEstadoActivo(p.estado);
+    else if (filtro === 'inactivos') coincideFiltro = !esEstadoActivo(p.estado);
+    else if (filtro === 'bajo_stock') coincideFiltro = esInventarioBajo(p);
+
+    if (!coincideFiltro) return false;
 
     const termino = busqueda.toLowerCase().trim();
-    if (!termino) return coincideEstado;
+    if (!termino) return true;
 
     const nombre = (p.nombre || '').toLowerCase();
     const desc = (p.descripcion || '').toLowerCase();
     const cat = (p.categoria || '').toLowerCase();
     const precio = (p.precio || '').toString();
 
-    const coincideBusqueda =
-      nombre.includes(termino) ||
-      desc.includes(termino) ||
-      cat.includes(termino) ||
-      precio.includes(termino);
-
-    return coincideEstado && coincideBusqueda;
+    return nombre.includes(termino) || desc.includes(termino) || cat.includes(termino) || precio.includes(termino);
   });
 
   return (
     <div className="productos-wrapper">
-      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
+      {alerta && (
+        <Toast 
+          mensaje={alerta.mensaje} 
+          tipo={alerta.tipo} 
+          onClose={() => setAlerta(null)} 
+        />
+      )}
 
       {/* Header */}
       <div className="productos-header">
-        <h1 className="productos-title">Gestión de Productos</h1>
+        <div>
+          <h1 className="productos-title">Gestión de Productos e Inventario</h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Control de catálogo, abastecimiento y vista en vivo de inventario bajo.
+          </p>
+        </div>
         <div className="productos-top-actions">
           {/* Buscador en tiempo real */}
           <div className="productos-search-container relative flex items-center">
@@ -272,16 +353,72 @@ export default function Productos({ loggedUser }) {
         </div>
       </div>
 
-      {/* Tabs y Botón Nuevo */}
-      <div className="productos-filters-bar">
-        <div className="productos-filters">
-          <button className={`productos-filter-btn ${filtro === 'todos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('todos')}>Todos ({total})</button>
-          <button className={`productos-filter-btn ${filtro === 'activos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('activos')}>Activos ({activos})</button>
-          <button className={`productos-filter-btn ${filtro === 'inactivos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('inactivos')}>Inactivos ({inactivos})</button>
+      {/* Alerta de la Vista SQL `vw_inventario_bajo` */}
+      {bajoStockCount > 0 && (
+        <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-4 text-amber-300">
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={24} className="text-amber-400 flex-shrink-0 animate-bounce" />
+            <div>
+              <strong className="block text-sm font-bold">
+                Alerta de Inventario (Vista SQL: <code>vw_inventario_bajo</code>)
+              </strong>
+              <span className="text-xs text-amber-200/80">
+                Hay {bajoStockCount} producto(s) con stock igual o inferior a su stock mínimo (o ≤ 5 unidades).
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              className="btn btn-xs bg-amber-500 text-black border-none font-bold hover:bg-amber-400"
+              onClick={() => setFiltro('bajo_stock')}
+            >
+              Ver {bajoStockCount} Afectados
+            </button>
+            <button 
+              className="btn btn-xs btn-outline border-amber-400 text-amber-300 hover:bg-amber-500 hover:text-black font-bold flex items-center gap-1"
+              onClick={() => openModalCompra()}
+            >
+              <Truck size={14} /> Reabastecer
+            </button>
+          </div>
         </div>
-        <button className="productos-btn-nuevo" onClick={() => openModal('create')}>
-          <Plus size={16} /> Nuevo Producto
-        </button>
+      )}
+
+      {/* Tabs y Botón Nuevo */}
+      <div className="productos-filters-bar flex flex-wrap gap-3 justify-between items-center">
+        <div className="productos-filters flex flex-wrap gap-2">
+          <button className={`productos-filter-btn ${filtro === 'todos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('todos')}>
+            Todos ({total})
+          </button>
+          <button className={`productos-filter-btn ${filtro === 'activos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('activos')}>
+            Activos ({activos})
+          </button>
+          <button className={`productos-filter-btn ${filtro === 'inactivos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('inactivos')}>
+            Inactivos ({inactivos})
+          </button>
+          {/* Tab de la Vista vw_inventario_bajo */}
+          <button 
+            className={`productos-filter-btn ${filtro === 'bajo_stock' ? 'active bg-amber-500 text-black border-none' : 'inactive'}`} 
+            onClick={() => setFiltro('bajo_stock')}
+          >
+            ⚠️ Stock Bajo (vw_inventario_bajo) ({bajoStockCount})
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Botón Reabastecer (sp_registrar_compra_inventario) */}
+          <button 
+            className="btn btn-sm bg-zinc-800 text-emerald-400 border border-zinc-700 hover:bg-zinc-700 font-bold flex items-center gap-1.5"
+            onClick={() => openModalCompra()}
+            title="Registrar entrada de mercancía / compra a proveedor"
+          >
+            <Truck size={16} /> Reabastecer (sp_compra)
+          </button>
+
+          <button className="productos-btn-nuevo" onClick={() => openModal('create')}>
+            <Plus size={16} /> Nuevo Producto
+          </button>
+        </div>
       </div>
 
       {/* Tabla de Productos */}
@@ -293,7 +430,7 @@ export default function Productos({ loggedUser }) {
               <th>Categoría</th>
               <th>Descripción</th>
               <th>Precio (MXN)</th>
-              <th>Stock</th>
+              <th>Stock vs Mínimo</th>
               <th>Estado</th>
               <th style={{textAlign:'right'}}>Opciones</th>
             </tr>
@@ -302,18 +439,19 @@ export default function Productos({ loggedUser }) {
             {productosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan="7" className="text-center py-8 text-gray-400 italic">
-                  {busqueda ? `No se encontraron productos con el término "${busqueda}"` : 'No hay productos registrados'}
+                  {busqueda ? `No se encontraron productos con el término "${busqueda}"` : 'No hay productos que coincidan con el filtro seleccionado'}
                 </td>
               </tr>
             ) : (
               productosFiltrados.map(p => {
-                const esActivo = p.estado === 1 || p.estado === 'Activo';
-                const stockBajo = Number(p.stock) <= Number(p.stock_minimo);
+                const esActivo = esEstadoActivo(p.estado);
+                const stockBajo = esInventarioBajo(p);
                 return (
                   <tr key={p.id}>
                     <td className="productos-td-name font-bold">
                       <span className="flex items-center gap-2">
-                        <Package size={16} className="text-primary" /> {p.nombre}
+                        <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-primary'} /> 
+                        {p.nombre}
                       </span>
                     </td>
                     <td>
@@ -324,9 +462,23 @@ export default function Productos({ loggedUser }) {
                     <td className="text-gray-400 text-sm">{p.descripcion || 'Sin descripción'}</td>
                     <td className="font-bold text-emerald-400">${p.precio} MXN</td>
                     <td>
-                      <span className={`badge ${stockBajo ? 'badge-error text-white font-bold gap-1' : 'badge-success text-black font-semibold'}`}>
-                        {stockBajo && <AlertTriangle size={12} />} {p.stock} uds.
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`badge ${stockBajo ? 'badge-error text-white font-bold gap-1' : 'badge-success text-black font-semibold'}`}>
+                          {stockBajo && <AlertTriangle size={12} />} {p.stock} uds.
+                        </span>
+                        <span className="text-xs text-gray-400 font-mono">
+                          (min: {p.stock_minimo || 5})
+                        </span>
+                        {stockBajo && (
+                          <button 
+                            className="btn btn-ghost btn-xs text-amber-400 hover:bg-amber-500/10 p-1"
+                            title="Comprar / Reabastecer este producto"
+                            onClick={() => openModalCompra(p)}
+                          >
+                            <ArrowDownCircle size={15} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td>
                       {esActivo ? (
@@ -359,122 +511,199 @@ export default function Productos({ loggedUser }) {
           </tbody>
         </table>
 
-        <div className="productos-pagination flex justify-between items-center p-4 bg-white border-t border-gray-100">
-          <span className="text-sm text-gray-500 font-medium">
+        <div className="productos-pagination">
+          <span className="productos-pagination-text">
             Mostrando {productosFiltrados.length} de {total} productos
-            {busqueda && ` (filtrado por "${busqueda}")`}
+            {filtro === 'bajo_stock' && ' (Vista SQL: vw_inventario_bajo)'}
           </span>
-          <div className="flex gap-2">
-            <button className="btn btn-sm btn-outline">Anterior</button>
-            <button className="btn btn-sm btn-primary">Siguiente</button>
+          <div className="productos-pagination-buttons">
+            <button className="productos-page-btn prev">Anterior</button>
+            <button className="productos-page-btn next">Siguiente</button>
           </div>
         </div>
       </div>
 
-      {/* Modal para Registrar / Modificar */}
-      <dialog className={`modal ${showModal ? "modal-open" : ""}`}>
+      {/* Modal Crear / Editar */}
+      <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
         <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between bg-base-200">
+          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
             <h3 className="font-bold text-lg text-base-content">
               {modalMode === 'create' ? 'Nuevo Producto' : 'Editar Producto'}
             </h3>
-            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white">
+            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
               <X size={20} />
             </button>
           </div>
-
           <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium mb-1">Nombre del Producto *</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Nombre *</label>
                 <input 
                   type="text" 
-                  required
+                  required 
                   className="input input-bordered w-full" 
-                  placeholder="Ej. Proteína Whey 2kg"
-                  value={formData.nombre} 
-                  onChange={e => setFormData({...formData, nombre: e.target.value})} 
+                  placeholder="Ej. Creatina Creapure" 
+                  value={formData.nombre}
+                  onChange={e => setFormData({ ...formData, nombre: e.target.value })}
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1">Categoría</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Categoría</label>
                 <select 
                   className="input input-bordered w-full"
                   value={formData.categoria}
-                  onChange={e => setFormData({...formData, categoria: e.target.value})}
+                  onChange={e => setFormData({ ...formData, categoria: e.target.value })}
                 >
                   <option value="Suplementos">Suplementos</option>
-                  <option value="Bebidas">Bebidas e Hidratación</option>
-                  <option value="Snacks">Snacks Saludables</option>
-                  <option value="Accesorios">Accesorios y Ropa</option>
-                  <option value="Equipamiento">Equipamiento</option>
+                  <option value="Bebidas">Bebidas</option>
+                  <option value="Snacks">Snacks / Barras</option>
+                  <option value="Accesorios">Accesorios</option>
+                  <option value="Ropa">Ropa deportiva</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1">Descripción</label>
-                <input 
-                  type="text" 
-                  className="input input-bordered w-full" 
-                  placeholder="Ej. Sabor Vainilla, 24g proteína por porción"
-                  value={formData.descripcion || ''} 
-                  onChange={e => setFormData({...formData, descripcion: e.target.value})} 
+                <label className="block text-sm font-medium text-base-content mb-1">Descripción</label>
+                <textarea 
+                  className="textarea textarea-bordered w-full" 
+                  placeholder="Detalles del producto..." 
+                  value={formData.descripcion}
+                  onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
                 />
               </div>
-
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Precio (MXN) *</label>
+                  <label className="block text-sm font-medium text-base-content mb-1">Precio *</label>
                   <input 
                     type="number" 
-                    step="0.5"
-                    required
+                    step="0.01" 
+                    required 
                     className="input input-bordered w-full" 
-                    placeholder="1200"
-                    value={formData.precio} 
-                    onChange={e => setFormData({...formData, precio: e.target.value})} 
+                    placeholder="0.00" 
+                    value={formData.precio}
+                    onChange={e => setFormData({ ...formData, precio: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Stock</label>
+                  <label className="block text-sm font-medium text-base-content mb-1">Stock</label>
                   <input 
                     type="number" 
                     className="input input-bordered w-full" 
-                    placeholder="15"
-                    value={formData.stock} 
-                    onChange={e => setFormData({...formData, stock: e.target.value})} 
+                    placeholder="0" 
+                    value={formData.stock}
+                    onChange={e => setFormData({ ...formData, stock: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Mínimo</label>
+                  <label className="block text-sm font-medium text-base-content mb-1">Mínimo</label>
                   <input 
                     type="number" 
                     className="input input-bordered w-full" 
-                    placeholder="5"
-                    value={formData.stock_minimo} 
-                    onChange={e => setFormData({...formData, stock_minimo: e.target.value})} 
+                    placeholder="5" 
+                    value={formData.stock_minimo}
+                    onChange={e => setFormData({ ...formData, stock_minimo: e.target.value })}
                   />
                 </div>
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1">Estado</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Estado</label>
                 <select 
                   className="input input-bordered w-full"
                   value={formData.estado}
-                  onChange={e => setFormData({...formData, estado: Number(e.target.value)})}
+                  onChange={e => setFormData({ ...formData, estado: Number(e.target.value) })}
                 >
                   <option value={1}>Activo</option>
                   <option value={0}>Inactivo</option>
                 </select>
               </div>
             </div>
-
             <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
               <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost">Cancelar</button>
               <button type="submit" className="btn btn-primary">
                 {modalMode === 'create' ? 'Agregar Producto' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      {/* Modal Reabastecer Inventario (sp_registrar_compra_inventario) */}
+      <dialog className={`modal ${showModalCompra ? 'modal-open' : ''}`}>
+        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col">
+          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
+            <h3 className="font-bold text-lg text-base-content flex items-center gap-2">
+              <Truck size={20} className="text-emerald-400" />
+              Reabastecer (sp_registrar_compra_inventario)
+            </h3>
+            <button type="button" onClick={() => setShowModalCompra(false)} className="text-gray-400 hover:text-gray-600">
+              <X size={20} />
+            </button>
+          </div>
+          <form onSubmit={handleRegistrarCompraInventario} className="flex flex-col flex-1">
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-400">
+                Registra la compra a proveedor y actualiza automáticamente el stock disponible en la base de datos.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-base-content mb-1">Producto a Reabastecer *</label>
+                <select 
+                  className="input input-bordered w-full font-semibold"
+                  value={compraData.id_producto}
+                  onChange={e => {
+                    const sel = productos.find(p => p.id === Number(e.target.value));
+                    setCompraData({ 
+                      ...compraData, 
+                      id_producto: Number(e.target.value),
+                      costo: sel ? Math.round(Number(sel.precio) * 0.6) : compraData.costo
+                    });
+                  }}
+                >
+                  {productos.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre} (Stock actual: {p.stock})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-base-content mb-1">Cantidad a Comprar *</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    required
+                    className="input input-bordered w-full font-bold"
+                    value={compraData.cantidad}
+                    onChange={e => setCompraData({ ...compraData, cantidad: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-base-content mb-1">Costo Unitario ($) *</label>
+                  <input 
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    className="input input-bordered w-full font-bold"
+                    value={compraData.costo}
+                    onChange={e => setCompraData({ ...compraData, costo: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-base-200 rounded-lg flex justify-between items-center text-sm font-bold">
+                <span className="text-gray-400">Total de Compra:</span>
+                <span className="text-emerald-400 text-base">
+                  ${(compraData.cantidad * compraData.costo).toFixed(2)} MXN
+                </span>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
+              <button type="button" onClick={() => setShowModalCompra(false)} className="btn btn-ghost">Cancelar</button>
+              <button type="submit" className="btn btn-primary flex items-center gap-1">
+                <CheckCircle2 size={16} /> Confirmar Entrada
               </button>
             </div>
           </form>
