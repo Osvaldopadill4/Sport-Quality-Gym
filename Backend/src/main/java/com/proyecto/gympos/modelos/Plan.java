@@ -9,8 +9,7 @@ public class Plan {
     //Plan
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    @Getter @Setter
-    @Column(name = "id")
+    @Getter @Setter @Column(name = "id")
     private int id;
     @Getter @Setter @Column(name = "nombre")
     private String nombre;
@@ -22,5 +21,9 @@ public class Plan {
     private String duracion_dias;
     @Getter @Setter @Column(name = "estado")
     private String estado;
+    @Getter @Setter @Column(name = "categoria")
+    private String categoria;
+    @Getter @Setter @Column(name = "stock")
+    private String stock;
 
 }

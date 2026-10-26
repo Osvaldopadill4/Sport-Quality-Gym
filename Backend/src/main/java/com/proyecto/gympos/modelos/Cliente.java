@@ -10,8 +10,7 @@ public class Cliente {
     //Cliente
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    @Getter @Setter
-    @Column(name = "id")
+    @Getter @Setter @Column(name = "id")
     private int id;
     @Getter @Setter @Column(name = "nombre")
     private String nombre;

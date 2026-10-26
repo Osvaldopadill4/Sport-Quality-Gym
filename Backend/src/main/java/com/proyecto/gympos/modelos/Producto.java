@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "plan")
+@Table(name = "producto")
 public class Producto {
 //Producto
     @Id
