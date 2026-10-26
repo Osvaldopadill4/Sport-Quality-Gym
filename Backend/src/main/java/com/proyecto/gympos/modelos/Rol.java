@@ -13,6 +13,6 @@ public class Rol {
     private int id;
     @Getter @Setter @Column(name = "nombre")
     private String nombre;
-    @Getter @Setter @Column(name = "nombre_empresa")
-    private String nombre_empresa;
+    @Getter @Setter @Column(name = "descripcion")
+    private String descripcion;
 }
