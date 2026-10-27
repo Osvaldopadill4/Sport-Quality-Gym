@@ -22,15 +22,15 @@ public class Detalle_ventaDaoImp implements Detalle_ventaDao {
     }
     @Override
     public void eliminar(int id) {
-        Detalle_venta detalle_venta = entityManager.find(Detalle_venta.class, id);
-        entityManager.remove(detalle_venta);
+        Detalle_venta detalleVenta = entityManager.find(Detalle_venta.class, id);
+        entityManager.remove(detalleVenta);
     }
     @Override
-    public void registrar(Detalle_venta detalle_venta) {
-        entityManager.persist(detalle_venta);
+    public void registrar(Detalle_venta detalleVenta) {
+        entityManager.persist(detalleVenta);
     }
     @Override
-    public void actualizar(Detalle_venta detalle_venta) {
-        entityManager.merge(detalle_venta);
+    public void actualizar(Detalle_venta detalleVenta) {
+        entityManager.merge(detalleVenta);
     }
 }

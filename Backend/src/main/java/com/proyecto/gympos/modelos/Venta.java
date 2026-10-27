@@ -1,11 +1,11 @@
 package com.proyecto.gympos.modelos;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+@Entity
+@Table(name = "venta")
 public class Venta {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
