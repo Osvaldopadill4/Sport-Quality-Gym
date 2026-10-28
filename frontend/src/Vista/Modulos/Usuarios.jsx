@@ -3,6 +3,7 @@ import { Search, Plus, Edit, Trash2, Power, X } from 'lucide-react';
 import '../../CSS/Usuarios.css';
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from '../../JS/usuarios';
 import Toast from '../Componentes/Toast';
+import ConfirmModal from '../Componentes/ConfirmModal';
 
 // Helper robusto para determinar si el estado es Activo,
 // soportando "1", 1, "Activo", "activo", true, etc. provenientes de la BD MySQL/API.
@@ -99,45 +100,75 @@ export default function Usuarios({ loggedUser }) {
   const activos = usuarios.filter(u => esEstadoActivo(u.estado)).length;
   const inactivos = total - activos;
 
+  // Validación de permisos especiales: Solo el usuario con id === 1 puede modificar la tabla usuarios
+  // y eliminar registros de proveedores y usuarios.
+  const esUsuarioId1 = Number(usuarioActivo?.id) === 1;
+
   const getRolName = (id_rol) => {
     const rolNum = Number(id_rol);
     if (rolNum === 1) return 'Administrador';
     if (rolNum === 2) return 'Recepcionista';
+    if (rolNum === 3) return 'Inventario';
     return 'Usuario';
   };
 
-  // ACCIÓN: Poner en activo (envía petición a la BD vía API)
+  // Modal de Confirmación personalizada para eliminar (sin alert/confirm de localhost)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
+
+  // ACCIÓN: Poner en activo (envía petición a la BD vía API y actualiza vista al instante)
   const handlePonerEnActivo = async (u) => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
+      return;
+    }
+    const nuevaLista = usuarios.map(item => item.id === u.id ? { ...item, estado: "1" } : item);
+    setUsuarios(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const usuarioActualizado = { ...u, estado: "1" };
+      const usuarioActualizado = { 
+        ...u, 
+        id_rol: Number(u.id_rol) || 2,
+        contrasena: u.contrasena || '123456',
+        estado: "1" 
+      };
       await updateUsuario(u.id, usuarioActualizado);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
-      await cargarDatos();
+      mostrarAlerta(`Usuario "${u.nombre}" activado correctamente`, 'success');
     } catch (error) {
       console.error('Error al poner en activo:', error);
-      const nuevaLista = usuarios.map(item => item.id === u.id ? { ...item, estado: "1" } : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
-  // ACCIÓN: Dar de baja (envía petición a la BD vía API)
+  // ACCIÓN: Dar de baja (envía petición a la BD vía API y actualiza vista al instante)
   const handleDarDeBaja = async (u) => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
+      return;
+    }
+    const nuevaLista = usuarios.map(item => item.id === u.id ? { ...item, estado: "0" } : item);
+    setUsuarios(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const usuarioActualizado = { ...u, estado: "0" };
+      const usuarioActualizado = { 
+        ...u, 
+        id_rol: Number(u.id_rol) || 2,
+        contrasena: u.contrasena || '123456',
+        estado: "0" 
+      };
       await updateUsuario(u.id, usuarioActualizado);
-      mostrarAlerta('Dado de baja correctamente', 'info');
-      await cargarDatos();
+      mostrarAlerta(`Usuario "${u.nombre}" dado de baja correctamente`, 'info');
     } catch (error) {
       console.error('Error al dar de baja:', error);
-      const nuevaLista = usuarios.map(item => item.id === u.id ? { ...item, estado: "0" } : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
 
   // Alternador de estado rápido
   const handleToggleEstado = (u) => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
+      return;
+    }
     const esActivo = esEstadoActivo(u.estado);
     if (esActivo) {
       handleDarDeBaja(u);
@@ -146,29 +177,51 @@ export default function Usuarios({ loggedUser }) {
     }
   };
 
-  // ACCIÓN: Eliminar (envía petición a la BD vía API)
-  const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este usuario de la base de datos?')) {
-      try {
-        await deleteUsuario(id);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-        await cargarDatos();
-      } catch (error) {
-        console.error('Error eliminando:', error);
-        const nuevaLista = usuarios.filter(u => u.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado localmente', 'info');
-      }
+  // Solicitar confirmación con Modal en pantalla (reemplaza window.confirm)
+  const pedirConfirmacionEliminar = (id, nombre) => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla usuarios.', 'error');
+      return;
+    }
+    setConfirmModal({
+      isOpen: true,
+      id,
+      nombre: nombre || 'este usuario'
+    });
+  };
+
+  // Ejecutar eliminación confirmada en BD vía API
+  const confirmarEliminar = async () => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla usuarios.', 'error');
+      return;
+    }
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null, nombre: '' });
+    if (!id) return;
+    try {
+      await deleteUsuario(id);
+      mostrarAlerta('Registro eliminado correctamente', 'success');
+      await cargarDatos();
+    } catch (error) {
+      console.error('Error eliminando:', error);
+      const nuevaLista = usuarios.filter(u => u.id !== id);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Registro eliminado localmente', 'info');
     }
   };
 
   // Abrir Modal para Agregar o Editar
   const openModal = (mode, usuario = null) => {
+    if (mode === 'edit' && !esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
+      return;
+    }
     setModalMode(mode);
     if (mode === 'edit' && usuario) {
       setFormData({
         id: usuario.id,
-        id_rol: Number(usuario.id_rol) || 2,
+        id_rol: Number(usuario.id_rol) === 3 ? 3 : 2,
         nombre: usuario.nombre || '',
         apellido: usuario.apellido || '',
         telefono: usuario.telefono || '',
@@ -194,14 +247,43 @@ export default function Usuarios({ loggedUser }) {
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
+    if (modalMode === 'edit' && !esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
+      setShowModal(false);
+      return;
+    }
+
     // Validaciones
-    if (!formData.nombre.trim()) {
+    const nombreLimpio = formData.nombre.trim();
+    if (!nombreLimpio) {
       mostrarAlerta('Por favor ingresa el nombre', 'error');
       return;
     }
-    if (!formData.correo.trim()) {
-      mostrarAlerta('Por favor ingresa el correo', 'error');
+    if (nombreLimpio.length > 20) {
+      mostrarAlerta('El nombre no puede exceder 20 caracteres', 'error');
       return;
+    }
+    if (formData.apellido && formData.apellido.trim().length > 20) {
+      mostrarAlerta('El apellido no puede exceder 20 caracteres', 'error');
+      return;
+    }
+
+    const correoLimpio = (formData.correo || '').trim().toLowerCase();
+    if (!correoLimpio) {
+      mostrarAlerta('Por favor ingresa el correo electrónico', 'error');
+      return;
+    }
+    if (!correoLimpio.includes('@') || !correoLimpio.includes('.com')) {
+      mostrarAlerta('El correo debe ser válido y contener "@" y ".com"', 'error');
+      return;
+    }
+
+    if (formData.telefono) {
+      const telLimpio = formData.telefono.replace(/\D/g, '');
+      if (telLimpio.length > 11) {
+        mostrarAlerta('El teléfono solo permite un máximo de 11 caracteres numéricos', 'error');
+        return;
+      }
     }
 
     try {
@@ -391,29 +473,47 @@ export default function Usuarios({ loggedUser }) {
                     </td>
                     <td>
                       <div className="usuarios-table-actions">
-                        {/* Opción Guardar / Editar */}
+                        {/* Opción Guardar / Editar (Solo usuario id === 1) */}
                         <button
-                          className="usuarios-action-btn edit"
-                          title="Editar datos del usuario"
-                          onClick={() => openModal('edit', u)}
+                          className={`usuarios-action-btn edit ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`}
+                          title={esUsuarioId1 ? 'Editar datos del usuario' : 'Restringido: Solo el usuario con ID=1 puede modificar datos de usuarios'}
+                          onClick={() => {
+                            if (!esUsuarioId1) {
+                              mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar usuarios.', 'error');
+                              return;
+                            }
+                            openModal('edit', u);
+                          }}
                         >
                           <Edit size={16} />
                         </button>
 
-                        {/* Opción Poner en activo / Dar de baja */}
+                        {/* Opción Poner en activo / Dar de baja (Solo usuario id === 1) */}
                         <button
-                          className={`usuarios-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
-                          onClick={() => handleToggleEstado(u)}
+                          className={`usuarios-action-btn ${esActivo ? 'power-off' : 'power-on'} ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`}
+                          title={!esUsuarioId1 ? 'Restringido: Solo el usuario con ID=1 puede modificar estado' : (esActivo ? 'Dar de baja' : 'Poner en activo')}
+                          onClick={() => {
+                            if (!esUsuarioId1) {
+                              mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar el estado de usuarios.', 'error');
+                              return;
+                            }
+                            handleToggleEstado(u);
+                          }}
                         >
                           <Power size={16} />
                         </button>
 
-                        {/* Opción Eliminar */}
+                        {/* Opción Eliminar (Solo usuario id === 1) */}
                         <button
-                          className="usuarios-action-btn delete"
-                          title="Eliminar usuario"
-                          onClick={() => handleEliminar(u.id)}
+                          className={`usuarios-action-btn delete ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`}
+                          title={esUsuarioId1 ? 'Eliminar usuario' : 'Restringido: Solo el usuario con ID=1 puede eliminar usuarios'}
+                          onClick={() => {
+                            if (!esUsuarioId1) {
+                              mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de usuarios.', 'error');
+                              return;
+                            }
+                            pedirConfirmacionEliminar(u.id, `${u.nombre} ${u.apellido || ''}`.trim());
+                          }}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -459,34 +559,36 @@ export default function Usuarios({ loggedUser }) {
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Nombre *
+                  Nombre * (Máx. 20 caracteres)
                 </label>
                 <input
                   type="text"
                   required
+                  maxLength={20}
                   className="input input-bordered w-full"
                   placeholder="Ej. Sofía"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value.slice(0, 20) })}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Apellido
+                  Apellido (Máx. 20 caracteres)
                 </label>
                 <input
                   type="text"
+                  maxLength={20}
                   className="input input-bordered w-full"
                   placeholder="Ej. Martínez"
                   value={formData.apellido || ''}
-                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value.slice(0, 20) })}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Correo Electrónico *
+                  Correo Electrónico * (Debe contener @ y .com)
                 </label>
                 <input
                   type="email"
@@ -500,14 +602,15 @@ export default function Usuarios({ loggedUser }) {
 
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono
+                  Teléfono (Solo números, máx. 11 dígitos)
                 </label>
                 <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="+56 9 1234 5678"
+                  type="tel"
+                  maxLength={11}
+                  className="input input-bordered w-full font-mono"
+                  placeholder="Ej. 3471012962"
                   value={formData.telefono || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 11) })}
                 />
               </div>
 
@@ -534,9 +637,12 @@ export default function Usuarios({ loggedUser }) {
                   value={formData.id_rol}
                   onChange={(e) => setFormData({ ...formData, id_rol: Number(e.target.value) })}
                 >
-                  <option value={1}>Administrador</option>
-                  <option value={2}>Recepcionista</option>
+                  <option value={2}>Recepcionista / Empleado (ID 2)</option>
+                  <option value={3}>Inventario (ID 3)</option>
                 </select>
+                <span className="text-[11px] text-zinc-400 mt-1 block">
+                  Carga exclusiva de roles operativos: ID 2 (Recepcionista) e ID 3 (Inventario).
+                </span>
               </div>
 
               <div>
@@ -569,6 +675,18 @@ export default function Usuarios({ loggedUser }) {
           </form>
         </div>
       </dialog>
+
+      {/* Modal de Advertencia y Confirmación al Centro de Pantalla */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="¿Eliminar Usuario?"
+        message={`¿Estás seguro de que deseas eliminar permanentemente a "${confirmModal.nombre}" de la base de datos? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar Usuario"
+        cancelText="Cancelar"
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
+        tipo="danger"
+      />
     </div>
   );
 }

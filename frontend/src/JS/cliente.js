@@ -1,19 +1,32 @@
 const API_URL = 'http://localhost:8080/api/cliente';
+const API_URL_ALT = 'http://127.0.0.1:8080/api/cliente';
+
+const fetchWithFallback = async (path = '', options = {}) => {
+  try {
+    return await fetch(`${API_URL}${path}`, options);
+  } catch (err) {
+    try {
+      return await fetch(`${API_URL_ALT}${path}`, options);
+    } catch {
+      throw err;
+    }
+  }
+};
 
 export const getClientes = async () => {
   try {
-    const res = await fetch(API_URL);
-    if (!res.ok) throw new Error('Error al obtener clientes');
+    const res = await fetchWithFallback();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: Error al obtener clientes`);
     return await res.json();
   } catch (error) {
-    console.warn('No se pudo conectar con la API de clientes:', error.message);
+    console.warn('No se pudo conectar con la API de clientes en Spring Boot:', error.message);
     return null;
   }
 };
 
 export const createCliente = async (cliente) => {
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetchWithFallback('', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cliente)
@@ -28,7 +41,7 @@ export const createCliente = async (cliente) => {
 
 export const updateCliente = async (id, cliente) => {
   try {
-    const res = await fetch(`${API_URL}/${id}`, {
+    const res = await fetchWithFallback(`/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cliente)
@@ -43,7 +56,7 @@ export const updateCliente = async (id, cliente) => {
 
 export const deleteCliente = async (id) => {
   try {
-    const res = await fetch(`${API_URL}/${id}`, {
+    const res = await fetchWithFallback(`/${id}`, {
       method: 'DELETE'
     });
     return res.ok;

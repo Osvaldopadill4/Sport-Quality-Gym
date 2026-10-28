@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Power, X, Package, AlertTriangle, Truck, ArrowDownCircle, CheckCircle2 } from 'lucide-react';
 import '../../CSS/Productos.css';
 import { getProductos, createProductos, updateProductos, deleteProductos } from '../../JS/producto';
+import { createCompra } from '../../JS/compra';
 import Toast from '../Componentes/Toast';
+import ConfirmModal from '../Componentes/ConfirmModal';
 
 // Helper de estado activo compatible con BD (soporta "1", 1, "Activo", true)
 const esEstadoActivo = (estado) => {
@@ -47,14 +49,39 @@ export default function Productos({ loggedUser }) {
     estado: 1 
   });
 
-  // Estados modal Reabastecer Inventario (sp_registrar_compra_inventario)
+  // Estados modal Reabastecer Inventario
   const [showModalCompra, setShowModalCompra] = useState(false);
+  const [busquedaReabastecer, setBusquedaReabastecer] = useState('');
+  const [productosFiltradosReabastecer, setProductosFiltradosReabastecer] = useState([]);
   const [compraData, setCompraData] = useState({
     id_producto: '',
     id_proveedor: 1,
     cantidad: 10,
     costo: 50
   });
+
+  // Modal de Confirmación personalizada para eliminar (sin alert/confirm de localhost)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
+
+  // useEffect para el buscador en tiempo real dentro del modal de Reabastecer
+  useEffect(() => {
+    if (!showModalCompra) {
+      setBusquedaReabastecer('');
+      return;
+    }
+    const q = busquedaReabastecer.toLowerCase().trim();
+    if (!q) {
+      setProductosFiltradosReabastecer(productos);
+    } else {
+      setProductosFiltradosReabastecer(
+        productos.filter(p => 
+          p.nombre?.toLowerCase().includes(q) ||
+          p.categoria?.toLowerCase().includes(q) ||
+          String(p.id).includes(q)
+        )
+      );
+    }
+  }, [busquedaReabastecer, productos, showModalCompra]);
 
   const mostrarAlerta = (mensaje, tipo = 'success') => {
     setAlerta({ mensaje, tipo });
@@ -71,29 +98,41 @@ export default function Productos({ loggedUser }) {
 
   const cargarDatos = () => {
     getProductos().then(data => {
-      if (Array.isArray(data) && data.length > 0) {
-        setProductos(data);
-        localStorage.setItem('gymton_productos', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_productos');
-        if (local) {
-          try {
-            setProductos(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
+      if (Array.isArray(data)) {
+        // Filtrar exclusivamente los productos del catálogo (tienen categoria o stock, y no son planes)
+        const prodsReales = data.filter(p => (p.categoria !== null && p.categoria !== undefined && p.categoria !== '') || (p.stock !== null && p.stock !== undefined && (p.duracion_dias === null || p.duracion_dias === undefined)));
+        if (prodsReales.length > 0) {
+          const adaptados = prodsReales.map(p => ({
+            ...p,
+            precio: Number(p.precio) || 0,
+            stock: Number(p.stock) || 0,
+            stock_minimo: Number(p.stock_minimo) || 5,
+            estado: esEstadoActivo(p.estado) ? 1 : 0
+          }));
+          setProductos(adaptados);
+          localStorage.setItem('gymton_productos', JSON.stringify(adaptados));
+          return;
         }
-        const fallback = [
-          { id: 1, nombre: 'Proteína Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
-          { id: 2, nombre: 'Creatina Monohidratada', categoria: 'Suplementos', descripcion: 'Creapure 300g Micronizada', precio: 550, stock: 4, stock_minimo: 6, estado: 1 },
-          { id: 3, nombre: 'Bebida Energética Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
-          { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'Algodón reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
-          { id: 5, nombre: 'Shaker Mezclador 700ml', categoria: 'Accesorios', descripcion: 'Vaso con bola mezcladora de acero', precio: 140, stock: 2, stock_minimo: 5, estado: 0 }
-        ];
-        setProductos(fallback);
-        localStorage.setItem('gymton_productos', JSON.stringify(fallback));
       }
+      const local = localStorage.getItem('gymton_productos');
+      if (local) {
+        try {
+          setProductos(JSON.parse(local));
+          return;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const fallback = [
+        { id: 1, nombre: 'Proteína Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
+        { id: 2, nombre: 'Creatina Monohidratada', categoria: 'Suplementos', descripcion: 'Creapure 300g Micronizada', precio: 550, stock: 4, stock_minimo: 6, estado: 1 },
+        { id: 3, nombre: 'Bebida Energética Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
+        { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'Algodón reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
+        { id: 5, nombre: 'Shaker Mezclador 700ml', categoria: 'Accesorios', descripcion: 'Vaso con bola mezcladora de acero', precio: 140, stock: 2, stock_minimo: 5, estado: 0 },
+        { id: 6, nombre: 'Creatina Julio', categoria: 'Snacks', descripcion: 'Te va a hacer un tinaco man', precio: 100, stock: 498, stock_minimo: 5, estado: 1 }
+      ];
+      setProductos(fallback);
+      localStorage.setItem('gymton_productos', JSON.stringify(fallback));
     });
   };
 
@@ -116,31 +155,31 @@ export default function Productos({ loggedUser }) {
 
   // ACCIÓN: Poner en activo
   const handlePonerEnActivo = async (p) => {
+    const prodActualizado = { ...p, estado: "1" };
+    const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
+    setProductos(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const prodActualizado = { ...p, estado: "1" };
       await updateProductos(p.id, prodActualizado);
-      const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
-      cargarDatos();
+      mostrarAlerta(`Producto "${p.nombre}" activado correctamente`, 'success');
     } catch (e) {
       console.error(e);
-      mostrarAlerta('Error al activar producto', 'error');
+      mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
   // ACCIÓN: Dar de baja
   const handleDarDeBaja = async (p) => {
+    const prodActualizado = { ...p, estado: "0" };
+    const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
+    setProductos(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const prodActualizado = { ...p, estado: "0" };
       await updateProductos(p.id, prodActualizado);
-      const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Dado de baja correctamente', 'info');
-      cargarDatos();
+      mostrarAlerta(`Producto "${p.nombre}" dado de baja correctamente`, 'info');
     } catch (e) {
       console.error(e);
-      mostrarAlerta('Error al desactivar producto', 'error');
+      mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
 
@@ -150,19 +189,30 @@ export default function Productos({ loggedUser }) {
     else handlePonerEnActivo(p);
   };
 
-  // ACCIÓN: Eliminar
-  const handleEliminar = async (id) => {
-    if (window.confirm("¿Estás seguro de eliminar este producto?")) {
-      try {
-        await deleteProductos(id);
-        const nuevaLista = productos.filter(p => p.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-        cargarDatos();
-      } catch (e) {
-        console.error(e);
-        mostrarAlerta('Error al eliminar producto', 'error');
-      }
+  // Solicitar confirmación con Modal en pantalla (reemplaza window.confirm)
+  const pedirConfirmacionEliminar = (id, nombre) => {
+    setConfirmModal({
+      isOpen: true,
+      id,
+      nombre: nombre || 'este producto'
+    });
+  };
+
+  // Ejecutar eliminación confirmada en BD vía API
+  const confirmarEliminar = async () => {
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null, nombre: '' });
+    if (!id) return;
+    try {
+      await deleteProductos(id);
+      const nuevaLista = productos.filter(p => p.id !== id);
+      setProductos(nuevaLista);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Registro eliminado correctamente', 'success');
+      cargarDatos();
+    } catch (e) {
+      console.error(e);
+      mostrarAlerta('Error al eliminar producto', 'error');
     }
   };
 
@@ -226,12 +276,20 @@ export default function Productos({ loggedUser }) {
       };
 
       if (modalMode === 'create') {
-        const res = await createProductos(payload);
-        const nuevo = (res && res.id) ? res : { ...payload, id: Date.now() };
+        const { id, ...createData } = payload;
+        const res = await createProductos(createData);
+        const nuevo = (res && res.id) ? { ...payload, id: res.id } : { ...payload, id: Date.now() };
         guardarLocalmente([nuevo, ...productos]);
         mostrarAlerta('Registro completado correctamente', 'success');
       } else {
-        await updateProductos(formData.id, payload);
+        try {
+          await updateProductos(formData.id, payload);
+        } catch (errPut) {
+          console.warn('PUT falló para producto, registrando:', errPut);
+          const { id, ...createData } = payload;
+          const res = await createProductos(createData);
+          if (res && res.id) payload.id = res.id;
+        }
         const lista = productos.map(p => p.id === formData.id ? { ...p, ...payload } : p);
         guardarLocalmente(lista);
         mostrarAlerta('Datos actualizados correctamente', 'success');
@@ -266,10 +324,20 @@ export default function Productos({ loggedUser }) {
 
     try {
       await updateProductos(idProd, prodActualizado);
+      // Registrar la compra en la base de datos / historial
+      await createCompra({
+        id_usuario: usuarioActivo?.id || 1,
+        id_proveedor: 1,
+        id_producto: idProd,
+        cantidad: cant,
+        costo_unitario: costo,
+        total: cant * costo,
+        estado: 'Registrada'
+      });
       const lista = productos.map(p => p.id === idProd ? prodActualizado : p);
       guardarLocalmente(lista);
       setShowModalCompra(false);
-      mostrarAlerta(`Entrada de inventario registrada (sp_registrar_compra_inventario): +${cant} uds. para "${prod.nombre}"`, 'success');
+      mostrarAlerta(`Entrada de inventario registrada: +${cant} uds. para "${prod.nombre}"`, 'success');
       cargarDatos();
     } catch (err) {
       console.error(err);
@@ -299,13 +367,7 @@ export default function Productos({ loggedUser }) {
 
   return (
     <div className="productos-wrapper">
-      {alerta && (
-        <Toast 
-          mensaje={alerta.mensaje} 
-          tipo={alerta.tipo} 
-          onClose={() => setAlerta(null)} 
-        />
-      )}
+      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
 
       {/* Header */}
       <div className="productos-header">
@@ -353,14 +415,14 @@ export default function Productos({ loggedUser }) {
         </div>
       </div>
 
-      {/* Alerta de la Vista SQL `vw_inventario_bajo` */}
+      {/* Alerta de Stock Mínimo */}
       {bajoStockCount > 0 && (
         <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-4 text-amber-300">
           <div className="flex items-center gap-3">
             <AlertTriangle size={24} className="text-amber-400 flex-shrink-0 animate-bounce" />
             <div>
               <strong className="block text-sm font-bold">
-                Alerta de Inventario (Vista SQL: <code>vw_inventario_bajo</code>)
+                Alerta de Stock Mínimo
               </strong>
               <span className="text-xs text-amber-200/80">
                 Hay {bajoStockCount} producto(s) con stock igual o inferior a su stock mínimo (o ≤ 5 unidades).
@@ -396,23 +458,23 @@ export default function Productos({ loggedUser }) {
           <button className={`productos-filter-btn ${filtro === 'inactivos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('inactivos')}>
             Inactivos ({inactivos})
           </button>
-          {/* Tab de la Vista vw_inventario_bajo */}
+          {/* Tab de Stock Bajo */}
           <button 
             className={`productos-filter-btn ${filtro === 'bajo_stock' ? 'active bg-amber-500 text-black border-none' : 'inactive'}`} 
             onClick={() => setFiltro('bajo_stock')}
           >
-            ⚠️ Stock Bajo (vw_inventario_bajo) ({bajoStockCount})
+            ⚠️ Stock Bajo ({bajoStockCount})
           </button>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Botón Reabastecer (sp_registrar_compra_inventario) */}
+          {/* Botón Reabastecer */}
           <button 
             className="btn btn-sm bg-zinc-800 text-emerald-400 border border-zinc-700 hover:bg-zinc-700 font-bold flex items-center gap-1.5"
             onClick={() => openModalCompra()}
             title="Registrar entrada de mercancía / compra a proveedor"
           >
-            <Truck size={16} /> Reabastecer (sp_compra)
+            <Truck size={16} /> Reabastecer Stock
           </button>
 
           <button className="productos-btn-nuevo" onClick={() => openModal('create')}>
@@ -426,13 +488,13 @@ export default function Productos({ loggedUser }) {
         <table className="productos-table">
           <thead>
             <tr>
-              <th>Producto</th>
-              <th>Categoría</th>
-              <th>Descripción</th>
-              <th>Precio (MXN)</th>
-              <th>Stock vs Mínimo</th>
-              <th>Estado</th>
-              <th style={{textAlign:'right'}}>Opciones</th>
+              <th style={{ width: '22%' }}>Producto</th>
+              <th style={{ width: '13%' }}>Categoría</th>
+              <th style={{ width: '23%' }}>Descripción</th>
+              <th style={{ width: '13%' }}>Precio (MXN)</th>
+              <th style={{ width: '13%' }}>Stock Disponible</th>
+              <th style={{ width: '8%' }}>Estado</th>
+              <th style={{ width: '8%', textAlign: 'right' }}>Opciones</th>
             </tr>
           </thead>
           <tbody>
@@ -450,32 +512,34 @@ export default function Productos({ loggedUser }) {
                   <tr key={p.id}>
                     <td className="productos-td-name font-bold">
                       <span className="flex items-center gap-2">
-                        <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-primary'} /> 
+                        <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-emerald-500'} /> 
                         {p.nombre}
                       </span>
                     </td>
                     <td>
-                      <span className="badge badge-outline badge-sm text-xs font-medium">
+                      <span className="productos-cat-pill">
                         {p.categoria || 'General'}
                       </span>
                     </td>
-                    <td className="text-gray-400 text-sm">{p.descripcion || 'Sin descripción'}</td>
-                    <td className="font-bold text-emerald-400">${p.precio} MXN</td>
+                    <td className="text-gray-500 text-sm">{p.descripcion || 'Sin descripción'}</td>
+                    <td className="font-bold text-emerald-600">${Number(p.precio).toFixed(1)} MXN</td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <span className={`badge ${stockBajo ? 'badge-error text-white font-bold gap-1' : 'badge-success text-black font-semibold'}`}>
-                          {stockBajo && <AlertTriangle size={12} />} {p.stock} uds.
-                        </span>
-                        <span className="text-xs text-gray-400 font-mono">
-                          (min: {p.stock_minimo || 5})
+                        <span className={`inline-flex items-center justify-center font-bold text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
+                          stockBajo 
+                            ? 'bg-red-500/10 text-red-600 border border-red-500/30' 
+                            : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30'
+                        }`}>
+                          {stockBajo && <AlertTriangle size={12} className="mr-1 text-red-500" />}
+                          {p.stock}
                         </span>
                         {stockBajo && (
                           <button 
-                            className="btn btn-ghost btn-xs text-amber-400 hover:bg-amber-500/10 p-1"
-                            title="Comprar / Reabastecer este producto"
+                            className="p-1 rounded-md text-amber-500 hover:bg-amber-100 transition-colors"
+                            title="Reabastecer stock de este producto"
                             onClick={() => openModalCompra(p)}
                           >
-                            <ArrowDownCircle size={15} />
+                            <ArrowDownCircle size={16} />
                           </button>
                         )}
                       </div>
@@ -487,7 +551,7 @@ export default function Productos({ loggedUser }) {
                         <span className="productos-badge inactivo">Inactivo</span>
                       )}
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'right' }}>
                       <div className="productos-table-actions">
                         <button className="productos-action-btn edit" title="Editar producto" onClick={() => openModal('edit', p)}>
                           <Edit size={16}/>
@@ -499,7 +563,11 @@ export default function Productos({ loggedUser }) {
                         >
                           <Power size={16}/>
                         </button>
-                        <button className="productos-action-btn delete" title="Eliminar producto" onClick={() => handleEliminar(p.id)}>
+                        <button 
+                          className="productos-action-btn delete" 
+                          title="Eliminar producto" 
+                          onClick={() => pedirConfirmacionEliminar(p.id, p.nombre)}
+                        >
                           <Trash2 size={16}/>
                         </button>
                       </div>
@@ -514,7 +582,6 @@ export default function Productos({ loggedUser }) {
         <div className="productos-pagination">
           <span className="productos-pagination-text">
             Mostrando {productosFiltrados.length} de {total} productos
-            {filtro === 'bajo_stock' && ' (Vista SQL: vw_inventario_bajo)'}
           </span>
           <div className="productos-pagination-buttons">
             <button className="productos-page-btn prev">Anterior</button>
@@ -626,13 +693,13 @@ export default function Productos({ loggedUser }) {
         </div>
       </dialog>
 
-      {/* Modal Reabastecer Inventario (sp_registrar_compra_inventario) */}
+      {/* Modal Reabastecer Inventario con buscador en tiempo real */}
       <dialog className={`modal ${showModalCompra ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col">
+        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-lg flex flex-col">
           <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
             <h3 className="font-bold text-lg text-base-content flex items-center gap-2">
               <Truck size={20} className="text-emerald-400" />
-              Reabastecer (sp_registrar_compra_inventario)
+              Reabastecer Inventario
             </h3>
             <button type="button" onClick={() => setShowModalCompra(false)} className="text-gray-400 hover:text-gray-600">
               <X size={20} />
@@ -641,29 +708,86 @@ export default function Productos({ loggedUser }) {
           <form onSubmit={handleRegistrarCompraInventario} className="flex flex-col flex-1">
             <div className="p-6 space-y-4">
               <p className="text-xs text-gray-400">
-                Registra la compra a proveedor y actualiza automáticamente el stock disponible en la base de datos.
+                Selecciona el producto mediante el buscador en tiempo real y registra la entrada de stock a la base de datos.
               </p>
 
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Producto a Reabastecer *</label>
-                <select 
-                  className="input input-bordered w-full font-semibold"
-                  value={compraData.id_producto}
-                  onChange={e => {
-                    const sel = productos.find(p => p.id === Number(e.target.value));
-                    setCompraData({ 
-                      ...compraData, 
-                      id_producto: Number(e.target.value),
-                      costo: sel ? Math.round(Number(sel.precio) * 0.6) : compraData.costo
-                    });
-                  }}
-                >
-                  {productos.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre} (Stock actual: {p.stock})
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-base-content mb-1.5">
+                  Buscar Producto a Reabastecer *
+                </label>
+                {/* Buscador en tiempo real con useEffect */}
+                <div className="relative mb-2">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input 
+                    type="text"
+                    className="input input-bordered input-sm w-full pl-9 pr-8 text-sm"
+                    placeholder="Escribe el nombre o categoría para buscar rápido..."
+                    value={busquedaReabastecer}
+                    onChange={e => setBusquedaReabastecer(e.target.value)}
+                  />
+                  {busquedaReabastecer && (
+                    <button 
+                      type="button" 
+                      onClick={() => setBusquedaReabastecer('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista interactiva de productos filtrados en tiempo real */}
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1 border border-base-300 rounded-xl p-2 bg-base-200/50">
+                  {productosFiltradosReabastecer.length === 0 ? (
+                    <div className="text-xs text-gray-400 py-4 text-center">
+                      No se encontraron productos coincidentes
+                    </div>
+                  ) : (
+                    productosFiltradosReabastecer.map(p => {
+                      const isSelected = Number(compraData.id_producto) === Number(p.id);
+                      const stockCritico = esInventarioBajo(p);
+                      return (
+                        <div 
+                          key={p.id}
+                          onClick={() => {
+                            setCompraData({
+                              ...compraData,
+                              id_producto: p.id,
+                              costo: Math.round(Number(p.precio) * 0.6) || compraData.costo
+                            });
+                          }}
+                          className={`p-2.5 rounded-lg cursor-pointer text-xs flex justify-between items-center transition-all ${
+                            isSelected 
+                              ? 'bg-primary/20 text-white font-bold border border-primary/50 shadow-sm' 
+                              : 'hover:bg-base-300 text-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Package size={14} className={stockCritico ? 'text-amber-400' : 'text-emerald-400'} />
+                            <span className="truncate">{p.nombre}</span>
+                            <span className="text-[10px] text-gray-400">({p.categoria || 'General'})</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                              stockCritico ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              Stock: {p.stock} uds.
+                            </span>
+                            {isSelected && <CheckCircle2 size={15} className="text-primary flex-shrink-0" />}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Confirmación del producto seleccionado */}
+                {compraData.id_producto && (
+                  <div className="mt-2 text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 size={13} />
+                    Seleccionado: {productos.find(p => p.id === Number(compraData.id_producto))?.nombre}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -702,13 +826,29 @@ export default function Productos({ loggedUser }) {
 
             <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
               <button type="button" onClick={() => setShowModalCompra(false)} className="btn btn-ghost">Cancelar</button>
-              <button type="submit" className="btn btn-primary flex items-center gap-1">
+              <button 
+                type="submit" 
+                disabled={!compraData.id_producto}
+                className="btn btn-primary flex items-center gap-1"
+              >
                 <CheckCircle2 size={16} /> Confirmar Entrada
               </button>
             </div>
           </form>
         </div>
       </dialog>
+
+      {/* Modal de Advertencia y Confirmación al Centro de Pantalla */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="¿Eliminar Producto?"
+        message={`¿Estás seguro de que deseas eliminar permanentemente "${confirmModal.nombre}" del inventario? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar Producto"
+        cancelText="Cancelar"
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
+        tipo="danger"
+      />
     </div>
   );
 }

@@ -17,7 +17,8 @@ import {
   User
 } from 'lucide-react';
 import '../../CSS/Acceso.css';
-import { getAcceso, createAcceso } from '../../JS/acceso';
+import { getAcceso, createAcceso, generarQrCliente, validarQrAcceso } from '../../JS/acceso';
+import { getClientes } from '../../JS/cliente';
 import Toast from '../Componentes/Toast';
 
 // Clientes iniciales con distintos estados de membresía para pruebas inmediatas
@@ -129,9 +130,15 @@ export default function Acceso({ loggedUser }) {
   const [alertaFlash, setAlertaFlash] = useState(null); // { color: 'green'|'yellow'|'red', titulo, subtitulo, cliente, razon }
   const [tiempoRestanteFlash, setTiempoRestanteFlash] = useState(4);
 
-  // Estado para el modal de la Credencial Móvil / Simulador QR
+  // Estado para clientes desde la Base de Datos MySQL
+  const [clientesBD, setClientesBD] = useState([]);
+
+  // Estado para el modal de la Credencial Móvil / Simulador QR dinámico
   const [showSimuladorMovil, setShowSimuladorMovil] = useState(false);
   const [clienteSimulado, setClienteSimulado] = useState(CLIENTES_DEMO[0]);
+  const [qrJwtToken, setQrJwtToken] = useState('');
+  const [tokenCountdown, setTokenCountdown] = useState(60);
+  const [tokenCargando, setTokenCargando] = useState(false);
 
   // Reloj en tiempo real para la recepción
   const [horaActual, setHoraActual] = useState(new Date().toLocaleTimeString());
@@ -153,87 +160,173 @@ export default function Acceso({ loggedUser }) {
     }
   }, [alertaFlash, showSimuladorMovil]);
 
-  // Cargar historial de accesos
-  const cargarAccesos = () => {
-    getAcceso().then(data => {
+  // Cargar clientes desde la Base de Datos MySQL
+  useEffect(() => {
+    getClientes().then(data => {
       if (Array.isArray(data) && data.length > 0) {
-        setAccesos(data);
-        localStorage.setItem('gymton_accesos_log', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_accesos_log');
-        if (local) {
-          try {
-            setAccesos(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        // Accesos demo del día de hoy
-        const hoyStr = new Date().toISOString().split('T')[0];
-        const demoAccesos = [
-          {
-            id: 101,
-            id_cliente: 1,
-            uuid: 'gym-uuid-juan-001',
-            cliente_nombre: 'Juan Pérez García',
-            plan: 'Mensual',
-            fecha: hoyStr,
-            hora: '07:15:30',
-            resultado: 'Permitido',
-            color: 'green',
-            dias_restantes: 22,
-            foto: CLIENTES_DEMO[0].foto
-          },
-          {
-            id: 102,
-            id_cliente: 2,
-            uuid: 'gym-uuid-carolina-002',
-            cliente_nombre: 'Carolina Gómez Soto',
-            plan: 'Anual',
-            fecha: hoyStr,
-            hora: '08:30:12',
-            resultado: 'Permitido',
-            color: 'green',
-            dias_restantes: 240,
-            foto: CLIENTES_DEMO[1].foto
-          },
-          {
-            id: 103,
-            id_cliente: 4,
-            uuid: 'gym-uuid-sofia-004',
-            cliente_nombre: 'Sofía Mendoza Luna',
-            plan: 'Semanal',
-            fecha: hoyStr,
-            hora: '09:02:45',
-            resultado: 'Por Vencer (3 días)',
-            color: 'yellow',
-            dias_restantes: 3,
-            foto: CLIENTES_DEMO[3].foto
-          },
-          {
-            id: 104,
-            id_cliente: 5,
-            uuid: 'gym-uuid-roberto-005',
-            cliente_nombre: 'Roberto Sánchez Ruiz',
-            plan: 'Mensual',
-            fecha: hoyStr,
-            hora: '09:45:00',
-            resultado: 'Denegado (Vencido)',
-            color: 'red',
-            dias_restantes: -4,
-            foto: CLIENTES_DEMO[4].foto
-          }
-        ];
-        setAccesos(demoAccesos);
-        localStorage.setItem('gymton_accesos_log', JSON.stringify(demoAccesos));
+        setClientesBD(data);
       }
+    }).catch(err => console.warn('Error al cargar clientes desde API:', err));
+  }, []);
+
+  // Obtener la base consolidada de clientes (Base de Datos MySQL + Clientes de demostración)
+  const obtenerListaClientes = () => {
+    const idsDemo = new Set(CLIENTES_DEMO.map(c => c.id));
+    
+    // Extras desde MySQL
+    const extrasBD = (clientesBD || [])
+      .filter(c => !idsDemo.has(c.id))
+      .map(c => ({
+        id: c.id,
+        uuid: c.token_qr || `gym-uuid-cl-${c.id}`,
+        nombre: c.nombre || 'Cliente Registrado',
+        telefono: c.telefono || 'Sin teléfono',
+        plan: 'Mensual',
+        tipo_plan: 'Mensual',
+        precio_plan: 350,
+        dias_restantes: 30,
+        fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        estado: c.estado === 1 || c.estado === '1' || String(c.estado).toLowerCase() === 'activo' ? 1 : 0,
+        foto: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.nombre || 'C')}`,
+        es_invitado: false
+      }));
+
+    // Actualizar demos si coinciden con IDs en BD (ej. cliente id 1 en MySQL)
+    const bdMap = new Map((clientesBD || []).map(c => [c.id, c]));
+    const demosActualizados = CLIENTES_DEMO.map(demo => {
+      if (bdMap.has(demo.id)) {
+        const fromDb = bdMap.get(demo.id);
+        return {
+          ...demo,
+          nombre: fromDb.nombre || demo.nombre,
+          telefono: fromDb.telefono || demo.telefono,
+          estado: fromDb.estado === '1' || fromDb.estado === 1 ? 1 : 0,
+          uuid: fromDb.token_qr || demo.uuid
+        };
+      }
+      return demo;
     });
+
+    return [...demosActualizados, ...extrasBD];
+  };
+
+  // Cargar historial de accesos desde la Base de Datos MySQL
+  const cargarAccesos = async () => {
+    try {
+      const data = await getAcceso();
+      if (Array.isArray(data) && data.length > 0) {
+        const clientesActuales = obtenerListaClientes();
+        const mapa = new Map(clientesActuales.map(c => [Number(c.id), c]));
+
+        const normalizados = data.map(item => {
+          const cliente = mapa.get(Number(item.id_cliente));
+          const esConcedido = item.resultado === 'CONCEDIDO' || item.resultado === 'Permitido';
+          const esInvitado = cliente?.es_invitado || cliente?.plan?.toLowerCase().includes('invitado');
+          const porVencer = cliente?.dias_restantes <= 5 && cliente?.dias_restantes >= 0;
+
+          let colorBadge = 'green';
+          if (!esConcedido) {
+            colorBadge = 'red';
+          } else if (esInvitado || porVencer) {
+            colorBadge = 'yellow';
+          }
+
+          return {
+            id: item.id || Date.now() + Math.random(),
+            id_cliente: item.id_cliente,
+            uuid: item.uuid || cliente?.uuid || `SOCIO-${item.id_cliente}`,
+            cliente_nombre: item.cliente_nombre || cliente?.nombre || `Socio #${item.id_cliente}`,
+            plan: item.plan || cliente?.plan || 'Membresía General',
+            fecha: item.fecha || new Date().toISOString().split('T')[0],
+            hora: item.hora || '00:00:00',
+            resultado: item.resultado === 'CONCEDIDO' ? 'Permitido' : item.resultado,
+            color: colorBadge,
+            dias_restantes: item.dias_restantes !== undefined ? item.dias_restantes : (cliente ? cliente.dias_restantes : 30),
+            foto: item.foto || cliente?.foto || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(item.cliente_nombre || 'S')}`
+          };
+        });
+
+        setAccesos(normalizados);
+        localStorage.setItem('gymton_accesos_log', JSON.stringify(normalizados));
+        return;
+      }
+    } catch (err) {
+      console.warn('Error al sincronizar historial con MySQL:', err);
+    }
+
+    // Fallback a registros locales o demo
+    const local = localStorage.getItem('gymton_accesos_log');
+    if (local) {
+      try {
+        setAccesos(JSON.parse(local));
+        return;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const demoAccesos = [
+      {
+        id: 101,
+        id_cliente: 1,
+        uuid: 'gym-uuid-juan-001',
+        cliente_nombre: 'Juan Pérez García',
+        plan: 'Mensual',
+        fecha: hoyStr,
+        hora: '07:15:30',
+        resultado: 'Permitido',
+        color: 'green',
+        dias_restantes: 22,
+        foto: CLIENTES_DEMO[0].foto
+      },
+      {
+        id: 102,
+        id_cliente: 2,
+        uuid: 'gym-uuid-carolina-002',
+        cliente_nombre: 'Carolina Gómez Soto',
+        plan: 'Anual',
+        fecha: hoyStr,
+        hora: '08:30:12',
+        resultado: 'Permitido',
+        color: 'green',
+        dias_restantes: 240,
+        foto: CLIENTES_DEMO[1].foto
+      },
+      {
+        id: 103,
+        id_cliente: 4,
+        uuid: 'gym-uuid-sofia-004',
+        cliente_nombre: 'Sofía Mendoza Luna',
+        plan: 'Semanal',
+        fecha: hoyStr,
+        hora: '09:02:45',
+        resultado: 'Por Vencer (3 días)',
+        color: 'yellow',
+        dias_restantes: 3,
+        foto: CLIENTES_DEMO[3].foto
+      },
+      {
+        id: 104,
+        id_cliente: 5,
+        uuid: 'gym-uuid-roberto-005',
+        cliente_nombre: 'Roberto Sánchez Ruiz',
+        plan: 'Mensual',
+        fecha: hoyStr,
+        hora: '09:45:00',
+        resultado: 'Denegado (Vencido)',
+        color: 'red',
+        dias_restantes: -4,
+        foto: CLIENTES_DEMO[4].foto
+      }
+    ];
+    setAccesos(demoAccesos);
+    localStorage.setItem('gymton_accesos_log', JSON.stringify(demoAccesos));
   };
 
   useEffect(() => {
     cargarAccesos();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientesBD]);
 
   // Manejo del temporizador de la pantalla de destello (Flash)
   useEffect(() => {
@@ -264,6 +357,52 @@ export default function Acceso({ loggedUser }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [alertaFlash]);
+
+  // Solicitar token dinámico JWT a Spring Boot (60s TTL anti-fraude)
+  const pedirQrDinamico = async (clienteId) => {
+    setTokenCargando(true);
+    try {
+      const resp = await generarQrCliente(clienteId);
+      if (resp && resp.token) {
+        setQrJwtToken(resp.token);
+        setTokenCountdown(60);
+      } else {
+        // Fallback si el cliente no está persistido o está inactivo
+        setQrJwtToken(`JWT-FALLBACK-CL-${clienteId}-${Date.now()}`);
+        setTokenCountdown(60);
+      }
+    } catch {
+      setQrJwtToken(`JWT-FALLBACK-CL-${clienteId}-${Date.now()}`);
+      setTokenCountdown(60);
+    } finally {
+      setTokenCargando(false);
+    }
+  };
+
+  // Efecto cuando se abre el simulador de móvil o cambia el socio seleccionado
+  useEffect(() => {
+    if (showSimuladorMovil && clienteSimulado) {
+      pedirQrDinamico(clienteSimulado.id);
+    }
+  }, [showSimuladorMovil, clienteSimulado]);
+
+  // Temporizador para la cuenta regresiva del token JWT (60 segundos)
+  useEffect(() => {
+    if (!showSimuladorMovil || !qrJwtToken) return;
+
+    const interval = setInterval(() => {
+      setTokenCountdown(prev => {
+        if (prev <= 1) {
+          // Regenerar automáticamente al expirar
+          pedirQrDinamico(clienteSimulado.id);
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [showSimuladorMovil, qrJwtToken, clienteSimulado]);
 
   // Sonidos nativos del navegador con Web Audio API
   const emitirSonido = (tipo) => {
@@ -308,60 +447,82 @@ export default function Acceso({ loggedUser }) {
     }
   };
 
-  // Obtener la base consolidada de clientes (demo + localStorage creado en Clientes.jsx)
-  const obtenerListaClientes = () => {
-    try {
-      const raw = localStorage.getItem('gymton_clientes');
-      if (raw) {
-        const clientesLocal = JSON.parse(raw);
-        if (Array.isArray(clientesLocal) && clientesLocal.length > 0) {
-          // Unir evitando duplicar IDs demo
-          const idsDemo = new Set(CLIENTES_DEMO.map(c => c.id));
-          const extras = clientesLocal
-            .filter(c => !idsDemo.has(c.id))
-            .map(c => ({
-              id: c.id,
-              uuid: `gym-uuid-cl-${c.id}`,
-              nombre: c.nombre || 'Cliente Registrado',
-              telefono: c.telefono || 'Sin teléfono',
-              plan: 'Mensual',
-              tipo_plan: 'Mensual',
-              precio_plan: 350,
-              dias_restantes: 30,
-              fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              estado: c.estado === 1 || c.estado === 'Activo' ? 1 : 0,
-              foto: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.nombre || 'C')}`,
-              es_invitado: false
-            }));
-          return [...CLIENTES_DEMO, ...extras];
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return CLIENTES_DEMO;
-  };
-
-  // Procesar código escaneado o ingresado
+  // Procesar código escaneado o ingresado (JWT dinámico o código manual)
   const procesarAcceso = async (codigoParam) => {
     const rawCode = (codigoParam !== undefined ? codigoParam : inputCodigo).trim();
     if (!rawCode) return;
 
     setInputCodigo('');
 
-    const listaCompleta = obtenerListaClientes();
-    const codigoMinuscula = rawCode.toLowerCase();
-
-    // Buscar por UUID, por ID numérico o por Nombre parcial
-    const clienteEncontrado = listaCompleta.find(c => 
-      c.uuid.toLowerCase() === codigoMinuscula ||
-      String(c.id) === rawCode ||
-      c.nombre.toLowerCase().includes(codigoMinuscula)
-    );
-
     const ahora = new Date();
     const fechaHoy = ahora.toISOString().split('T')[0];
     const horaActualStr = ahora.toLocaleTimeString();
+
+    // 1. Si es un token JWT o intento de validación por API con Spring Boot:
+    const pareceJwt = rawCode.includes('.') || rawCode.startsWith('eyJ') || rawCode.length > 50;
+
+    if (pareceJwt) {
+      const respBackend = await validarQrAcceso(rawCode);
+      if (respBackend) {
+        if (respBackend.acceso) {
+          // Acceso validado criptográficamente por Spring Boot y registrado en MySQL
+          const lista = obtenerListaClientes();
+          const socio = lista.find(c => Number(c.id) === Number(respBackend.clienteId)) || {
+            id: respBackend.clienteId,
+            nombre: respBackend.clienteNombre || 'Socio Registrado',
+            plan: 'Mensual Activo',
+            dias_restantes: 30,
+            foto: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(respBackend.clienteNombre || 'S')}`
+          };
+
+          const esInvitado = socio.es_invitado || socio.plan?.toLowerCase().includes('invitado');
+          const porVencer = socio.dias_restantes <= 5 && socio.dias_restantes >= 0;
+          const colorFlash = (esInvitado || porVencer) ? 'yellow' : 'green';
+
+          emitirSonido(colorFlash);
+          setAlertaFlash({
+            color: colorFlash,
+            titulo: colorFlash === 'yellow' ? '¡ATENCIÓN! ACCESO CON PRECAUCIÓN' : '¡CORRECTO! ACCESO PERMITIDO',
+            subtitulo: colorFlash === 'yellow' 
+              ? (esInvitado ? 'Pase de Invitado (1 Día)' : `Le quedan ${socio.dias_restantes} días`) 
+              : 'Torniquete Automático Desbloqueado',
+            razon: `Validado con token JWT por el servidor Spring Boot. Hora: ${respBackend.horaEntrada || horaActualStr}`,
+            cliente: socio
+          });
+
+          // Recargar historial desde MySQL
+          cargarAccesos();
+          return;
+        } else {
+          // Token expirado o alterado según Spring Boot
+          emitirSonido('red');
+          setAlertaFlash({
+            color: 'red',
+            titulo: '¡ACCESO DENEGADO!',
+            subtitulo: 'Token QR Expirado o Inválido',
+            razon: respBackend.mensaje || 'Firma digital no válida o tiempo límite de 60 segundos excedido.',
+            cliente: {
+              nombre: 'Acceso No Autorizado',
+              plan: 'Token Expirado',
+              dias_restantes: 0,
+              foto: null
+            }
+          });
+          cargarAccesos();
+          return;
+        }
+      }
+    }
+
+    // 2. Modo manual / UUID o ID de socio (recepcionista ingresa código o número de cliente)
+    const listaCompleta = obtenerListaClientes();
+    const codigoMinuscula = rawCode.toLowerCase();
+
+    const clienteEncontrado = listaCompleta.find(c => 
+      c.uuid?.toLowerCase() === codigoMinuscula ||
+      String(c.id) === rawCode ||
+      c.nombre?.toLowerCase().includes(codigoMinuscula)
+    );
 
     if (!clienteEncontrado) {
       // CÓDIGO NO REGISTRADO O INVÁLIDO -> PANTALLA ROJA
@@ -370,7 +531,7 @@ export default function Acceso({ loggedUser }) {
         color: 'red',
         titulo: '¡ACCESO DENEGADO!',
         subtitulo: 'Código QR no reconocido o inexistente',
-        razon: `El código "${rawCode}" no coincide con ningún socio activo en la base de datos.`,
+        razon: `El código "${rawCode}" no coincide con ningún socio en la base de datos.`,
         cliente: {
           nombre: 'Desconocido / No Registrado',
           plan: 'Sin Membresía',
@@ -405,7 +566,7 @@ export default function Acceso({ loggedUser }) {
 
     const esInactivo = clienteEncontrado.estado === 0 || clienteEncontrado.estado === 'Inactivo';
     const esVencido = clienteEncontrado.dias_restantes < 0;
-    const esInvitado = clienteEncontrado.es_invitado || clienteEncontrado.plan.toLowerCase().includes('invitado');
+    const esInvitado = clienteEncontrado.es_invitado || clienteEncontrado.plan?.toLowerCase().includes('invitado');
     const porVencer = clienteEncontrado.dias_restantes <= 5 && clienteEncontrado.dias_restantes >= 0;
 
     let resultadoColor = 'green';
@@ -469,14 +630,15 @@ export default function Acceso({ loggedUser }) {
     setAccesos(listaActualizada);
     localStorage.setItem('gymton_accesos_log', JSON.stringify(listaActualizada));
 
-    // Intentar registrar en backend si está disponible
+    // Registrar en base de datos MySQL
     try {
       await createAcceso({
         id_cliente: clienteEncontrado.id,
         fecha: fechaHoy,
-        hora: horaActualStr.slice(0, 5),
-        resultado: resultadoBadge
+        hora: horaActualStr.slice(0, 8),
+        resultado: resultadoColor === 'green' || resultadoColor === 'yellow' ? 'CONCEDIDO' : 'DENEGADO'
       });
+      cargarAccesos();
     } catch {
       // Backend offline, el log local ya está resguardado
     }
@@ -516,9 +678,7 @@ export default function Acceso({ loggedUser }) {
         />
       )}
 
-      {/* ========================================================= */}
       {/* ALERTA DE PANTALLA COMPLETA (DESTELLO / FLASH VISUAL)     */}
-      {/* ========================================================= */}
       {alertaFlash && (
         <div 
           className={`acceso-flash-overlay flash-${alertaFlash.color}`}
@@ -691,15 +851,45 @@ export default function Acceso({ loggedUser }) {
                     </div>
                   </div>
 
-                  {/* Código QR Generado con UUID Aleatorio / Anti-fraude */}
+                  {/* Código QR Generado Dinámico JWT / Anti-fraude */}
                   <div className="phone-qr-frame">
-                    {/* Render visual de QR estilizado con el UUID */}
-                    <div className="qr-svg-container">
-                      <QrCode size={140} className="text-zinc-900" />
+                    <div className="qr-svg-container relative flex items-center justify-center p-2 bg-white rounded-xl shadow-md min-h-[160px]">
+                      {qrJwtToken ? (
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrJwtToken)}&size=150x150&margin=2`}
+                          alt="QR Dinámico"
+                          className="w-36 h-36 object-contain"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <QrCode size={130} className="text-zinc-900" />
+                      )}
                     </div>
+                    
+                    {/* Cuenta regresiva de expiración de 60 segundos */}
+                    <div className="flex items-center justify-between w-full mt-2 px-1 text-xs">
+                      <span className="flex items-center gap-1 text-emerald-400 font-semibold font-mono">
+                        <Clock size={13} />
+                        Expira en: {tokenCountdown}s
+                      </span>
+                      <button 
+                        onClick={() => pedirQrDinamico(clienteSimulado.id)}
+                        title="Regenerar Token QR"
+                        type="button"
+                        className="text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
+                      >
+                        <RefreshCw size={12} className={tokenCargando ? 'animate-spin text-emerald-400' : ''} />
+                        Renovar
+                      </button>
+                    </div>
+
                     <div className="qr-token-label">
-                      <span>TOKEN ANTI-FRAUDE UUID:</span>
-                      <code>{clienteSimulado.uuid}</code>
+                      <span>TOKEN SEGURO JWT (ANTI-CAPTURA):</span>
+                      <code className="text-[10px] break-all block truncate max-w-full font-mono text-emerald-300">
+                        {qrJwtToken ? `${qrJwtToken.slice(0, 22)}...${qrJwtToken.slice(-10)}` : clienteSimulado.uuid}
+                      </code>
                     </div>
                   </div>
 
@@ -734,7 +924,7 @@ export default function Acceso({ loggedUser }) {
                   className="btn-phone-scan"
                   onClick={() => {
                     setShowSimuladorMovil(false);
-                    procesarAcceso(clienteSimulado.uuid);
+                    procesarAcceso(qrJwtToken || clienteSimulado.uuid);
                   }}
                 >
                   <Key size={18} />
@@ -964,9 +1154,7 @@ export default function Acceso({ loggedUser }) {
         </div>
       </div>
 
-      {/* ========================================================= */}
       {/* HISTORIAL DE ACCESOS CON BUSCADOR EN TIEMPO REAL          */}
-      {/* ========================================================= */}
       <div className="acceso-log-section">
         {/* Barra de Filtros y Buscador */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-4">

@@ -3,6 +3,7 @@ import { Search, Plus, Edit, Trash2, Power, X, Building2 } from 'lucide-react';
 import '../../CSS/Proveedor.css';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from '../../JS/proveedor';
 import Toast from '../Componentes/Toast';
+import ConfirmModal from '../Componentes/ConfirmModal';
 
 export default function Proveedores({ loggedUser }) {
   const usuarioActivo = loggedUser || (() => {
@@ -70,37 +71,46 @@ export default function Proveedores({ loggedUser }) {
   const activos = proveedores.filter(p => p.estado === 1 || p.estado === 'Activo').length;
   const inactivos = total - activos;
 
+  // Validación de permisos especiales: Solo el usuario con id === 1 puede eliminar de proveedores
+  const esUsuarioId1 = Number(usuarioActivo?.id) === 1;
+
   const getRolName = (id_rol) => {
     if (id_rol === 1) return 'Administrador';
     if (id_rol === 2) return 'Recepcionista';
+    if (id_rol === 3) return 'Inventario';
     return 'Usuario';
   };
 
+  // Modal de Confirmación personalizada para eliminar (sin alert/confirm de localhost)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
+
   // ACCIÓN: Poner en activo
   const handlePonerEnActivo = async (p) => {
+    const proveedorActualizado = { ...p, estado: 1 };
+    const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
+    setProveedores(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const proveedorActualizado = { ...p, estado: 1 };
       await updateProveedor(p.id, proveedorActualizado);
-      const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
+      mostrarAlerta(`Proveedor "${p.nombre_empresa || p.nombre}" activado correctamente`, 'success');
     } catch (error) {
       console.error(error);
-      mostrarAlerta('Error al activar proveedor', 'error');
+      mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
   // ACCIÓN: Dar de baja
   const handleDarDeBaja = async (p) => {
+    const proveedorActualizado = { ...p, estado: 0 };
+    const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
+    setProveedores(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const proveedorActualizado = { ...p, estado: 0 };
       await updateProveedor(p.id, proveedorActualizado);
-      const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Dado de baja correctamente', 'info');
+      mostrarAlerta(`Proveedor "${p.nombre_empresa || p.nombre}" dado de baja correctamente`, 'info');
     } catch (error) {
       console.error(error);
-      mostrarAlerta('Error al dar de baja', 'error');
+      mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
 
@@ -110,18 +120,37 @@ export default function Proveedores({ loggedUser }) {
     else handlePonerEnActivo(p);
   };
 
-  // ACCIÓN: Eliminar
-  const handleEliminar = async (id) => {
-    if (window.confirm("¿Estás seguro de eliminar este proveedor?")) {
-      try {
-        await deleteProveedor(id);
-        const nuevaLista = proveedores.filter(p => p.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-      } catch(error) {
-        console.error(error);
-        mostrarAlerta('Error al eliminar proveedor', 'error');
-      }
+  // Solicitar confirmación con Modal en pantalla (reemplaza window.confirm)
+  const pedirConfirmacionEliminar = (id, nombre) => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla proveedores.', 'error');
+      return;
+    }
+    setConfirmModal({
+      isOpen: true,
+      id,
+      nombre: nombre || 'este proveedor'
+    });
+  };
+
+  // Ejecutar eliminación confirmada en BD vía API
+  const confirmarEliminar = async () => {
+    if (!esUsuarioId1) {
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla proveedores.', 'error');
+      return;
+    }
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null, nombre: '' });
+    if (!id) return;
+    try {
+      await deleteProveedor(id);
+      const nuevaLista = proveedores.filter(p => p.id !== id);
+      setProveedores(nuevaLista);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Registro eliminado correctamente', 'success');
+    } catch(error) {
+      console.error(error);
+      mostrarAlerta('Error al eliminar proveedor', 'error');
     }
   };
 
@@ -146,9 +175,35 @@ export default function Proveedores({ loggedUser }) {
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    if (!formData.nombre_empresa.trim()) {
+    const empresaLimpia = (formData.nombre_empresa || '').trim();
+    if (!empresaLimpia) {
       mostrarAlerta('Por favor ingresa el nombre de la empresa', 'error');
       return;
+    }
+    if (empresaLimpia.length > 20) {
+      mostrarAlerta('El nombre de la empresa no puede exceder 20 caracteres', 'error');
+      return;
+    }
+
+    if (formData.nombre && formData.nombre.trim().length > 20) {
+      mostrarAlerta('El nombre de contacto no puede exceder 20 caracteres', 'error');
+      return;
+    }
+
+    if (formData.correo && formData.correo.trim()) {
+      const correoLimpio = formData.correo.trim().toLowerCase();
+      if (!correoLimpio.includes('@') || !correoLimpio.includes('.com')) {
+        mostrarAlerta('El correo electrónico debe ser válido y contener "@" y ".com"', 'error');
+        return;
+      }
+    }
+
+    if (formData.telefono) {
+      const telLimpio = formData.telefono.replace(/\D/g, '');
+      if (telLimpio.length > 11) {
+        mostrarAlerta('El teléfono solo permite un máximo de 11 caracteres numéricos', 'error');
+        return;
+      }
     }
 
     try {
@@ -307,7 +362,17 @@ export default function Proveedores({ loggedUser }) {
                         >
                           <Power size={16} />
                         </button>
-                        <button className="proveedor-action-btn delete" title="Eliminar" onClick={() => handleEliminar(p.id)}>
+                        <button 
+                          className={`proveedor-action-btn delete ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`} 
+                          title={esUsuarioId1 ? "Eliminar proveedor" : "Restringido: Solo el usuario con ID=1 puede eliminar proveedores"} 
+                          onClick={() => {
+                            if (!esUsuarioId1) {
+                              mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar proveedores.', 'error');
+                              return;
+                            }
+                            pedirConfirmacionEliminar(p.id, p.nombre_empresa || p.nombre);
+                          }}
+                        >
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -346,28 +411,36 @@ export default function Proveedores({ loggedUser }) {
           <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Nombre de la Empresa *</label>
+                <label className="block text-sm font-medium text-base-content mb-1">
+                  Nombre de la Empresa * (Máx. 20 caracteres)
+                </label>
                 <input 
                   type="text" 
                   required
+                  maxLength={20}
                   className="input input-bordered w-full" 
-                  placeholder="Ej. Suplementos GymFit MX"
+                  placeholder="Ej. Suplementos GymFit"
                   value={formData.nombre_empresa} 
-                  onChange={e => setFormData({...formData, nombre_empresa: e.target.value})} 
+                  onChange={e => setFormData({...formData, nombre_empresa: e.target.value.slice(0, 20)})} 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Persona de Contacto</label>
+                <label className="block text-sm font-medium text-base-content mb-1">
+                  Persona de Contacto (Máx. 20 caracteres)
+                </label>
                 <input 
                   type="text" 
+                  maxLength={20}
                   className="input input-bordered w-full" 
                   placeholder="Ej. Carlos Ortiz"
                   value={formData.nombre} 
-                  onChange={e => setFormData({...formData, nombre: e.target.value})} 
+                  onChange={e => setFormData({...formData, nombre: e.target.value.slice(0, 20)})} 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Correo Electrónico</label>
+                <label className="block text-sm font-medium text-base-content mb-1">
+                  Correo Electrónico (Debe contener @ y .com)
+                </label>
                 <input 
                   type="email" 
                   className="input input-bordered w-full" 
@@ -377,13 +450,16 @@ export default function Proveedores({ loggedUser }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Teléfono</label>
+                <label className="block text-sm font-medium text-base-content mb-1">
+                  Teléfono (Solo números, máx. 11 dígitos)
+                </label>
                 <input 
-                  type="text" 
-                  className="input input-bordered w-full" 
-                  placeholder="555-0192"
+                  type="tel" 
+                  maxLength={11}
+                  className="input input-bordered w-full font-mono" 
+                  placeholder="Ej. 3471012962"
                   value={formData.telefono || ''} 
-                  onChange={e => setFormData({...formData, telefono: e.target.value})} 
+                  onChange={e => setFormData({...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 11)})} 
                 />
               </div>
               <div>
@@ -408,6 +484,18 @@ export default function Proveedores({ loggedUser }) {
           </form>
         </div>
       </dialog>
+
+      {/* Modal de Advertencia y Confirmación al Centro de Pantalla */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="¿Eliminar Proveedor?"
+        message={`¿Estás seguro de que deseas eliminar a "${confirmModal.nombre}" de la base de datos? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar Proveedor"
+        cancelText="Cancelar"
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
+        tipo="danger"
+      />
     </div>
   );
 }

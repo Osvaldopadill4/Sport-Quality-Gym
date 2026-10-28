@@ -3,6 +3,29 @@ import { Search, Plus, Edit, Trash2, Power, X, Calendar, Check, Zap, Award, Grad
 import '../../CSS/Planes.css';
 import { getPlanes, createPlanes, updatePlanes, deletePlanes } from '../../JS/plan';
 import Toast from '../Componentes/Toast';
+import ConfirmModal from '../Componentes/ConfirmModal';
+
+// Helpers para íconos y beneficios visuales de cada tarjeta de plan
+const getPlanIcon = (p) => {
+  const n = (p.nombre || '').toLowerCase();
+  if (n.includes('semanal') || p.duracion_dias === 7) return <Calendar size={22} className="text-cyan-400" />;
+  if (n.includes('mensual') || p.duracion_dias === 30) return <Zap size={22} className="text-emerald-400" />;
+  if (n.includes('anual') || p.duracion_dias >= 360) return <Award size={22} className="text-amber-400" />;
+  if (n.includes('estudian')) return <GraduationCap size={22} className="text-purple-400" />;
+  if (n.includes('invitado') || p.duracion_dias === 1) return <UserPlus size={22} className="text-blue-400" />;
+  return <Zap size={22} className="text-emerald-400" />;
+};
+
+const getPlanBeneficio = (p) => {
+  if (p.beneficios) return p.beneficios;
+  const n = (p.nombre || '').toLowerCase();
+  if (n.includes('semanal')) return 'Acceso pesas y cardio 7 días';
+  if (n.includes('mensual')) return 'Acceso ilimitado 30 días';
+  if (n.includes('anual')) return 'Máximo ahorro anual garantizado';
+  if (n.includes('estudian')) return 'Tarifa preferencial 30 días';
+  if (n.includes('invitado') || p.duracion_dias === 1) return 'Pase diario para torniquete';
+  return `${p.duracion_dias || 30} días de acceso`;
+};
 
 export default function Planes({ loggedUser }) {
   const usuarioActivo = loggedUser || (() => {
@@ -46,75 +69,89 @@ export default function Planes({ loggedUser }) {
 
   const cargarDatos = () => {
     getPlanes().then(data => {
-      if (Array.isArray(data) && data.length > 0) {
-        setPlanes(data);
-        localStorage.setItem('gymton_planes', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_planes');
-        if (local) {
-          try {
-            setPlanes(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
+      if (Array.isArray(data)) {
+        // Filtrar exclusivamente los planes (aquellos que tienen duracion_dias y no pertenecen al catálogo de productos)
+        const planesReales = data.filter(p => p.duracion_dias !== null && p.duracion_dias !== undefined && p.duracion_dias !== '' && !p.categoria);
+        if (planesReales.length > 0) {
+          const adaptados = planesReales.map(p => ({
+            ...p,
+            estado: (p.estado === 1 || p.estado === '1' || String(p.estado).toLowerCase() === 'activo') ? 1 : 0,
+            tipo_plan: p.tipo_plan || (
+              p.nombre.toLowerCase().includes('semanal') ? 'Semanal' :
+              p.nombre.toLowerCase().includes('mensual') ? 'Popular' :
+              p.nombre.toLowerCase().includes('anual') ? 'Mejor Valor' :
+              p.nombre.toLowerCase().includes('estudian') ? 'Estudiante' : 'Pase 1 Día'
+            )
+          }));
+          setPlanes(adaptados);
+          localStorage.setItem('gymton_planes', JSON.stringify(adaptados));
+          return;
         }
-        // Los 5 planes requeridos por el gimnasio:
-        const planesIniciales = [
-          { 
-            id: 1, 
-            nombre: 'Semanal', 
-            precio: 150, 
-            duracion_dias: 7, 
-            tipo_plan: 'Semanal',
-            descripcion: 'Acceso total durante 7 días continuos al área de pesas y cardio.', 
-            beneficios: 'Sin inscripción, lockers incluidos, acceso en horario completo',
-            estado: 1 
-          },
-          { 
-            id: 2, 
-            nombre: 'Mensual', 
-            precio: 350, 
-            duracion_dias: 30, 
-            tipo_plan: 'Popular',
-            descripcion: 'Acceso ilimitado por 1 mes (30 días). El plan más solicitado.', 
-            beneficios: 'Acceso completo, lockers, valoración física inicial',
-            estado: 1 
-          },
-          { 
-            id: 3, 
-            nombre: 'Anual', 
-            precio: 2100, 
-            duracion_dias: 365, 
-            tipo_plan: 'Mejor Valor',
-            descripcion: 'Membresía anual completa. Solo $175 MXN al mes. Máximo ahorro.', 
-            beneficios: 'Acceso ilimitado 365 días, playera conmemorativa, 2 pases de invitado al mes',
-            estado: 1 
-          },
-          { 
-            id: 4, 
-            nombre: 'Estudiantil', 
-            precio: 200, 
-            duracion_dias: 30, 
-            tipo_plan: 'Estudiante',
-            descripcion: 'Tarifa preferencial de $200 MXN/mes con credencial de estudiante vigente.', 
-            beneficios: 'Acceso en horario estudiantil flexible, pesas y cardio completo',
-            estado: 1 
-          },
-          { 
-            id: 5, 
-            nombre: 'Invitado', 
-            precio: 0, 
-            duracion_dias: 1, 
-            tipo_plan: 'Pase 1 Día',
-            descripcion: 'Pase temporal de cortesía o prueba por 24 horas para acceso a torniquetes.', 
-            beneficios: 'Acceso de prueba 1 día, inducción con instructor',
-            estado: 1 
-          }
-        ];
-        setPlanes(planesIniciales);
-        localStorage.setItem('gymton_planes', JSON.stringify(planesIniciales));
       }
+      const local = localStorage.getItem('gymton_planes');
+      if (local) {
+        try {
+          setPlanes(JSON.parse(local));
+          return;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      // Los 5 planes requeridos por el gimnasio:
+      const planesIniciales = [
+        { 
+          id: 1, 
+          nombre: 'Semanal', 
+          precio: 150, 
+          duracion_dias: 7, 
+          tipo_plan: 'Semanal',
+          descripcion: 'Acceso total durante 7 días continuos al área de pesas y cardio.', 
+          beneficios: 'Sin inscripción, lockers incluidos, acceso en horario completo',
+          estado: 1 
+        },
+        { 
+          id: 2, 
+          nombre: 'Mensual', 
+          precio: 350, 
+          duracion_dias: 30, 
+          tipo_plan: 'Popular',
+          descripcion: 'Acceso ilimitado por 1 mes (30 días). El plan más solicitado.', 
+          beneficios: 'Acceso completo, lockers, valoración física inicial',
+          estado: 1 
+        },
+        { 
+          id: 3, 
+          nombre: 'Anual', 
+          precio: 2100, 
+          duracion_dias: 365, 
+          tipo_plan: 'Mejor Valor',
+          descripcion: 'Membresía anual completa. Solo $175 MXN al mes. Máximo ahorro.', 
+          beneficios: 'Acceso ilimitado 365 días, playera conmemorativa, 2 pases de invitado al mes',
+          estado: 1 
+        },
+        { 
+          id: 4, 
+          nombre: 'Estudiantil', 
+          precio: 200, 
+          duracion_dias: 30, 
+          tipo_plan: 'Estudiante',
+          descripcion: 'Tarifa preferencial de $200 MXN/mes con credencial de estudiante vigente.', 
+          beneficios: 'Acceso en horario estudiantil flexible, pesas y cardio completo',
+          estado: 1 
+        },
+        { 
+          id: 5, 
+          nombre: 'Invitado', 
+          precio: 30, 
+          duracion_dias: 1, 
+          tipo_plan: 'Pase 1 Día',
+          descripcion: 'Pase temporal de cortesía o prueba por 24 horas para acceso a torniquetes.', 
+          beneficios: 'Acceso de prueba 1 día, inducción con instructor',
+          estado: 1 
+        }
+      ];
+      setPlanes(planesIniciales);
+      localStorage.setItem('gymton_planes', JSON.stringify(planesIniciales));
     });
   };
 
@@ -132,31 +169,38 @@ export default function Planes({ loggedUser }) {
     return 'Usuario';
   };
 
-  // ACCIÓN: Poner en activo
+  // Modal de Confirmación personalizada para eliminar (sin alert/confirm de localhost)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
+
+  // ACCIÓN: Poner en activo (actualiza en BD vía API y en la vista al instante)
   const handlePonerEnActivo = async (p) => {
+    const planActualizado = { ...p, estado: 1 };
+    const nuevaLista = planes.map(item => item.id === p.id ? planActualizado : item);
+    setPlanes(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const planActualizado = { ...p, estado: 1 };
-      await updatePlanes(p.id, planActualizado);
-      const nuevaLista = planes.map(item => item.id === p.id ? planActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
+      await updatePlanes(p.id, { ...p, estado: 'Activo' });
+      mostrarAlerta(`Plan "${p.nombre}" activado correctamente`, 'success');
+      cargarDatos();
     } catch (e) {
       console.error(e);
-      mostrarAlerta('Error al activar plan', 'error');
+      mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
-  // ACCIÓN: Dar de baja
+  // ACCIÓN: Dar de baja (actualiza en BD vía API y en la vista al instante)
   const handleDarDeBaja = async (p) => {
+    const planActualizado = { ...p, estado: 0 };
+    const nuevaLista = planes.map(item => item.id === p.id ? planActualizado : item);
+    setPlanes(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const planActualizado = { ...p, estado: 0 };
-      await updatePlanes(p.id, planActualizado);
-      const nuevaLista = planes.map(item => item.id === p.id ? planActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Dado de baja correctamente', 'info');
+      await updatePlanes(p.id, { ...p, estado: 'Inactivo' });
+      mostrarAlerta(`Plan "${p.nombre}" dado de baja correctamente`, 'info');
+      cargarDatos();
     } catch (e) {
       console.error(e);
-      mostrarAlerta('Error al desactivar plan', 'error');
+      mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
 
@@ -166,18 +210,30 @@ export default function Planes({ loggedUser }) {
     else handlePonerEnActivo(p);
   };
 
-  // ACCIÓN: Eliminar
-  const handleEliminar = async (id) => {
-    if (window.confirm("¿Estás seguro de eliminar este plan de entrenamiento?")) {
-      try {
-        await deletePlanes(id);
-        const nuevaLista = planes.filter(p => p.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-      } catch (e) {
-        console.error(e);
-        mostrarAlerta('Error al eliminar plan', 'error');
-      }
+  // Solicitar confirmación con Modal en pantalla (reemplaza window.confirm)
+  const pedirConfirmacionEliminar = (id, nombre) => {
+    setConfirmModal({
+      isOpen: true,
+      id,
+      nombre: nombre || 'este plan'
+    });
+  };
+
+  // Ejecutar eliminación confirmada en BD vía API
+  const confirmarEliminar = async () => {
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null, nombre: '' });
+    if (!id) return;
+    try {
+      await deletePlanes(id);
+      const nuevaLista = planes.filter(p => p.id !== id);
+      setPlanes(nuevaLista);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Registro eliminado correctamente', 'success');
+      cargarDatos();
+    } catch (e) {
+      console.error(e);
+      mostrarAlerta('Error al eliminar plan', 'error');
     }
   };
 
@@ -224,23 +280,34 @@ export default function Planes({ loggedUser }) {
     const payload = {
       ...formData,
       precio: parseFloat(formData.precio),
-      duracion_dias: parseInt(formData.duracion_dias) || 1
+      duracion_dias: parseInt(formData.duracion_dias) || 1,
+      estado: (formData.estado === 1 || formData.estado === 'Activo') ? 'Activo' : 'Inactivo'
     };
 
     try {
       if (modalMode === 'create') {
-        const res = await createPlanes(payload);
-        const nuevo = (res && res.id) ? res : { ...payload, id: Date.now() };
+        const { id, ...createData } = payload;
+        const res = await createPlanes(createData);
+        const nuevo = (res && res.id) ? { ...payload, id: res.id } : { ...payload, id: Date.now() };
         const nuevaLista = [nuevo, ...planes];
         guardarLocalmente(nuevaLista);
         setShowModal(false);
         mostrarAlerta('Registro completado correctamente', 'success');
+        cargarDatos();
       } else {
-        await updatePlanes(payload.id, payload);
+        try {
+          await updatePlanes(payload.id, payload);
+        } catch (errPut) {
+          console.warn('PUT falló, intentando registrar plan en BD:', errPut);
+          const { id, ...createData } = payload;
+          const res = await createPlanes(createData);
+          if (res && res.id) payload.id = res.id;
+        }
         const nuevaLista = planes.map(item => item.id === payload.id ? { ...item, ...payload } : item);
         guardarLocalmente(nuevaLista);
         setShowModal(false);
         mostrarAlerta('Datos actualizados correctamente', 'success');
+        cargarDatos();
       }
     } catch (e) {
       console.error(e);
@@ -317,107 +384,6 @@ export default function Planes({ loggedUser }) {
         </div>
       </div>
 
-      {/* Tarjetas Visuales de los Planes Principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        {/* Plan Semanal */}
-        <div className="bg-gradient-to-b from-base-200 to-base-300 p-5 rounded-2xl border border-base-300 shadow-xl flex flex-col justify-between hover:border-primary transition-all">
-          <div>
-            <div className="flex justify-between items-start mb-2">
-              <span className="badge badge-info badge-sm font-semibold text-xs">7 Días</span>
-              <Calendar size={18} className="text-info" />
-            </div>
-            <h3 className="text-lg font-black text-white">Semanal</h3>
-            <div className="my-2">
-              <span className="text-3xl font-black text-emerald-400">$150</span>
-              <span className="text-xs text-gray-400 ml-1">MXN</span>
-            </div>
-            <p className="text-xs text-gray-400">Ideal para viajeros o pruebas cortas de entrenamiento continuo.</p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-300 flex items-center gap-1.5">
-            <Check size={14} className="text-emerald-400 flex-shrink-0" /> Acceso pesas y cardio
-          </div>
-        </div>
-
-        {/* Plan Mensual */}
-        <div className="bg-gradient-to-b from-base-200 to-base-300 p-5 rounded-2xl border-2 border-primary shadow-xl flex flex-col justify-between relative scale-[1.02] hover:shadow-primary/20 transition-all">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 badge badge-primary font-bold text-black text-xs px-3">
-            MÁS POPULAR
-          </div>
-          <div>
-            <div className="flex justify-between items-start mb-2 mt-1">
-              <span className="badge badge-success badge-sm font-semibold text-xs text-black">30 Días</span>
-              <Zap size={18} className="text-primary" />
-            </div>
-            <h3 className="text-lg font-black text-white">Mensual</h3>
-            <div className="my-2">
-              <span className="text-3xl font-black text-emerald-400">$350</span>
-              <span className="text-xs text-gray-400 ml-1">MXN / mes</span>
-            </div>
-            <p className="text-xs text-gray-400">Suscripción estándar mensual completa sin plazos forzosos.</p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-300 flex items-center gap-1.5">
-            <Check size={14} className="text-emerald-400 flex-shrink-0" /> Acceso ilimitado 30 días
-          </div>
-        </div>
-
-        {/* Plan Anual */}
-        <div className="bg-gradient-to-b from-base-200 to-base-300 p-5 rounded-2xl border border-base-300 shadow-xl flex flex-col justify-between hover:border-primary transition-all">
-          <div>
-            <div className="flex justify-between items-start mb-2">
-              <span className="badge badge-warning badge-sm font-semibold text-xs text-black">365 Días</span>
-              <Award size={18} className="text-warning" />
-            </div>
-            <h3 className="text-lg font-black text-white">Anual</h3>
-            <div className="my-2">
-              <span className="text-3xl font-black text-emerald-400">$2,100</span>
-              <span className="text-xs text-gray-400 ml-1">MXN / año</span>
-            </div>
-            <p className="text-xs text-gray-400">Equivale a solo $175 MXN/mes. Ahorro de más del 50% anual.</p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-300 flex items-center gap-1.5">
-            <Check size={14} className="text-emerald-400 flex-shrink-0" /> Máximo ahorro garantizado
-          </div>
-        </div>
-
-        {/* Plan Estudiantil */}
-        <div className="bg-gradient-to-b from-base-200 to-base-300 p-5 rounded-2xl border border-base-300 shadow-xl flex flex-col justify-between hover:border-primary transition-all">
-          <div>
-            <div className="flex justify-between items-start mb-2">
-              <span className="badge badge-secondary badge-sm font-semibold text-xs">Estudiantes</span>
-              <GraduationCap size={18} className="text-secondary" />
-            </div>
-            <h3 className="text-lg font-black text-white">Estudiantil</h3>
-            <div className="my-2">
-              <span className="text-3xl font-black text-emerald-400">$200</span>
-              <span className="text-xs text-gray-400 ml-1">MXN / mes</span>
-            </div>
-            <p className="text-xs text-gray-400">Tarifa reducida con credencial escolar vigente.</p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-300 flex items-center gap-1.5">
-            <Check size={14} className="text-emerald-400 flex-shrink-0" /> Tarifa preferencial 30 días
-          </div>
-        </div>
-
-        {/* Plan Invitado */}
-        <div className="bg-gradient-to-b from-base-200 to-base-300 p-5 rounded-2xl border border-base-300 shadow-xl flex flex-col justify-between hover:border-primary transition-all">
-          <div>
-            <div className="flex justify-between items-start mb-2">
-              <span className="badge badge-ghost badge-sm font-semibold text-xs">Pase 1 Día</span>
-              <UserPlus size={18} className="text-gray-400" />
-            </div>
-            <h3 className="text-lg font-black text-white">Invitado</h3>
-            <div className="my-2">
-              <span className="text-3xl font-black text-emerald-400">$0</span>
-              <span className="text-xs text-gray-400 ml-1">MXN (24 hrs)</span>
-            </div>
-            <p className="text-xs text-gray-400">Pase de prueba para torniquete válido únicamente el día de ingreso.</p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-700 text-xs text-gray-300 flex items-center gap-1.5">
-            <Check size={14} className="text-emerald-400 flex-shrink-0" /> Acceso diario por torniquete
-          </div>
-        </div>
-      </div>
-
       {/* Tabs y Botón Nuevo */}
       <div className="planes-filters-bar">
         <div className="planes-filters">
@@ -430,89 +396,118 @@ export default function Planes({ loggedUser }) {
         </button>
       </div>
 
-      {/* Tabla de Planes */}
-      <div className="planes-table-container">
-        <table className="planes-table">
-          <thead>
-            <tr>
-              <th>Plan</th>
-              <th>Precio (MXN)</th>
-              <th>Duración</th>
-              <th>Descripción</th>
-              <th>Estado</th>
-              <th style={{textAlign:'right'}}>Opciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {planesFiltrados.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="text-center py-8 text-gray-400 italic">
-                  {busqueda ? `No se encontraron planes con el término "${busqueda}"` : 'No hay planes registrados'}
-                </td>
-              </tr>
-            ) : (
-              planesFiltrados.map(p => {
-                const esActivo = p.estado === 1 || p.estado === 'Activo';
-                return (
-                  <tr key={p.id}>
-                    <td className="planes-td-name font-bold">
-                      <div className="flex items-center gap-2">
-                        <span className="text-white text-base">{p.nombre}</span>
-                        {p.tipo_plan && (
-                          <span className="badge badge-sm badge-outline text-xs">
-                            {p.tipo_plan}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="font-extrabold text-emerald-400 text-base">
-                      ${p.precio} MXN
-                    </td>
-                    <td className="font-medium text-gray-300">
-                      {p.duracion_dias} {p.duracion_dias === 1 ? 'día' : 'días'}
-                    </td>
-                    <td className="text-gray-400 text-sm max-w-xs">{p.descripcion}</td>
-                    <td>
-                      {esActivo ? (
-                        <span className="planes-badge activo">Activo</span>
-                      ) : (
-                        <span className="planes-badge inactivo">Inactivo</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="planes-table-actions">
-                        <button className="planes-action-btn edit" title="Editar plan" onClick={() => openModal('edit', p)}>
-                          <Edit size={16}/>
+      {/* Tarjetas Visuales de Planes (Interactivas con Editar, Power y Eliminar) */}
+      <div className="my-6">
+        {planesFiltrados.length === 0 ? (
+          <div className="text-center py-16 bg-zinc-900 border border-zinc-800 rounded-2xl text-gray-400">
+            {busqueda ? `No se encontraron planes con el término "${busqueda}"` : 'No hay planes registrados'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            {planesFiltrados.map(p => {
+              const esActivo = p.estado === 1 || p.estado === 'Activo' || String(p.estado) === '1';
+              const esPopular = (p.tipo_plan && p.tipo_plan.toLowerCase().includes('popular')) || 
+                                (p.nombre && p.nombre.toLowerCase().includes('mensual'));
+
+              return (
+                <div 
+                  key={p.id}
+                  className={`bg-zinc-900 border rounded-2xl p-5 shadow-xl flex flex-col justify-between relative transition-all duration-200 hover:-translate-y-1 ${
+                    esPopular 
+                      ? 'border-emerald-500/80 shadow-emerald-500/10 ring-1 ring-emerald-500/30' 
+                      : esActivo 
+                      ? 'border-zinc-800 hover:border-zinc-700' 
+                      : 'border-red-900/40 bg-zinc-900/60 opacity-75'
+                  }`}
+                >
+                  {/* Badge MÁS POPULAR */}
+                  {esPopular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-black font-extrabold text-[10px] uppercase tracking-wider px-3 py-0.5 rounded-full shadow-md">
+                      MÁS POPULAR
+                    </div>
+                  )}
+
+                  <div>
+                    {/* Fila superior: Badge de Duración + Botones de Acción (Lápiz, Power, Eliminar) */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        p.duracion_dias === 7 ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30' :
+                        p.duracion_dias === 30 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                        p.duracion_dias >= 365 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' :
+                        'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                      }`}>
+                        {p.duracion_dias === 1 ? 'Pase 1 Día' : `${p.duracion_dias} Días`}
+                      </span>
+
+                      {/* Botones de acción dentro de la tarjeta */}
+                      <div className="flex items-center gap-1 bg-zinc-950/80 rounded-lg p-1 border border-zinc-800">
+                        <button 
+                          onClick={() => openModal('edit', p)}
+                          className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors"
+                          title="Modificar plan"
+                        >
+                          <Edit size={14} />
                         </button>
                         <button 
-                          className={`planes-action-btn ${esActivo ? 'power-off' : 'power-on'}`} 
-                          title={esActivo ? "Dar de baja" : "Poner en activo"} 
                           onClick={() => handleToggleEstado(p)}
+                          className={`p-1 rounded hover:bg-zinc-800 transition-colors ${
+                            esActivo ? 'text-emerald-400 hover:text-red-400' : 'text-zinc-500 hover:text-emerald-400'
+                          }`}
+                          title={esActivo ? "Dar de baja" : "Poner en activo"}
                         >
-                          <Power size={16}/>
+                          <Power size={14} />
                         </button>
-                        <button className="planes-action-btn delete" title="Eliminar plan" onClick={() => handleEliminar(p.id)}>
-                          <Trash2 size={16}/>
+                        <button 
+                          onClick={() => pedirConfirmacionEliminar(p.id, p.nombre)}
+                          className="p-1 text-zinc-400 hover:text-red-400 rounded hover:bg-zinc-800 transition-colors"
+                          title="Eliminar plan"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                    </div>
 
-        <div className="planes-pagination flex justify-between items-center p-4 bg-white border-t border-gray-100">
-          <span className="text-sm text-gray-500 font-medium">
-            Mostrando {planesFiltrados.length} de {total} planes
-            {busqueda && ` (filtrado por "${busqueda}")`}
-          </span>
-          <div className="flex gap-2">
-            <button className="btn btn-sm btn-outline">Anterior</button>
-            <button className="btn btn-sm btn-primary">Siguiente</button>
+                    {/* Nombre del Plan e Icono */}
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-lg font-black text-white tracking-wide">{p.nombre}</h3>
+                      <div className="text-zinc-400">
+                        {getPlanIcon(p)}
+                      </div>
+                    </div>
+
+                    {/* Precio */}
+                    <div className="my-3">
+                      <span className="text-3xl font-black text-emerald-400 tracking-tight">
+                        ${p.precio}
+                      </span>
+                      <span className="text-xs text-zinc-400 font-semibold ml-1">
+                        MXN {p.duracion_dias === 30 ? '/ mes' : p.duracion_dias >= 365 ? '/ año' : p.duracion_dias === 1 ? '(24 hrs)' : ''}
+                      </span>
+                    </div>
+
+                    {/* Descripción */}
+                    <p className="text-xs text-zinc-400 line-clamp-2 min-h-[2rem]">
+                      {p.descripcion || 'Acceso al gimnasio según duración establecida.'}
+                    </p>
+                  </div>
+
+                  {/* Beneficios al pie de la tarjeta y estado */}
+                  <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-zinc-300 truncate mr-2">
+                      <Check size={14} className="text-emerald-400 flex-shrink-0" />
+                      <span className="truncate">{getPlanBeneficio(p)}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0 ${
+                      esActivo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+                    }`}>
+                      {esActivo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Modal para Registrar / Modificar */}
@@ -612,6 +607,18 @@ export default function Planes({ loggedUser }) {
           </form>
         </div>
       </dialog>
+
+      {/* Modal de Advertencia y Confirmación al Centro de Pantalla */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="¿Eliminar Plan?"
+        message={`¿Estás seguro de que deseas eliminar permanentemente el plan "${confirmModal.nombre}" de la base de datos? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar Plan"
+        cancelText="Cancelar"
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
+        tipo="danger"
+      />
     </div>
   );
 }

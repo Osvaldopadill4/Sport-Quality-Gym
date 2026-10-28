@@ -23,6 +23,7 @@ export default function AdminLayout({ children, alCerrarSesion, activeModule, se
         activeModule={activeModule}
         setActiveModule={setActiveModule}
         alCerrarSesion={alCerrarSesion}
+        loggedUser={usuario}
       />
 
       {/* Contenido Principal */}

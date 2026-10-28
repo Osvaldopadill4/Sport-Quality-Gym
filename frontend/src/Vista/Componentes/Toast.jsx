@@ -1,18 +1,21 @@
 import React, { useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 
-export default function Toast({ alerta, onClose, duracion = 3500 }) {
+export default function Toast({ alerta, mensaje, tipo: tipoProp, onClose, duracion = 3500 }) {
+  const mensajeFinal = alerta?.mensaje || mensaje;
+  const tipoFinal = alerta?.tipo || tipoProp || 'success';
+
   useEffect(() => {
-    if (!alerta) return;
+    if (!mensajeFinal) return;
     const timer = setTimeout(() => {
-      onClose();
+      if (onClose) onClose();
     }, duracion);
     return () => clearTimeout(timer);
-  }, [alerta, onClose, duracion]);
+  }, [mensajeFinal, onClose, duracion]);
 
-  if (!alerta || !alerta.mensaje) return null;
+  if (!mensajeFinal) return null;
 
-  const tipo = alerta.tipo || 'success';
+  const tipo = tipoFinal;
 
   const iconos = {
     success: <CheckCircle2 size={20} className="text-white flex-shrink-0" />,
@@ -50,32 +53,30 @@ export default function Toast({ alerta, onClose, duracion = 3500 }) {
         animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        {iconos[tipo] || iconos.success}
-      </div>
-      <div style={{ flex: 1, fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.3 }}>
-        {alerta.mensaje}
-      </div>
-      <button 
-        type="button"
-        onClick={onClose}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: 'rgba(255, 255, 255, 0.8)',
-          cursor: 'pointer',
-          padding: '0.25rem',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: '0.375rem',
-          transition: 'color 0.2s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-        onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'}
-        title="Cerrar notificación"
-      >
-        <X size={16} />
-      </button>
+      {iconos[tipo] || iconos.info}
+      <span style={{ fontSize: '0.875rem', fontWeight: 600, flex: 1, lineHeight: 1.35 }}>
+        {mensajeFinal}
+      </span>
+      {onClose && (
+        <button 
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'rgba(255, 255, 255, 0.8)',
+            cursor: 'pointer',
+            padding: '2px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'}
+        >
+          <X size={16} />
+        </button>
+      )}
     </div>
   );
 }

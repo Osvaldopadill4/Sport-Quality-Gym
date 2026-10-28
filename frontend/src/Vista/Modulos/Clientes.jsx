@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X, Eye, EyeOff, QrCode, Copy, Check, Sparkles } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Power, X, Eye, EyeOff, QrCode, Copy, Check, Sparkles, RefreshCw } from 'lucide-react';
 import '../../CSS/Clientes.css';
 import { getClientes, createCliente, updateCliente, deleteCliente } from '../../JS/cliente';
 import Toast from '../Componentes/Toast';
+import ConfirmModal from '../Componentes/ConfirmModal';
 
 // Helper robusto para evaluar el estado activo de clientes (soporta "1", 1, "Activo", true, etc.)
 export const esEstadoActivo = (estado) => {
@@ -67,59 +68,57 @@ export default function Clientes({ loggedUser }) {
     }
   };
 
-  const cargarDatos = async () => {
+  const [cargandoBD, setCargandoBD] = useState(false);
+
+  const cargarDatos = async (forzarToast = false) => {
+    setCargandoBD(true);
     try {
       const data = await getClientes();
-      if (Array.isArray(data) && data.length > 0) {
-        setClientes(data);
-        localStorage.setItem('gymton_clientes', JSON.stringify(data));
+      const lista = Array.isArray(data) ? data : 
+                    (data && Array.isArray(data.content)) ? data.content :
+                    (data && Array.isArray(data.data)) ? data.data : null;
+      
+      if (Array.isArray(lista)) {
+        setClientes(lista);
+        localStorage.setItem('gymton_clientes', JSON.stringify(lista));
+        setCargandoBD(false);
+        if (forzarToast) {
+          mostrarAlerta(`Sincronizado con MySQL: ${lista.length} cliente(s) cargado(s)`, 'success');
+        }
         return;
       }
     } catch (err) {
       console.warn('Error al cargar clientes de la API:', err);
     }
+    setCargandoBD(false);
 
+    // Try localStorage cache
     const local = localStorage.getItem('gymton_clientes');
     if (local) {
       try {
-        setClientes(JSON.parse(local));
-        return;
+        const cached = JSON.parse(local);
+        if (Array.isArray(cached) && cached.length > 0) {
+          // Filtrar el mock Juan Pérez si viene de fallback antiguo
+          const sinMock = cached.filter(c => c.nombre !== 'Juan Pérez' && c.nombre !== 'Carolina Gómez');
+          if (sinMock.length > 0) {
+            setClientes(sinMock);
+            return;
+          }
+          setClientes(cached);
+          return;
+        }
       } catch (e) {
         console.error(e);
       }
     }
 
-    // Fallback con los atributos de la base de datos (incluyendo contrasena y token_qr para el móvil)
-    const fallback = [
-      {
-        id: 1,
-        nombre: 'Juan Pérez',
-        telefono: '555-1234',
-        contrasena: 'gym1234',
-        contacto_emergencia: 'María Pérez',
-        telefono_emergencia: '555-4321',
-        fecha_registro: '2023-01-15',
-        estado: '1',
-        token_qr: 'GYM-QR-0001-JP'
-      },
-      {
-        id: 2,
-        nombre: 'Carolina Gómez',
-        telefono: '555-9876',
-        contrasena: 'caro2024',
-        contacto_emergencia: 'Carlos Gómez',
-        telefono_emergencia: '555-6789',
-        fecha_registro: '2023-03-20',
-        estado: '1',
-        token_qr: 'GYM-QR-0002-CG'
-      }
-    ];
-    setClientes(fallback);
-    localStorage.setItem('gymton_clientes', JSON.stringify(fallback));
+    // Fallback vacio o mínimo
+    setClientes([]);
   };
 
   useEffect(() => {
     cargarDatos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Métricas con el helper
@@ -140,32 +139,43 @@ export default function Clientes({ loggedUser }) {
     });
   };
 
-  // ACCIÓN: Poner en activo (actualiza en BD vía API)
+  // Modal de Confirmación personalizada para eliminar (sin alert/confirm de localhost)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
+
+  // ACCIÓN: Poner en activo (actualiza en BD vía API y en la vista al instante)
   const handlePonerEnActivo = async (c) => {
+    const nuevaLista = clientes.map(item => item.id === c.id ? { ...item, estado: "1" } : item);
+    setClientes(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const clienteActualizado = { ...c, estado: "1" };
+      const clienteActualizado = { 
+        ...c, 
+        contrasena: c.contrasena || 12345,
+        estado: "1" 
+      };
       await updateCliente(c.id, clienteActualizado);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
-      await cargarDatos();
+      mostrarAlerta(`Cliente "${c.nombre}" activado correctamente`, 'success');
     } catch (error) {
       console.error('Error al poner en activo:', error);
-      const nuevaLista = clientes.map(item => item.id === c.id ? { ...item, estado: "1" } : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Puesto en activo localmente', 'warning');
     }
   };
 
-  // ACCIÓN: Dar de baja (actualiza en BD vía API)
+  // ACCIÓN: Dar de baja (actualiza en BD vía API y en la vista al instante)
   const handleDarDeBaja = async (c) => {
+    const nuevaLista = clientes.map(item => item.id === c.id ? { ...item, estado: "0" } : item);
+    setClientes(nuevaLista);
+    guardarLocalmente(nuevaLista);
     try {
-      const clienteActualizado = { ...c, estado: "0" };
+      const clienteActualizado = { 
+        ...c, 
+        contrasena: c.contrasena || 12345,
+        estado: "0" 
+      };
       await updateCliente(c.id, clienteActualizado);
-      mostrarAlerta('Dado de baja correctamente', 'info');
-      await cargarDatos();
+      mostrarAlerta(`Cliente "${c.nombre}" dado de baja correctamente`, 'info');
     } catch (error) {
       console.error('Error al dar de baja:', error);
-      const nuevaLista = clientes.map(item => item.id === c.id ? { ...item, estado: "0" } : item);
-      guardarLocalmente(nuevaLista);
       mostrarAlerta('Dado de baja localmente', 'warning');
     }
   };
@@ -180,19 +190,29 @@ export default function Clientes({ loggedUser }) {
     }
   };
 
-  // ACCIÓN: Eliminar (elimina de la BD vía API)
-  const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este cliente de la base de datos?')) {
-      try {
-        await deleteCliente(id);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-        await cargarDatos();
-      } catch (error) {
-        console.error('Error eliminando:', error);
-        const nuevaLista = clientes.filter(c => c.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado localmente', 'info');
-      }
+  // Solicitar confirmación con Modal en pantalla (reemplaza window.confirm)
+  const pedirConfirmacionEliminar = (id, nombre) => {
+    setConfirmModal({
+      isOpen: true,
+      id,
+      nombre: nombre || 'este cliente'
+    });
+  };
+
+  // Ejecutar eliminación confirmada en BD vía API
+  const confirmarEliminar = async () => {
+    const id = confirmModal.id;
+    setConfirmModal({ isOpen: false, id: null, nombre: '' });
+    if (!id) return;
+    try {
+      await deleteCliente(id);
+      mostrarAlerta('Registro eliminado correctamente', 'success');
+      await cargarDatos();
+    } catch (error) {
+      console.error('Error eliminando:', error);
+      const nuevaLista = clientes.filter(c => c.id !== id);
+      guardarLocalmente(nuevaLista);
+      mostrarAlerta('Registro eliminado localmente', 'info');
     }
   };
 
@@ -234,6 +254,18 @@ export default function Clientes({ loggedUser }) {
     // Validaciones
     if (!formData.nombre.trim()) {
       mostrarAlerta('Por favor ingresa el nombre del cliente', 'error');
+      return;
+    }
+    if (formData.nombre.trim().length > 20) {
+      mostrarAlerta('El nombre no puede exceder 20 caracteres', 'error');
+      return;
+    }
+    if (!formData.telefono || formData.telefono.trim().length === 0) {
+      mostrarAlerta('Por favor ingresa el teléfono del cliente', 'error');
+      return;
+    }
+    if (formData.telefono.length > 11) {
+      mostrarAlerta('El teléfono solo permite un máximo de 11 caracteres numéricos', 'error');
       return;
     }
 
@@ -305,13 +337,7 @@ export default function Clientes({ loggedUser }) {
   return (
     <div className="clientes-wrapper">
       {/* Toast Alert flotante */}
-      {alerta && (
-        <Toast 
-          mensaje={alerta.mensaje} 
-          tipo={alerta.tipo} 
-          onClose={() => setAlerta(null)} 
-        />
-      )}
+      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
 
       {/* Top Header */}
       <div className="clientes-header">
@@ -384,9 +410,20 @@ export default function Clientes({ loggedUser }) {
             Inactivos ({inactivos})
           </button>
         </div>
-        <button className="clientes-btn-nuevo" onClick={() => openModal('create')}>
-          <Plus size={16} /> Nuevo Cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            type="button" 
+            className="btn btn-sm btn-ghost text-emerald-400 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-1.5"
+            onClick={() => cargarDatos(true)}
+            title="Sincronizar directamente con MySQL"
+          >
+            <RefreshCw size={14} className={cargandoBD ? 'animate-spin' : ''} />
+            <span>Sincronizar BD</span>
+          </button>
+          <button className="clientes-btn-nuevo" onClick={() => openModal('create')}>
+            <Plus size={16} /> Nuevo Cliente
+          </button>
+        </div>
       </div>
 
       {/* Tabla de Clientes con TODOS los atributos de la BD */}
@@ -509,7 +546,7 @@ export default function Clientes({ loggedUser }) {
                         <button
                           className="clientes-action-btn delete"
                           title="Eliminar cliente"
-                          onClick={() => handleEliminar(c.id)}
+                          onClick={() => pedirConfirmacionEliminar(c.id, c.nombre)}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -558,30 +595,32 @@ export default function Clientes({ loggedUser }) {
               {/* Nombre */}
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Nombre Completo *
+                  Nombre Completo * (Máx. 20 caracteres)
                 </label>
                 <input
                   type="text"
                   required
+                  maxLength={20}
                   className="input input-bordered w-full"
                   placeholder="Ej. Juan Pérez"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value.slice(0, 20) })}
                 />
               </div>
 
               {/* Teléfono */}
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono *
+                  Teléfono * (Solo números, máx. 11 dígitos)
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   required
-                  className="input input-bordered w-full"
+                  maxLength={11}
+                  className="input input-bordered w-full font-mono"
                   placeholder="Ej. 3471012962"
                   value={formData.telefono || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 11) })}
                 />
               </div>
 
@@ -630,26 +669,28 @@ export default function Clientes({ loggedUser }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-base-content mb-1">
-                    Contacto de Emergencia
+                    Contacto de Emergencia (Máx. 20 car.)
                   </label>
                   <input
                     type="text"
+                    maxLength={20}
                     className="input input-bordered w-full"
                     placeholder="Ej. María Pérez"
                     value={formData.contacto_emergencia || ''}
-                    onChange={(e) => setFormData({ ...formData, contacto_emergencia: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, contacto_emergencia: e.target.value.slice(0, 20) })}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-base-content mb-1">
-                    Teléfono Emergencia
+                    Teléfono Emergencia (Máx. 11 núm.)
                   </label>
                   <input
-                    type="text"
-                    className="input input-bordered w-full"
-                    placeholder="Ej. 555-4321"
+                    type="tel"
+                    maxLength={11}
+                    className="input input-bordered w-full font-mono"
+                    placeholder="Ej. 3471012962"
                     value={formData.telefono_emergencia || ''}
-                    onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value.replace(/\D/g, '').slice(0, 11) })}
                   />
                 </div>
               </div>
@@ -698,6 +739,18 @@ export default function Clientes({ loggedUser }) {
           </form>
         </div>
       </dialog>
+
+      {/* Modal de Advertencia y Confirmación al Centro de Pantalla */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="¿Eliminar Cliente?"
+        message={`¿Estás seguro de que deseas eliminar permanentemente a "${confirmModal.nombre}" de la base de datos? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar Cliente"
+        cancelText="Cancelar"
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
+        tipo="danger"
+      />
     </div>
   );
 }

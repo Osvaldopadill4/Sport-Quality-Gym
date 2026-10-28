@@ -418,7 +418,9 @@ DELIMITER ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_delete` AFTER DELETE ON `plan` FOR EACH ROW BEGIN
-    DELETE FROM `producto` WHERE id = OLD.id;
+    IF (OLD.categoria IS NOT NULL OR OLD.stock IS NOT NULL) THEN
+        DELETE FROM `producto` WHERE id = OLD.id;
+    END IF;
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -555,6 +557,7 @@ CREATE TABLE `venta` (
   `fecha` datetime NOT NULL,
   `total` decimal(10,2) NOT NULL,
   `metodo_pago` varchar(30) DEFAULT NULL,
+  `folio` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `id_cliente` (`id_cliente`),
   KEY `id_usuario` (`id_usuario`),
@@ -586,7 +589,7 @@ DELIMITER ;;
            SELECT 1
            FROM cliente
            WHERE id = NEW.id_cliente
-             AND estado = 1
+             AND (estado = '1' OR estado = 1 OR LOWER(estado) = 'activo')
        ) THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'El cliente no existe o está inactivo';
