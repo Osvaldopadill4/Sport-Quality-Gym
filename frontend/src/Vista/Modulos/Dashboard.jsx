@@ -9,6 +9,7 @@ import Acceso from './Acceso';
 import PuntoVenta from './PuntoVenta';
 import CorteCaja from './CorteCaja';
 import Membresias from './Membresias';
+import Reportes from './Reportes';
 import { 
   Users, 
   Banknote, 
@@ -338,7 +339,8 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
        activeModule === 'acceso' ? <Acceso loggedUser={usuario} /> : 
        activeModule === 'caja' ? <PuntoVenta loggedUser={usuario} renovacionPendiente={renovacionPendiente} onRenovacionCompletada={handleRenovacionCompletada} /> : 
        activeModule === 'corte' ? <CorteCaja loggedUser={usuario} /> : 
-       activeModule === 'membresia' ? <Membresias loggedUser={usuario} onIrAPuntoVenta={handleIrAPuntoVentaConRenovacion} /> : 
+       activeModule === 'membresia' ? <Membresias loggedUser={usuario} onIrAPuntoVenta={handleIrAPuntoVentaConRenovacion} /> :
+       activeModule === 'reportes' ? <Reportes loggedUser={usuario} /> : 
        renderModuloGenerico()}
     </AdminLayout>
   );

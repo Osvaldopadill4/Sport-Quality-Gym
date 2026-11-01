@@ -609,7 +609,7 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
             {/* Buscador de Socio en Tiempo Real de la BD */}
             <div>
               <label className="block text-xs font-bold uppercase text-gray-400 mb-1">
-                Socio / Cliente (Buscador en BD) *
+                Socio / Cliente 
               </label>
               {clienteSeleccionadoModal ? (
                 <div className="flex items-center justify-between p-3 bg-zinc-950 border border-emerald-500/50 rounded-xl">
@@ -714,10 +714,10 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
               )}
             </div>
 
-            {/* Escoger Plan en base a los Planes de la Base de Datos */}
+            {/* Escoger Plan en base a los Planes de la BD */}
             <div>
               <label className="block text-xs font-bold uppercase text-gray-400 mb-1">
-                Tipo de Plan (Cargado de la Base de Datos) *
+                Tipo de Planes 
               </label>
               <select 
                 className="input input-bordered w-full bg-zinc-800 border-zinc-700 text-white text-xs font-semibold"
@@ -740,7 +740,7 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
                 }}
               >
                 {planesCatalogo.length === 0 ? (
-                  <option value="">Cargando planes de la BD...</option>
+                  <option value="">Cargando planes...</option>
                 ) : (
                   planesCatalogo.map(p => (
                     <option key={p.id} value={p.id}>

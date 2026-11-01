@@ -192,7 +192,8 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
       descuento_porcentaje: descuentoPorcentaje,
       total: totalPagar,
       detalles: carrito.map(item => ({
-        id_producto: item.id,
+        id_producto: item.es_membresia ? null : item.id,
+        id_plan: item.es_membresia ? (item.id_plan || item.membresia_id || 1) : null,
         articulo: item.nombre,
         cantidad: item.cant,
         precio_unitario: item.precio,
@@ -274,8 +275,13 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
     setAlerta({ mensaje: mensajeExito, tipo: 'success' });
   };
 
-  const productosFiltrados = productos.filter(p => 
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+  // Deduplicar productos para evitar productos repetidos en el catálogo
+  const productosUnicos = productos.filter((p, index, self) => 
+    index === self.findIndex(t => t.id === p.id || (t.nombre && p.nombre && t.nombre.toLowerCase().trim() === p.nombre.toLowerCase().trim() && Number(t.precio) === Number(p.precio)))
+  );
+
+  const productosFiltrados = productosUnicos.filter(p => 
+    (p.nombre && p.nombre.toLowerCase().includes(busqueda.toLowerCase())) ||
     (p.categoria && p.categoria.toLowerCase().includes(busqueda.toLowerCase()))
   );
 
@@ -309,15 +315,15 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
             </div>
           </div>
 
-          <div className="overflow-y-auto bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 flex-1 max-h-[70vh]">
-            <table className="table table-zebra w-full text-sm">
+          <div className="overflow-x-auto overflow-y-auto bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 flex-1 max-h-[70vh]">
+            <table className="table table-zebra w-full min-w-[540px] text-sm">
               <thead className="bg-zinc-800 text-gray-400 text-xs uppercase sticky top-0 z-10 border-b border-zinc-700">
                 <tr>
-                  <th className="p-4">Producto</th>
-                  <th className="p-4">Categoría</th>
-                  <th className="p-4">Stock</th>
-                  <th className="p-4">Precio</th>
-                  <th className="p-4 text-right">Acción</th>
+                  <th className="py-3.5 px-4 text-left whitespace-nowrap">Producto</th>
+                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Categoría</th>
+                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Stock</th>
+                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Precio</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800">
@@ -325,25 +331,29 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
                   const stockBajo = Number(p.stock) <= 5;
                   return (
                     <tr key={p.id} className="hover:bg-zinc-800/50 transition-colors">
-                      <td className="p-4 font-bold text-white">{p.nombre}</td>
-                      <td className="p-4">
+                      <td className="py-3.5 px-4 font-bold text-white">{p.nombre}</td>
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <span className="badge badge-outline badge-sm text-xs text-gray-300">
                           {p.categoria || 'General'}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <span className={`badge ${stockBajo ? 'badge-error text-white font-bold' : 'badge-success text-black font-semibold'} badge-sm`}>
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center justify-center font-bold font-mono text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
+                          stockBajo 
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        }`}>
                           {p.stock} uds.
                         </span>
                       </td>
-                      <td className="p-4 text-emerald-400 font-bold text-base">${p.precio}</td>
-                      <td className="p-4 text-right">
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap text-emerald-400 font-bold text-base">${p.precio}</td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <button 
                           onClick={() => agregarAlCarrito(p)} 
-                          className="btn btn-sm bg-emerald-500 hover:bg-emerald-400 text-black font-bold border-none"
+                          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black transition-all shadow-md active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
                           disabled={Number(p.stock) <= 0}
                         >
-                          <Plus size={16} /> Agregar
+                          <Plus size={15} className="shrink-0" /> Agregar
                         </button>
                       </td>
                     </tr>

@@ -1,3 +1,5 @@
+import { createDetalleVenta } from './detalle_venta';
+
 const API_URL = 'http://localhost:8080/api/venta';
 
 export const getVenta = async () => {
@@ -22,31 +24,70 @@ export const getVenta = async () => {
 };
 
 export const createVenta = async (data) => {
+    // 1. Extraer ID del cliente si viene en formato texto "Nombre (Socio #123)"
+    let clienteId = null;
+    if (data.id_cliente) {
+        clienteId = Number(data.id_cliente);
+    } else if (typeof data.cliente === 'string') {
+        const match = data.cliente.match(/#(\d+)/);
+        if (match) clienteId = Number(match[1]);
+    }
+
+    // 2. Estructura exacta compatible con Venta.java del Backend
+    const ventaPayload = {
+        id_usuario: data.id_usuario ? Number(data.id_usuario) : 1,
+        id_cliente: clienteId,
+        fecha: data.fecha || new Date().toISOString().replace('T', ' ').slice(0, 19),
+        total: String(data.total || 0),
+        metodo_pago: String(data.metodo_pago || 'Efectivo'),
+        folio: String(data.folio || ''),
+        estado: String(data.estado || 'Completada')
+    };
+
+    let ventaGuardada = null;
+
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify(ventaPayload)
         });
         if (res.ok) {
-            return await res.json();
+            ventaGuardada = await res.json();
         }
-        throw new Error('Servidor no respondió con éxito para la venta');
     } catch (error) {
-        console.warn('Persistiendo venta en almacenamiento local y sincronización:', error.message);
-        try {
-            const prev = JSON.parse(localStorage.getItem('gymton_ventas') || '[]');
-            const nuevaVenta = {
-                id: Date.now(),
-                ...data
-            };
-            localStorage.setItem('gymton_ventas', JSON.stringify([nuevaVenta, ...prev]));
-            return nuevaVenta;
-        } catch (e) {
-            console.error('Error guardando venta local:', e);
-            return data;
+        console.warn('API Venta no disponible, usando registro local:', error.message);
+    }
+
+    // 3. Si la venta se registró en el Backend, enviar cada detalle a /api/detalle_venta
+    if (ventaGuardada && ventaGuardada.id && Array.isArray(data.detalles)) {
+        for (const d of data.detalles) {
+            await createDetalleVenta({
+                id_venta: ventaGuardada.id,
+                id_producto: d.id_producto || null,
+                id_plan: d.id_plan || null,
+                cantidad: String(d.cantidad || 1),
+                precio_unitario: String(d.precio_unitario || 0),
+                subtotal: String(d.subtotal || 0)
+            });
         }
     }
+
+    // 4. Persistir la venta enriquecida en el localStorage para auditoría y visualización de tickets
+    const ventaFinal = {
+        id: ventaGuardada?.id || Date.now(),
+        ...data,
+        id_cliente: clienteId
+    };
+
+    try {
+        const prev = JSON.parse(localStorage.getItem('gymton_ventas') || '[]');
+        localStorage.setItem('gymton_ventas', JSON.stringify([ventaFinal, ...prev]));
+    } catch (e) {
+        console.error('Error guardando venta local:', e);
+    }
+
+    return ventaFinal;
 };
 
 export const updateVenta = async (id, data) => {

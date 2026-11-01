@@ -1,3 +1,5 @@
+import { createDetalleCompra } from './detalle_compra';
+
 const API_URL = 'http://localhost:8080/api/compra';
 
 export const getCompras = async () => {
@@ -22,30 +24,52 @@ export const getCompras = async () => {
 };
 
 export const createCompra = async (data) => {
+    const compraPayload = {
+        id_usuario: data.id_usuario ? Number(data.id_usuario) : 1,
+        id_proveedor: data.id_proveedor ? Number(data.id_proveedor) : 1,
+        fecha: data.fecha || new Date().toISOString().replace('T', ' ').slice(0, 19),
+        total: String(data.total || (Number(data.cantidad || 0) * Number(data.costo_unitario || 0)) || 0),
+        estado: String(data.estado || 'Completada')
+    };
+
+    let compraGuardada = null;
+
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify(compraPayload)
         });
         if (res.ok) {
-            return await res.json();
+            compraGuardada = await res.json();
         }
-        throw new Error('Servidor no respondió con éxito para la compra');
     } catch (error) {
-        console.warn('Persistiendo compra en almacenamiento local:', error.message);
-        try {
-            const prev = JSON.parse(localStorage.getItem('gymton_compras') || '[]');
-            const nuevaCompra = {
-                id: Date.now(),
-                fecha: new Date().toISOString().replace('T', ' ').slice(0, 19),
-                ...data
-            };
-            localStorage.setItem('gymton_compras', JSON.stringify([nuevaCompra, ...prev]));
-            return nuevaCompra;
-        } catch (e) {
-            console.error('Error guardando compra local:', e);
-            return data;
-        }
+        console.warn('API Compra no disponible, persistiendo en almacenamiento local:', error.message);
     }
+
+    // Si la compra se guardó en BD y contiene un producto asociado, registrar el detalle_compra
+    if (compraGuardada && compraGuardada.id && data.id_producto) {
+        await createDetalleCompra({
+            id_compra: compraGuardada.id,
+            id_producto: Number(data.id_producto),
+            cantidad: String(data.cantidad || 1),
+            costo_unitario: String(data.costo_unitario || 0),
+            subtotal: String(data.total || (Number(data.cantidad || 0) * Number(data.costo_unitario || 0)) || 0)
+        });
+    }
+
+    const compraFinal = {
+        id: compraGuardada?.id || Date.now(),
+        fecha: compraPayload.fecha,
+        ...data
+    };
+
+    try {
+        const prev = JSON.parse(localStorage.getItem('gymton_compras') || '[]');
+        localStorage.setItem('gymton_compras', JSON.stringify([compraFinal, ...prev]));
+    } catch (e) {
+        console.error('Error guardando compra local:', e);
+    }
+
+    return compraFinal;
 };
