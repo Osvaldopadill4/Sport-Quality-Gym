@@ -15,9 +15,9 @@ public class Detalle_venta {
     @Getter @Setter @Column(name = "id_venta")
     private int id_venta;
     @Getter @Setter @Column(name = "id_producto")
-    private int id_producto;
+    private Integer id_producto;
     @Getter @Setter @Column(name = "id_plan")
-    private int id_plan;
+    private Integer id_plan;
     @Getter @Setter @Column(name = "cantidad")
     private String cantidad;
     @Getter @Setter @Column(name = "precio_unitario")
