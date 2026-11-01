@@ -13,7 +13,7 @@ public class CorteCajaDaoImp implements CorteCajaDao {
 
     @Override
     public List<Corte_caja> getCorteCajas() {
-        String query = "FROM corte_caja";
+        String query = "FROM Corte_caja";
         return entityManager.createQuery(query).getResultList();
     }
     @Override

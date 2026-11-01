@@ -12,9 +12,9 @@ public class Venta {
     @Getter @Setter @Column(name = "id")
     private int id;
     @Getter @Setter @Column(name = "id_usuario")
-    private int id_usuario;
+    private Integer id_usuario;
     @Getter @Setter @Column(name = "id_cliente")
-    private int id_cliente;
+    private Integer id_cliente;
     @Getter @Setter @Column(name = "fecha")
     private String fecha;
     @Getter @Setter @Column(name = "total")

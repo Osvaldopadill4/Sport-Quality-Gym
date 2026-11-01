@@ -17,7 +17,7 @@ public class Detalle_ventaDaoImp implements Detalle_ventaDao {
 
     @Override
     public List<Detalle_venta> getDetalle_ventas() {
-        String query = "FROM detalle_venta";
+        String query = "FROM Detalle_venta";
         return entityManager.createQuery(query).getResultList();
     }
     @Override

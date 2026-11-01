@@ -16,7 +16,7 @@ public class CompraDaoImp implements CompraDao {
 
     @Override
     public List<Compra> getCompras() {
-        String query = "FROM compra";
+        String query = "FROM Compra";
         return entityManager.createQuery(query).getResultList();
     }
     @Override
