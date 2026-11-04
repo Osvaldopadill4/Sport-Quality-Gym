@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Trash2, X, CheckCircle2 } from 'lucide-react';
 
 export default function ConfirmModal({
   isOpen,
@@ -20,7 +20,6 @@ export default function ConfirmModal({
         role="dialog"
         aria-modal="true"
       >
-        {/* Botón cerrar esquina */}
         <button 
           onClick={onCancel}
           type="button"
@@ -29,24 +28,29 @@ export default function ConfirmModal({
           <X size={18} />
         </button>
 
-        {/* Icono de Advertencia Centrado */}
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 border ${
-          tipo === 'danger' 
+          tipo === 'success'
+            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-lg shadow-emerald-500/10'
+            : tipo === 'danger' 
             ? 'bg-red-500/10 text-red-400 border-red-500/20 shadow-lg shadow-red-500/10' 
             : 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-lg shadow-amber-500/10'
         }`}>
-          {tipo === 'danger' ? <Trash2 size={26} /> : <AlertTriangle size={26} />}
+          {tipo === 'success' ? (
+            <CheckCircle2 size={26} />
+          ) : tipo === 'danger' ? (
+            <Trash2 size={26} />
+          ) : (
+            <AlertTriangle size={26} />
+          )}
         </div>
 
-        {/* Título y Mensaje */}
         <h3 className="text-xl font-bold text-white mb-2">
           {title}
         </h3>
-        <p className="text-sm text-zinc-400 mb-6 leading-relaxed px-2">
+        <div className="text-sm text-zinc-400 mb-6 leading-relaxed px-2">
           {message}
-        </p>
+        </div>
 
-        {/* Botones de Acción */}
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800">
           <button
             type="button"
@@ -58,13 +62,14 @@ export default function ConfirmModal({
           <button
             type="button"
             onClick={onConfirm}
-            className={`btn border-none font-bold text-white rounded-xl py-2.5 flex items-center justify-center gap-2 shadow-lg ${
-              tipo === 'danger'
-                ? 'bg-red-600 hover:bg-red-500 shadow-red-600/20'
-                : 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20'
+            className={`btn border-none font-bold rounded-xl py-2.5 flex items-center justify-center gap-2 shadow-lg ${
+              tipo === 'success'
+                ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/20'
+                : tipo === 'danger'
+                ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20'
+                : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20'
             }`}
           >
-            <Trash2 size={16} />
             {confirmText}
           </button>
         </div>

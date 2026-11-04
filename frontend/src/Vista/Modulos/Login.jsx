@@ -50,7 +50,8 @@ export default function Login({ alIniciarSesion }) {
           setProgress(p);
           if (p >= 100) {
             clearInterval(interval);
-            alIniciarSesion(respuesta);
+            if (respuesta) respuesta.id_rol = Number(respuesta.id_rol);
+alIniciarSesion(respuesta);
           }
         }, 30); // 1.5 segundos en total
 
@@ -67,9 +68,10 @@ export default function Login({ alIniciarSesion }) {
           : email;
         const nombreFormateado = nombreLocal.charAt(0).toUpperCase() + nombreLocal.slice(1);
 
+        const esEmpleado = email.toLowerCase().includes('empleado') || email.toLowerCase().includes('recep') || email.toLowerCase().includes('caja');
         const usuarioDemo = {
-          id: 1,
-          id_rol: 1,
+          id: esEmpleado ? 2 : 1,
+          id_rol: esEmpleado ? 2 : 1,
           nombre: nombreFormateado,
           apellido: '',
           correo: email,

@@ -1,369 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X, Package, AlertTriangle, Truck, ArrowDownCircle, CheckCircle2 } from 'lucide-react';
+import React from 'react';
+import {
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Power,
+  X,
+  Package,
+  AlertTriangle,
+  Truck,
+  ArrowDownCircle
+} from 'lucide-react';
 import '../../CSS/Productos.css';
-import { getProductos, createProductos, updateProductos, deleteProductos } from '../../JS/producto';
-import { createCompra } from '../../JS/compra';
-import Toast from '../Componentes/Toast';
-import ConfirmModal from '../Componentes/ConfirmModal';
+import Toast from '../Extras/Toast';
+import ConfirmModal from '../Extras/ConfirmModal';
+import { ModalFormProducto, ModalReabastecerStock } from '../Extras/Modales/ModalesProducto';
+import { useProductos } from '../../Reutilizable/useProductos';
+import { esInventarioBajo as checkInventarioBajo } from '../../Reutilizable/objetosSQL';
 
-// Helper de estado activo compatible con BD (soporta "1", 1, "Activo", true)
-const esEstadoActivo = (estado) => {
-  if (estado === undefined || estado === null) return false;
-  const s = String(estado).trim().toLowerCase();
-  return s === '1' || s === 'activo' || s === 'true' || estado === 1 || estado === true;
-};
-
-// Helper que replica la vista SQL `vw_inventario_bajo`:
-// (stock <= stock_minimo O stock <= 5)
-export const esInventarioBajo = (p) => {
-  const stock = Number(p.stock) || 0;
-  const min = Number(p.stock_minimo) || 5;
-  return stock <= min || stock <= 5;
-};
+export const esInventarioBajo = checkInventarioBajo;
 
 export default function Productos({ loggedUser }) {
-  const usuarioActivo = loggedUser || (() => {
-    try {
-      const u = localStorage.getItem('gymton_current_user');
-      return u ? JSON.parse(u) : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  const [productos, setProductos] = useState([]);
-  const [filtro, setFiltro] = useState('todos'); // 'todos' | 'activos' | 'inactivos' | 'bajo_stock'
-  const [busqueda, setBusqueda] = useState('');
-  const [alerta, setAlerta] = useState(null);
-
-  // Estados modal Crear / Editar
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create');
-  const [formData, setFormData] = useState({ 
-    nombre: '', 
-    descripcion: '', 
-    categoria: 'Suplementos',
-    precio: '', 
-    stock: '', 
-    stock_minimo: 5, 
-    estado: 1 
-  });
-
-  // Estados modal Reabastecer Inventario
-  const [showModalCompra, setShowModalCompra] = useState(false);
-  const [busquedaReabastecer, setBusquedaReabastecer] = useState('');
-  const [productosFiltradosReabastecer, setProductosFiltradosReabastecer] = useState([]);
-  const [compraData, setCompraData] = useState({
-    id_producto: '',
-    id_proveedor: 1,
-    cantidad: 10,
-    costo: 50
-  });
-
-  // Modal de Confirmación personalizada para eliminar (sin alert/confirm de localhost)
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
-
-  // useEffect para el buscador en tiempo real dentro del modal de Reabastecer
-  useEffect(() => {
-    if (!showModalCompra) {
-      setBusquedaReabastecer('');
-      return;
-    }
-    const q = busquedaReabastecer.toLowerCase().trim();
-    if (!q) {
-      setProductosFiltradosReabastecer(productos);
-    } else {
-      setProductosFiltradosReabastecer(
-        productos.filter(p => 
-          p.nombre?.toLowerCase().includes(q) ||
-          p.categoria?.toLowerCase().includes(q) ||
-          String(p.id).includes(q)
-        )
-      );
-    }
-  }, [busquedaReabastecer, productos, showModalCompra]);
-
-  const mostrarAlerta = (mensaje, tipo = 'success') => {
-    setAlerta({ mensaje, tipo });
-  };
-
-  const guardarLocalmente = (lista) => {
-    setProductos(lista);
-    try {
-      localStorage.setItem('gymton_productos', JSON.stringify(lista));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const cargarDatos = () => {
-    getProductos().then(data => {
-      if (Array.isArray(data)) {
-        // Filtrar exclusivamente los productos del catálogo (tienen categoria o stock, y no son planes)
-        const prodsReales = data.filter(p => (p.categoria !== null && p.categoria !== undefined && p.categoria !== '') || (p.stock !== null && p.stock !== undefined && (p.duracion_dias === null || p.duracion_dias === undefined)));
-        if (prodsReales.length > 0) {
-          const adaptados = prodsReales.map(p => ({
-            ...p,
-            precio: Number(p.precio) || 0,
-            stock: Number(p.stock) || 0,
-            stock_minimo: Number(p.stock_minimo) || 5,
-            estado: esEstadoActivo(p.estado) ? 1 : 0
-          }));
-          setProductos(adaptados);
-          localStorage.setItem('gymton_productos', JSON.stringify(adaptados));
-          return;
-        }
-      }
-      const local = localStorage.getItem('gymton_productos');
-      if (local) {
-        try {
-          setProductos(JSON.parse(local));
-          return;
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      const fallback = [
-        { id: 1, nombre: 'Proteína Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
-        { id: 2, nombre: 'Creatina Monohidratada', categoria: 'Suplementos', descripcion: 'Creapure 300g Micronizada', precio: 550, stock: 4, stock_minimo: 6, estado: 1 },
-        { id: 3, nombre: 'Bebida Energética Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
-        { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'Algodón reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
-        { id: 5, nombre: 'Shaker Mezclador 700ml', categoria: 'Accesorios', descripcion: 'Vaso con bola mezcladora de acero', precio: 140, stock: 2, stock_minimo: 5, estado: 0 },
-        { id: 6, nombre: 'Creatina Julio', categoria: 'Snacks', descripcion: 'Te va a hacer un tinaco man', precio: 100, stock: 498, stock_minimo: 5, estado: 1 }
-      ];
-      setProductos(fallback);
-      localStorage.setItem('gymton_productos', JSON.stringify(fallback));
-    });
-  };
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const total = productos.length;
-  const activos = productos.filter(p => esEstadoActivo(p.estado)).length;
-  const inactivos = total - activos;
-  
-  // Conteo directo de la vista `vw_inventario_bajo`
-  const bajoStockCount = productos.filter(p => esInventarioBajo(p)).length;
-
-  const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
-    return 'Usuario';
-  };
-
-  // ACCIÓN: Poner en activo
-  const handlePonerEnActivo = async (p) => {
-    const prodActualizado = { ...p, estado: "1" };
-    const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
-    setProductos(nuevaLista);
-    guardarLocalmente(nuevaLista);
-    try {
-      await updateProductos(p.id, prodActualizado);
-      mostrarAlerta(`Producto "${p.nombre}" activado correctamente`, 'success');
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Puesto en activo localmente', 'warning');
-    }
-  };
-
-  // ACCIÓN: Dar de baja
-  const handleDarDeBaja = async (p) => {
-    const prodActualizado = { ...p, estado: "0" };
-    const nuevaLista = productos.map(item => item.id === p.id ? prodActualizado : item);
-    setProductos(nuevaLista);
-    guardarLocalmente(nuevaLista);
-    try {
-      await updateProductos(p.id, prodActualizado);
-      mostrarAlerta(`Producto "${p.nombre}" dado de baja correctamente`, 'info');
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Dado de baja localmente', 'warning');
-    }
-  };
-
-  const handleToggleEstado = (p) => {
-    const esActivo = esEstadoActivo(p.estado);
-    if (esActivo) handleDarDeBaja(p);
-    else handlePonerEnActivo(p);
-  };
-
-  // Solicitar confirmación con Modal en pantalla (reemplaza window.confirm)
-  const pedirConfirmacionEliminar = (id, nombre) => {
-    setConfirmModal({
-      isOpen: true,
-      id,
-      nombre: nombre || 'este producto'
-    });
-  };
-
-  // Ejecutar eliminación confirmada en BD vía API
-  const confirmarEliminar = async () => {
-    const id = confirmModal.id;
-    setConfirmModal({ isOpen: false, id: null, nombre: '' });
-    if (!id) return;
-    try {
-      await deleteProductos(id);
-      const nuevaLista = productos.filter(p => p.id !== id);
-      setProductos(nuevaLista);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Registro eliminado correctamente', 'success');
-      cargarDatos();
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Error al eliminar producto', 'error');
-    }
-  };
-
-  const openModal = (mode, prod = null) => {
-    setModalMode(mode);
-    if (mode === 'edit' && prod) {
-      setFormData({
-        id: prod.id,
-        nombre: prod.nombre || '',
-        descripcion: prod.descripcion || '',
-        categoria: prod.categoria || 'Suplementos',
-        precio: prod.precio ?? '',
-        stock: prod.stock ?? '',
-        stock_minimo: prod.stock_minimo ?? 5,
-        estado: esEstadoActivo(prod.estado) ? 1 : 0
-      });
-    } else {
-      setFormData({
-        nombre: '',
-        descripcion: '',
-        categoria: 'Suplementos',
-        precio: '',
-        stock: '',
-        stock_minimo: 5,
-        estado: 1
-      });
-    }
-    setShowModal(true);
-  };
-
-  // Modal para ejecutar la lógica de `sp_registrar_compra_inventario`
-  const openModalCompra = (prod = null) => {
-    setCompraData({
-      id_producto: prod ? prod.id : (productos[0]?.id || ''),
-      id_proveedor: 1,
-      cantidad: 10,
-      costo: prod ? Math.round(Number(prod.precio) * 0.6) : 50
-    });
-    setShowModalCompra(true);
-  };
-
-  const handleSave = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-
-    if (!formData.nombre.trim()) {
-      mostrarAlerta('Ingresa el nombre del producto', 'error');
-      return;
-    }
-    if (formData.precio === '' || Number(formData.precio) < 0) {
-      mostrarAlerta('Ingresa un precio válido', 'error');
-      return;
-    }
-
-    try {
-      const payload = {
-        ...formData,
-        precio: Number(formData.precio),
-        stock: Number(formData.stock) || 0,
-        stock_minimo: Number(formData.stock_minimo) || 5,
-        estado: esEstadoActivo(formData.estado) ? "1" : "0"
-      };
-
-      if (modalMode === 'create') {
-        const { id, ...createData } = payload;
-        const res = await createProductos(createData);
-        const nuevo = (res && res.id) ? { ...payload, id: res.id } : { ...payload, id: Date.now() };
-        guardarLocalmente([nuevo, ...productos]);
-        mostrarAlerta('Registro completado correctamente', 'success');
-      } else {
-        try {
-          await updateProductos(formData.id, payload);
-        } catch (errPut) {
-          console.warn('PUT falló para producto, registrando:', errPut);
-          const { id, ...createData } = payload;
-          const res = await createProductos(createData);
-          if (res && res.id) payload.id = res.id;
-        }
-        const lista = productos.map(p => p.id === formData.id ? { ...p, ...payload } : p);
-        guardarLocalmente(lista);
-        mostrarAlerta('Datos actualizados correctamente', 'success');
-      }
-      setShowModal(false);
-      cargarDatos();
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Error al procesar la solicitud', 'error');
-    }
-  };
-
-  // Lógica del procedimiento almacenado `sp_registrar_compra_inventario`
-  const handleRegistrarCompraInventario = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    const cant = Number(compraData.cantidad);
-    const costo = Number(compraData.costo);
-    const idProd = Number(compraData.id_producto);
-
-    if (cant <= 0 || costo < 0) {
-      mostrarAlerta('Cantidad o costo no válido', 'error');
-      return;
-    }
-
-    // Actualiza stock en producto sumando la cantidad comprada:
-    // UPDATE producto SET stock = stock + p_cantidad WHERE id = p_id_producto;
-    const prod = productos.find(p => p.id === idProd);
-    if (!prod) return;
-
-    const nuevoStock = (Number(prod.stock) || 0) + cant;
-    const prodActualizado = { ...prod, stock: nuevoStock };
-
-    try {
-      await updateProductos(idProd, prodActualizado);
-      // Registrar la compra en la base de datos / historial
-      await createCompra({
-        id_usuario: usuarioActivo?.id || 1,
-        id_proveedor: 1,
-        id_producto: idProd,
-        cantidad: cant,
-        costo_unitario: costo,
-        total: cant * costo,
-        estado: 'Registrada'
-      });
-      const lista = productos.map(p => p.id === idProd ? prodActualizado : p);
-      guardarLocalmente(lista);
-      setShowModalCompra(false);
-      mostrarAlerta(`Entrada de inventario registrada: +${cant} uds. para "${prod.nombre}"`, 'success');
-      cargarDatos();
-    } catch (err) {
-      console.error(err);
-      mostrarAlerta('Error al registrar compra de inventario', 'error');
-    }
-  };
-
-  // FILTRO EN TIEMPO REAL con soporte para la vista `vw_inventario_bajo`
-  const productosFiltrados = productos.filter(p => {
-    let coincideFiltro = true;
-    if (filtro === 'activos') coincideFiltro = esEstadoActivo(p.estado);
-    else if (filtro === 'inactivos') coincideFiltro = !esEstadoActivo(p.estado);
-    else if (filtro === 'bajo_stock') coincideFiltro = esInventarioBajo(p);
-
-    if (!coincideFiltro) return false;
-
-    const termino = busqueda.toLowerCase().trim();
-    if (!termino) return true;
-
-    const nombre = (p.nombre || '').toLowerCase();
-    const desc = (p.descripcion || '').toLowerCase();
-    const cat = (p.categoria || '').toLowerCase();
-    const precio = (p.precio || '').toString();
-
-    return nombre.includes(termino) || desc.includes(termino) || cat.includes(termino) || precio.includes(termino);
-  });
+  const {
+    usuarioActivo,
+    productos,
+    filtro,
+    setFiltro,
+    busqueda,
+    setBusqueda,
+    alerta,
+    setAlerta,
+    showModal,
+    setShowModal,
+    modalMode,
+    formData,
+    setFormData,
+    proveedores,
+    showModalCompra,
+    setShowModalCompra,
+    busquedaReabastecer,
+    setBusquedaReabastecer,
+    productosFiltradosReabastecer,
+    compraData,
+    setCompraData,
+    confirmModal,
+    setConfirmModal,
+    total,
+    activos,
+    inactivos,
+    bajoStockCount,
+    getRolName,
+    handleToggleEstado,
+    pedirConfirmacionEliminar,
+    confirmarEliminar,
+    openModal,
+    openModalCompra,
+    handleSave,
+    handleRegistrarCompraInventario,
+    confirmRestockModal,
+    setConfirmRestockModal,
+    confirmarReabastecimiento,
+    productosFiltrados,
+    esEstadoActivo,
+    esInventarioBajo: esBajo
+  } = useProductos({ loggedUser });
 
   return (
     <div className="productos-wrapper">
@@ -378,19 +78,18 @@ export default function Productos({ loggedUser }) {
           </p>
         </div>
         <div className="productos-top-actions">
-          {/* Buscador en tiempo real */}
           <div className="productos-search-container relative flex items-center">
             <Search size={20} className="productos-search-icon" />
-            <input 
-              type="text" 
-              className="productos-search-input" 
-              placeholder="Buscar productos, suplementos, precio..." 
+            <input
+              type="text"
+              className="productos-search-input"
+              placeholder="Buscar productos, suplementos, precio..."
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
             />
             {busqueda && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="absolute right-3 text-gray-400 hover:text-white"
                 onClick={() => setBusqueda('')}
                 title="Limpiar búsqueda"
@@ -415,7 +114,7 @@ export default function Productos({ loggedUser }) {
         </div>
       </div>
 
-      {/* Alerta de Stock Mínimo */}
+      {/* Alerta de Stock Mínimo (Vista SQL `vw_inventario_bajo`) */}
       {bajoStockCount > 0 && (
         <div className="mb-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-4 text-amber-300">
           <div className="flex items-center gap-3">
@@ -430,13 +129,13 @@ export default function Productos({ loggedUser }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               className="btn btn-xs bg-amber-500 text-black border-none font-bold hover:bg-amber-400"
               onClick={() => setFiltro('bajo_stock')}
             >
               Ver {bajoStockCount} Afectados
             </button>
-            <button 
+            <button
               className="btn btn-xs btn-outline border-amber-400 text-amber-300 hover:bg-amber-500 hover:text-black font-bold flex items-center gap-1"
               onClick={() => openModalCompra()}
             >
@@ -446,7 +145,7 @@ export default function Productos({ loggedUser }) {
         </div>
       )}
 
-      {/* Tabs y Botón Nuevo */}
+      {/* Tabs y Botones */}
       <div className="productos-filters-bar flex flex-wrap gap-3 justify-between items-center">
         <div className="productos-filters flex flex-wrap gap-2">
           <button className={`productos-filter-btn ${filtro === 'todos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('todos')}>
@@ -458,9 +157,8 @@ export default function Productos({ loggedUser }) {
           <button className={`productos-filter-btn ${filtro === 'inactivos' ? 'active' : 'inactive'}`} onClick={() => setFiltro('inactivos')}>
             Inactivos ({inactivos})
           </button>
-          {/* Tab de Stock Bajo */}
-          <button 
-            className={`productos-filter-btn ${filtro === 'bajo_stock' ? 'active bg-amber-500 text-black border-none' : 'inactive'}`} 
+          <button
+            className={`productos-filter-btn ${filtro === 'bajo_stock' ? 'active bg-amber-500 text-black border-none' : 'inactive'}`}
             onClick={() => setFiltro('bajo_stock')}
           >
             ⚠️ Stock Bajo ({bajoStockCount})
@@ -468,8 +166,7 @@ export default function Productos({ loggedUser }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Botón Reabastecer */}
-          <button 
+          <button
             className="btn btn-sm bg-zinc-800 text-emerald-400 border border-zinc-700 hover:bg-zinc-700 font-bold flex items-center gap-1.5"
             onClick={() => openModalCompra()}
             title="Registrar entrada de mercancía / compra a proveedor"
@@ -507,12 +204,12 @@ export default function Productos({ loggedUser }) {
             ) : (
               productosFiltrados.map(p => {
                 const esActivo = esEstadoActivo(p.estado);
-                const stockBajo = esInventarioBajo(p);
+                const stockBajo = esBajo(p);
                 return (
                   <tr key={p.id}>
                     <td className="productos-td-name font-bold">
                       <span className="flex items-center gap-2">
-                        <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-emerald-500'} /> 
+                        <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-emerald-500'} />
                         {p.nombre}
                       </span>
                     </td>
@@ -526,15 +223,15 @@ export default function Productos({ loggedUser }) {
                     <td>
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center justify-center font-bold text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
-                          stockBajo 
-                            ? 'bg-red-500/10 text-red-600 border border-red-500/30' 
+                          stockBajo
+                            ? 'bg-red-500/10 text-red-600 border border-red-500/30'
                             : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30'
                         }`}>
                           {stockBajo && <AlertTriangle size={12} className="mr-1 text-red-500" />}
                           {p.stock}
                         </span>
                         {stockBajo && (
-                          <button 
+                          <button
                             className="p-1 rounded-md text-amber-500 hover:bg-amber-100 transition-colors"
                             title="Reabastecer stock de este producto"
                             onClick={() => openModalCompra(p)}
@@ -554,21 +251,21 @@ export default function Productos({ loggedUser }) {
                     <td style={{ textAlign: 'right' }}>
                       <div className="productos-table-actions">
                         <button className="productos-action-btn edit" title="Editar producto" onClick={() => openModal('edit', p)}>
-                          <Edit size={16}/>
+                          <Edit size={16} />
                         </button>
-                        <button 
-                          className={`productos-action-btn ${esActivo ? 'power-off' : 'power-on'}`} 
-                          title={esActivo ? "Dar de baja" : "Poner en activo"} 
+                        <button
+                          className={`productos-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
+                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
                           onClick={() => handleToggleEstado(p)}
                         >
-                          <Power size={16}/>
+                          <Power size={16} />
                         </button>
-                        <button 
-                          className="productos-action-btn delete" 
-                          title="Eliminar producto" 
+                        <button
+                          className="productos-action-btn delete"
+                          title="Eliminar producto"
                           onClick={() => pedirConfirmacionEliminar(p.id, p.nombre)}
                         >
-                          <Trash2 size={16}/>
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -590,259 +287,70 @@ export default function Productos({ loggedUser }) {
         </div>
       </div>
 
-      {/* Modal Crear / Editar */}
-      <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
-          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-            <h3 className="font-bold text-lg text-base-content">
-              {modalMode === 'create' ? 'Nuevo Producto' : 'Editar Producto'}
-            </h3>
-            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-              <X size={20} />
-            </button>
-          </div>
-          <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Nombre *</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="input input-bordered w-full" 
-                  placeholder="Ej. Creatina Creapure" 
-                  value={formData.nombre}
-                  onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                />
+      {/* Modales extraídos en `Vista/Extras/Modales/ModalesProducto.jsx` */}
+      <ModalFormProducto
+        showModal={showModal}
+        setShowModal={setShowModal}
+        modalMode={modalMode}
+        formData={formData}
+        setFormData={setFormData}
+        handleSave={handleSave}
+      />
+
+      <ModalReabastecerStock
+        showModalCompra={showModalCompra}
+        setShowModalCompra={setShowModalCompra}
+        compraData={compraData}
+        setCompraData={setCompraData}
+        proveedores={proveedores}
+        productos={productos}
+        busquedaReabastecer={busquedaReabastecer}
+        setBusquedaReabastecer={setBusquedaReabastecer}
+        productosFiltradosReabastecer={productosFiltradosReabastecer}
+        handleRegistrarCompraInventario={handleRegistrarCompraInventario}
+        esInventarioBajo={esBajo}
+      />
+
+      <ConfirmModal
+        isOpen={confirmRestockModal.isOpen}
+        title="¿Estás seguro de reabastecer?"
+        message={
+          confirmRestockModal.data ? (
+            <div className="space-y-2 text-left">
+              <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
+                <span className="text-zinc-400">Producto:</span>
+                <span className="font-bold text-white">{confirmRestockModal.data.prodNombre}</span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Categoría</label>
-                <select 
-                  className="input input-bordered w-full"
-                  value={formData.categoria}
-                  onChange={e => setFormData({ ...formData, categoria: e.target.value })}
-                >
-                  <option value="Suplementos">Suplementos</option>
-                  <option value="Bebidas">Bebidas</option>
-                  <option value="Snacks">Snacks / Barras</option>
-                  <option value="Accesorios">Accesorios</option>
-                  <option value="Ropa">Ropa deportiva</option>
-                </select>
+              <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
+                <span className="text-zinc-400">Proveedor:</span>
+                <span className="font-medium text-emerald-400">{confirmRestockModal.data.nombreProveedor}</span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Descripción</label>
-                <textarea 
-                  className="textarea textarea-bordered w-full" 
-                  placeholder="Detalles del producto..." 
-                  value={formData.descripcion}
-                  onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
-                />
+              <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
+                <span className="text-zinc-400">Unidades a ingresar:</span>
+                <span className="font-bold text-emerald-400">+{confirmRestockModal.data.cant} uds.</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">Precio *</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    required 
-                    className="input input-bordered w-full" 
-                    placeholder="0.00" 
-                    value={formData.precio}
-                    onChange={e => setFormData({ ...formData, precio: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">Stock</label>
-                  <input 
-                    type="number" 
-                    className="input input-bordered w-full" 
-                    placeholder="0" 
-                    value={formData.stock}
-                    onChange={e => setFormData({ ...formData, stock: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">Mínimo</label>
-                  <input 
-                    type="number" 
-                    className="input input-bordered w-full" 
-                    placeholder="5" 
-                    value={formData.stock_minimo}
-                    onChange={e => setFormData({ ...formData, stock_minimo: e.target.value })}
-                  />
-                </div>
+              <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
+                <span className="text-zinc-400">Costo unitario:</span>
+                <span className="font-mono text-zinc-300">${confirmRestockModal.data.costo.toFixed(2)}</span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Estado</label>
-                <select 
-                  className="input input-bordered w-full"
-                  value={formData.estado}
-                  onChange={e => setFormData({ ...formData, estado: Number(e.target.value) })}
-                >
-                  <option value={1}>Activo</option>
-                  <option value={0}>Inactivo</option>
-                </select>
+              <div className="flex justify-between items-center text-base py-1">
+                <span className="font-bold text-white">Inversión total:</span>
+                <span className="text-2xl font-black text-emerald-400">${confirmRestockModal.data.totalCompra.toFixed(2)}</span>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
-              <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost">Cancelar</button>
-              <button type="submit" className="btn btn-primary">
-                {modalMode === 'create' ? 'Agregar Producto' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+          ) : null
+        }
+        confirmText="Confirmar Reabastecimiento"
+        cancelText="Volver"
+        tipo="success"
+        onConfirm={confirmarReabastecimiento}
+        onCancel={() => setConfirmRestockModal({ isOpen: false, data: null })}
+      />
 
-      {/* Modal Reabastecer Inventario con buscador en tiempo real */}
-      <dialog className={`modal ${showModalCompra ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-lg flex flex-col">
-          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-            <h3 className="font-bold text-lg text-base-content flex items-center gap-2">
-              <Truck size={20} className="text-emerald-400" />
-              Reabastecer Inventario
-            </h3>
-            <button type="button" onClick={() => setShowModalCompra(false)} className="text-gray-400 hover:text-gray-600">
-              <X size={20} />
-            </button>
-          </div>
-          <form onSubmit={handleRegistrarCompraInventario} className="flex flex-col flex-1">
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-400">
-                Selecciona el producto mediante el buscador en tiempo real y registra la entrada de stock a la base de datos.
-              </p>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1.5">
-                  Buscar Producto a Reabastecer *
-                </label>
-                {/* Buscador en tiempo real con useEffect */}
-                <div className="relative mb-2">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input 
-                    type="text"
-                    className="input input-bordered input-sm w-full pl-9 pr-8 text-sm"
-                    placeholder="Escribe el nombre o categoría para buscar rápido..."
-                    value={busquedaReabastecer}
-                    onChange={e => setBusquedaReabastecer(e.target.value)}
-                  />
-                  {busquedaReabastecer && (
-                    <button 
-                      type="button" 
-                      onClick={() => setBusquedaReabastecer('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Lista interactiva de productos filtrados en tiempo real */}
-                <div className="max-h-40 overflow-y-auto space-y-1 pr-1 border border-base-300 rounded-xl p-2 bg-base-200/50">
-                  {productosFiltradosReabastecer.length === 0 ? (
-                    <div className="text-xs text-gray-400 py-4 text-center">
-                      No se encontraron productos coincidentes
-                    </div>
-                  ) : (
-                    productosFiltradosReabastecer.map(p => {
-                      const isSelected = Number(compraData.id_producto) === Number(p.id);
-                      const stockCritico = esInventarioBajo(p);
-                      return (
-                        <div 
-                          key={p.id}
-                          onClick={() => {
-                            setCompraData({
-                              ...compraData,
-                              id_producto: p.id,
-                              costo: Math.round(Number(p.precio) * 0.6) || compraData.costo
-                            });
-                          }}
-                          className={`p-2.5 rounded-lg cursor-pointer text-xs flex justify-between items-center transition-all ${
-                            isSelected 
-                              ? 'bg-primary/20 text-white font-bold border border-primary/50 shadow-sm' 
-                              : 'hover:bg-base-300 text-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <Package size={14} className={stockCritico ? 'text-amber-400' : 'text-emerald-400'} />
-                            <span className="truncate">{p.nombre}</span>
-                            <span className="text-[10px] text-gray-400">({p.categoria || 'General'})</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                              stockCritico ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
-                            }`}>
-                              Stock: {p.stock} uds.
-                            </span>
-                            {isSelected && <CheckCircle2 size={15} className="text-primary flex-shrink-0" />}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Confirmación del producto seleccionado */}
-                {compraData.id_producto && (
-                  <div className="mt-2 text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 size={13} />
-                    Seleccionado: {productos.find(p => p.id === Number(compraData.id_producto))?.nombre}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">Cantidad a Comprar *</label>
-                  <input 
-                    type="number"
-                    min="1"
-                    required
-                    className="input input-bordered w-full font-bold"
-                    value={compraData.cantidad}
-                    onChange={e => setCompraData({ ...compraData, cantidad: Number(e.target.value) })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">Costo Unitario ($) *</label>
-                  <input 
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    className="input input-bordered w-full font-bold"
-                    value={compraData.costo}
-                    onChange={e => setCompraData({ ...compraData, costo: Number(e.target.value) })}
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-base-200 rounded-lg flex justify-between items-center text-sm font-bold">
-                <span className="text-gray-400">Total de Compra:</span>
-                <span className="text-emerald-400 text-base">
-                  ${(compraData.cantidad * compraData.costo).toFixed(2)} MXN
-                </span>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
-              <button type="button" onClick={() => setShowModalCompra(false)} className="btn btn-ghost">Cancelar</button>
-              <button 
-                type="submit" 
-                disabled={!compraData.id_producto}
-                className="btn btn-primary flex items-center gap-1"
-              >
-                <CheckCircle2 size={16} /> Confirmar Entrada
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
-
-      {/* Modal de Advertencia y Confirmación al Centro de Pantalla */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title="¿Eliminar Producto?"
-        message={`¿Estás seguro de que deseas eliminar permanentemente "${confirmModal.nombre}" del inventario? Esta acción no se puede deshacer.`}
+        message={`¿Estás seguro de que deseas eliminar permanentemente el producto "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
         confirmText="Eliminar Producto"
         cancelText="Cancelar"
         onConfirm={confirmarEliminar}

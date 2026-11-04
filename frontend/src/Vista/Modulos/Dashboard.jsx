@@ -24,7 +24,7 @@ import { getClientes } from '../../JS/cliente';
 import { getAcceso } from '../../JS/acceso';
 import { getCorteCaja } from '../../JS/corte_caja';
 import { getProductos } from '../../JS/producto';
-import Toast from '../Componentes/Toast';
+import Toast from '../Extras/Toast';
 
 export default function Dashboard({ usuario, alCerrarSesion }) {
   const esAdmin = Number(usuario?.id_rol) === 1;
@@ -57,7 +57,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
     setRenovacionPendiente(null);
   };
 
-  // Estado dinámico para estadísticas de la Base de Datos
+  // Estado dinámico para estadísticas
   const [stats, setStats] = useState({
     ingresosHoy: 0,
     clientesActivos: 0,
@@ -70,7 +70,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
   });
   const [accesosRecientes, setAccesosRecientes] = useState([]);
 
-  // Carga de datos dinámicos desde la BD / API
+  // Carga de datos dinámicos desde el sistema
   const cargarDatosDashboard = useCallback(async () => {
     setStats(prev => ({ ...prev, cargando: true }));
     try {
@@ -102,7 +102,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       
       const listaRecientes = accesos.slice(0, 5).map(acc => {
         const idCl = Number(acc.id_cliente);
-        const nombreDetectado = acc.cliente_nombre || (idCl ? (mapaClientes.get(idCl) || `Socio #${idCl}`) : 'Socio');
+        const nombreDetectado = acc.cliente_nombre || (idCl ? (mapaClientes.get(idCl) || 'Socio Registrado') : 'Socio');
         return {
           id: acc.id,
           socio: nombreDetectado,
@@ -163,7 +163,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
         <div>
           <h2 className="text-2xl font-bold text-white">Panel de Resumen</h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            Métricas operativas en tiempo real conectadas a la base de datos MySQL.
+            Métricas operativas en tiempo real del sistema.
           </p>
         </div>
         <button 
@@ -255,7 +255,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
                   ) : (
                     <tr>
                       <td colSpan="3" className="text-center py-6 text-gray-400">
-                        No hay accesos recientes registrados hoy en la base de datos.
+                        No hay accesos recientes registrados hoy.
                       </td>
                     </tr>
                   )}
@@ -311,7 +311,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
             Gestión de {activeModule}
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            Módulo en construcción (Próximamente leerá datos de la BD).
+            Módulo en proceso de integración.
           </p>
         </div>
       </div>

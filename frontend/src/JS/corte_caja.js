@@ -1,14 +1,45 @@
 const API_URL = 'http://localhost:8080/api/corte_caja';
 
-// Obtener todos los cortes de caja (con persistencia local en fallback)
+const getMetaCortes = () => {
+    try {
+        const raw = localStorage.getItem('gymton_cortes_meta');
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+};
+
+const saveMetaCorte = (id, meta) => {
+    if (!id) return;
+    try {
+        const actual = getMetaCortes();
+        actual[String(id)] = { ...(actual[String(id)] || {}), ...meta };
+        localStorage.setItem('gymton_cortes_meta', JSON.stringify(actual));
+    } catch (e) {
+        console.warn('No se pudo guardar metadata de corte:', e);
+    }
+};
+
+// Obtener todos los cortes de caja (con persistencia local en fallback y enriquecimiento de cajero y monto_inicial)
 export const getCorteCaja = async () => {
+    const metaMap = getMetaCortes();
     try {
         const res = await fetch(API_URL);
         if (!res.ok) throw new Error('Error al obtener cortes de caja');
         const data = await res.json();
         if (Array.isArray(data)) {
-            localStorage.setItem('gymton_cortes_caja', JSON.stringify(data));
-            return data;
+            const enriquecidos = data.map(c => {
+                const meta = metaMap[String(c.id)] || {};
+                const montoInicial = Number(c.monto_inicial ?? meta.monto_inicial ?? 500) || 500;
+                return {
+                    ...meta,
+                    ...c,
+                    monto_inicial: montoInicial,
+                    cajero_nombre: c.cajero_nombre || meta.cajero_nombre || null
+                };
+            });
+            localStorage.setItem('gymton_cortes_caja', JSON.stringify(enriquecidos));
+            return enriquecidos;
         }
         return [];
     } catch (error) {
@@ -29,8 +60,9 @@ export const getCorteActivo = async () => {
         if (Array.isArray(todos)) {
             const activo = todos.find(c => !c.fecha_cierre || c.fecha_cierre === 'null' || c.fecha_cierre === '');
             if (activo) {
-                localStorage.setItem('gymton_corte_activo', JSON.stringify(activo));
-                return activo;
+                const conFondo = { ...activo, monto_inicial: Number(activo.monto_inicial) || 500 };
+                localStorage.setItem('gymton_corte_activo', JSON.stringify(conFondo));
+                return conFondo;
             }
         }
     } catch (error) {
@@ -48,7 +80,7 @@ export const getCorteActivo = async () => {
 // Abrir nuevo turno / caja (Fondo inicial de 500 pesos siempre)
 export const abrirCorteCaja = async (datos) => {
     const hoyStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const montoInicial = Number(datos.monto_inicial || 500);
+    const montoInicial = 500;
 
     const payload = {
         id_usuario: datos.id_usuario ? Number(datos.id_usuario) : 1,
@@ -78,8 +110,15 @@ export const abrirCorteCaja = async (datos) => {
     const nuevoCorte = {
         id: corteCreado?.id || Date.now(),
         ...payload,
-        monto_inicial: montoInicial
+        monto_inicial: montoInicial,
+        cajero_nombre: datos.cajero_nombre || null
     };
+
+    saveMetaCorte(nuevoCorte.id, {
+        id_usuario: nuevoCorte.id_usuario,
+        cajero_nombre: nuevoCorte.cajero_nombre,
+        monto_inicial: montoInicial
+    });
 
     localStorage.setItem('gymton_corte_activo', JSON.stringify(nuevoCorte));
     
@@ -100,7 +139,7 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
         corteActual = JSON.parse(localStorage.getItem('gymton_corte_activo'));
     } catch {}
 
-    const montoInicial = corteActual ? Number(corteActual.monto_inicial || corteActual.monto_calculado || 500) : Number(datosCierre.monto_inicial || 500);
+    const montoInicial = 500;
     const totalVentas = Number(datosCierre.total_ventas || 0);
     const montoCalculado = montoInicial + totalVentas;
     const montoReal = Number(datosCierre.monto_real || 0);
@@ -108,7 +147,7 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
 
     const payloadCierre = {
         id: Number(id),
-        id_usuario: corteActual?.id_usuario ? Number(corteActual.id_usuario) : 1,
+        id_usuario: datosCierre.id_usuario ? Number(datosCierre.id_usuario) : (corteActual?.id_usuario ? Number(corteActual.id_usuario) : 1),
         fecha_apertura: corteActual?.fecha_apertura || hoyStr,
         fecha_cierre: hoyStr,
         total_ventas: String(totalVentas),
@@ -132,20 +171,30 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
         console.warn('Registrando cierre en almacenamiento local:', error.message);
     }
 
+    const nombreCajero = datosCierre.cajero_nombre || corteActual?.cajero_nombre || null;
+
     const corteCerrado = {
         ...(corteActual || {}),
         ...payloadCierre,
         id: corteActualizado?.id || id,
         monto_inicial: montoInicial,
+        cajero_nombre: nombreCajero,
         estado: diferencia === 0 ? 'cuadrada' : (diferencia > 0 ? 'sobrante' : 'faltante')
     };
+
+    saveMetaCorte(corteCerrado.id, {
+        id_usuario: corteCerrado.id_usuario,
+        cajero_nombre: nombreCajero,
+        monto_inicial: montoInicial,
+        observaciones: datosCierre.observaciones || ''
+    });
 
     localStorage.removeItem('gymton_corte_activo');
 
     try {
         const list = JSON.parse(localStorage.getItem('gymton_cortes_caja') || '[]');
-        const updatedList = list.map(c => c.id === corteCerrado.id ? corteCerrado : c);
-        if (!updatedList.some(c => c.id === corteCerrado.id)) {
+        const updatedList = list.map(c => Number(c.id) === Number(corteCerrado.id) ? corteCerrado : c);
+        if (!updatedList.some(c => Number(c.id) === Number(corteCerrado.id))) {
             updatedList.unshift(corteCerrado);
         }
         localStorage.setItem('gymton_cortes_caja', JSON.stringify(updatedList));
