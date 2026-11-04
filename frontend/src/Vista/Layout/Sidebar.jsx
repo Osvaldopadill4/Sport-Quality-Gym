@@ -12,7 +12,6 @@ const MENU_ITEMS = [
   { id: 'corte', label: 'Corte de Caja', icon: Calculator },
   { id: 'acceso', label: 'Acceso / Torniquetes', icon: Key },
   { id: 'productos', label: 'Productos', icon: Package },
-  { id: 'ejercicio', label: 'Gestión de Ejercicio', icon: Dumbbell },
   { id: 'membresia', label: 'Membresía', icon: CreditCard },
   { id: 'planes', label: 'Planes', icon: ClipboardList },
   { id: 'clientes', label: 'Clientes', icon: Users },
@@ -31,14 +30,14 @@ export default function Sidebar({ isOpen, setIsOpen, activeModule, setActiveModu
     }
   })();
 
-  const esAdmin = Number(user?.id_rol) === 1;
-  const modulosPermitidosRecepcionista = ['caja', 'acceso', 'productos', 'membresia'];
+  const idRol = Number(user?.id_rol || user?.rol_id || user?.rol);
+  const esAdmin = idRol === 1;
+  // Restricciones estrictas para Empleados (id_rol === 2): Únicamente Productos, Punto de Venta (caja), Acceso y Membresías
+  const modulosPermitidosEmpleado = ['productos', 'caja', 'acceso', 'membresia'];
 
-  // Solo rol 1 puede navegar por todos los módulos.
-  // Recepcionista (id_rol === 2) solo puede abrir productos, membresias, acceso y venta (caja).
   const itemsVisibles = esAdmin 
     ? MENU_ITEMS 
-    : MENU_ITEMS.filter(item => modulosPermitidosRecepcionista.includes(item.id));
+    : MENU_ITEMS.filter(item => modulosPermitidosEmpleado.includes(item.id));
 
   return (
     <aside 
@@ -66,7 +65,7 @@ export default function Sidebar({ isOpen, setIsOpen, activeModule, setActiveModu
           <div className="truncate">
             <span className="text-white block truncate">{user?.nombre || 'Usuario'}</span>
             <span className={esAdmin ? 'text-emerald-400 text-[11px]' : 'text-blue-400 text-[11px]'}>
-              {esAdmin ? (user?.id === 1 ? 'Admin Master (ID 1)' : 'Administrador') : 'Recepcionista'}
+              {esAdmin ? (Number(user?.id) === 1 ? 'Administrador Principal' : 'Administrador') : 'Empleado'}
             </span>
           </div>
         </div>
