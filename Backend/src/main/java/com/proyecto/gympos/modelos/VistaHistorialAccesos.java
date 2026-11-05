@@ -5,10 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "vw_historial_accessos")
+@Table(name = "vw_historial_accesos")
 public class VistaHistorialAccesos {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     @Getter @Setter @Column(name = "id_acceso")
     private int id_acceso;
     @Getter @Setter @Column(name = "id_cliente")

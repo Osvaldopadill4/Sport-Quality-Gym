@@ -12,4 +12,8 @@ public interface MembresiaDao {
     void registrar(Membresia membresia);
 
     void actualizar(Membresia membresia);
+
+    int getDiasRestantes(int idMembresia);
+
+    String getEstadoMembresia(int idMembresia);
 }

@@ -8,7 +8,6 @@ import lombok.Setter;
 @Table(name = "vw_inventario_bajo")
 public class VistaInventarioBajo {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     @Getter @Setter @Column(name = "id")
     private int id;
     @Getter @Setter @Column(name = "nombre")
@@ -16,7 +15,9 @@ public class VistaInventarioBajo {
     @Getter @Setter @Column(name = "categoria")
     private String categoria;
     @Getter @Setter @Column(name = "stock")
-    private String stock;
+    private int stock;
+    @Getter @Setter @Column(name = "stock_minimo")
+    private int stock_minimo;
     @Getter @Setter @Column(name = "estado")
     private String estado;
 }

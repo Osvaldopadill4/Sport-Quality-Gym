@@ -123,6 +123,50 @@ public class AccesoControlador {
     }
 
     /**
+     * B2) Opción alternativa: Registrar acceso usando el stored procedure.
+     *    El procedure valida membresía activa y registra el acceso automáticamente.
+     */
+    @PostMapping("/validar-qr-con-procedure")
+    public ResponseEntity<?> validarAccesoConProcedure(@RequestBody Map<String, String> body) {
+        Map<String, Object> response = new HashMap<>();
+        String qrTokenLeido = body.get("token");
+
+        if (qrTokenLeido == null || qrTokenLeido.isBlank()) {
+            response.put("acceso", false);
+            response.put("mensaje", "No se recibió token QR");
+            return ResponseEntity.status(400).body(response);
+        }
+
+        // Validar el token JWT
+        Integer clienteId = qrJwtService.validarQrToken(qrTokenLeido);
+
+        if (clienteId == null) {
+            response.put("acceso", false);
+            response.put("mensaje", "Acceso denegado: Código QR expirado o inválido");
+            return ResponseEntity.status(401).body(response);
+        }
+
+        // Verificar que el cliente existe
+        Cliente cliente = clienteDao.getClientePorId(clienteId);
+        if (cliente == null) {
+            response.put("acceso", false);
+            response.put("mensaje", "Acceso denegado: Cliente no encontrado");
+            return ResponseEntity.status(404).body(response);
+        }
+
+        // Usar el stored procedure para registrar acceso
+        String resultado = accesoDao.registrarConProcedure(clienteId);
+
+        response.put("acceso", "Permitido".equals(resultado));
+        response.put("clienteId", clienteId);
+        response.put("clienteNombre", cliente.getNombre());
+        response.put("mensaje", resultado.equals("Permitido") ? "Acceso concedido" : "Acceso denegado: Membresía inactiva o vencida");
+        response.put("resultado", resultado);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * C) Consultar el historial de accesos de un cliente.
      */
     @GetMapping("/historial/{clienteId}")

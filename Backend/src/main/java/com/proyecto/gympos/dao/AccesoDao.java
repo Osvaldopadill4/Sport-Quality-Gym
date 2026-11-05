@@ -8,6 +8,8 @@ public interface AccesoDao {
 
     void registrar(Acceso acceso);
 
+    String registrarConProcedure(int idCliente);
+
     List<Acceso> getAccesosPorCliente(int clienteId);
 
     List<Acceso> getAccesos();

@@ -8,23 +8,24 @@ import lombok.Setter;
 @Table(name = "vw_clientes_membresias")
 public class VistaClientesMembresia {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
-    @Getter @Setter @Column(name = "id")
-    private int id;
-    @Getter @Setter @Column(name = "nombre")
-    private String nombre;
+    @Getter @Setter @Column(name = "id_cliente")
+    private int id_cliente;
+    @Getter @Setter @Column(name = "cliente")
+    private String cliente;
     @Getter @Setter @Column(name = "telefono")
     private String telefono;
-    @Getter @Setter @Column(name = "contrasena")
-    private String contrasena;
-    @Getter @Setter @Column(name = "contacto_emergencia")
-    private String contacto_emergencia;
-    @Getter @Setter @Column(name = "telefono_emergencia")
-    private String telefono_emergencia;
     @Getter @Setter @Column(name = "fecha_registro")
     private String fecha_registro;
-    @Getter @Setter @Column(name = "token_qr")
-    private String token_qr;
-    @Getter @Setter @Column(name = "estado")
-    private String estado;
+    @Getter @Setter @Column(name = "estado_cliente")
+    private String estado_cliente;
+    @Getter @Setter @Column(name = "id_membresia")
+    private Integer id_membresia;
+    @Getter @Setter @Column(name = "plan")
+    private String plan;
+    @Getter @Setter @Column(name = "fecha_inicio")
+    private String fecha_inicio;
+    @Getter @Setter @Column(name = "fecha_vencimiento")
+    private String fecha_vencimiento;
+    @Getter @Setter @Column(name = "estado_membresia")
+    private String estado_membresia;
 }

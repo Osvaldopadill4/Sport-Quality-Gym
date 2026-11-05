@@ -33,4 +33,33 @@ public class MembresiaDaoImp implements MembresiaDao {
     public void actualizar(Membresia membresia) {
         entityManager.merge(membresia);
     }
+
+    @Override
+    public int getDiasRestantes(int idMembresia) {
+        String query = "SELECT fn_dias_restantes_membresia(m.fecha_vencimiento) " +
+                      "FROM membresia m WHERE m.id = :id";
+
+        try {
+            Integer dias = (Integer) entityManager.createNativeQuery(query)
+                    .setParameter("id", idMembresia)
+                    .getSingleResult();
+            return dias != null ? dias : 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    @Override
+    public String getEstadoMembresia(int idMembresia) {
+        String query = "SELECT fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento) " +
+                      "FROM membresia m WHERE m.id = :id";
+
+        try {
+            return (String) entityManager.createNativeQuery(query)
+                    .setParameter("id", idMembresia)
+                    .getSingleResult();
+        } catch (Exception e) {
+            return "Desconocido";
+        }
+    }
 }

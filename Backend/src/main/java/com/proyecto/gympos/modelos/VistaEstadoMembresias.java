@@ -8,7 +8,6 @@ import lombok.Setter;
 @Table(name = "vw_estado_membresias")
 public class VistaEstadoMembresias {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     @Getter @Setter @Column(name = "id_cliente")
     private int id_cliente;
     @Getter @Setter @Column(name = "cliente")
@@ -22,5 +21,5 @@ public class VistaEstadoMembresias {
     @Getter @Setter @Column(name = "estado")
     private String estado;
     @Getter @Setter @Column(name = "dias_restantes")
-    private String dias_restantes;
+    private int dias_restantes;
 }

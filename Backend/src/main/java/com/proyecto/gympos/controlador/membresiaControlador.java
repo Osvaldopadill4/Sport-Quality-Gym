@@ -5,7 +5,9 @@ import com.proyecto.gympos.modelos.Membresia;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
@@ -35,6 +37,26 @@ public class membresiaControlador {
     @RequestMapping(value = "api/membresia/{id}", method = RequestMethod.DELETE)
     public void eliminar(@PathVariable int id) {
         membresiaDao.eliminar(id);
+    }
+
+    //Obtener días restantes de una membresía usando función MySQL
+    @RequestMapping(value = "api/membresia/{id}/dias_restantes", method = RequestMethod.GET)
+    public Map<String, Object> getDiasRestantes(@PathVariable int id) {
+        Map<String, Object> response = new HashMap<>();
+        int dias = membresiaDao.getDiasRestantes(id);
+        response.put("id_membresia", id);
+        response.put("dias_restantes", dias);
+        return response;
+    }
+
+    //Obtener estado de una membresía usando función MySQL
+    @RequestMapping(value = "api/membresia/{id}/estado", method = RequestMethod.GET)
+    public Map<String, Object> getEstadoMembresia(@PathVariable int id) {
+        Map<String, Object> response = new HashMap<>();
+        String estado = membresiaDao.getEstadoMembresia(id);
+        response.put("id_membresia", id);
+        response.put("estado", estado);
+        return response;
     }
 
 }

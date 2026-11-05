@@ -8,7 +8,6 @@ import lombok.Setter;
 @Table(name = "vw_detalle_ventas")
 public class VistaDetalleVentas {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     @Getter @Setter @Column(name = "id_venta")
     private int id_venta;
     @Getter @Setter @Column(name = "fecha")

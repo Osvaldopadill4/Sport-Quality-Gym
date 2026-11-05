@@ -15,12 +15,12 @@ public class Venta {
     private Integer id_usuario;
     @Getter @Setter @Column(name = "id_cliente")
     private Integer id_cliente;
+    @Getter @Setter @Column(name = "id_modopago")
+    private Integer id_modopago;
     @Getter @Setter @Column(name = "fecha")
     private String fecha;
     @Getter @Setter @Column(name = "total")
     private String total;
-    @Getter @Setter @Column(name = "metodo_pago")
-    private String metodo_pago;
     @Getter @Setter @Column(name = "folio")
     private String folio;
     @Getter @Setter @Column(name = "estado")
