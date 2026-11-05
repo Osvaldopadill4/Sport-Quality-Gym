@@ -96,57 +96,55 @@ export const fn_calcular_descuento = (precio, porcentaje) => {
 
 /**
  * Trigger SQL `trg_estado_membresia` (BEFORE INSERT ON membresia)
- * IF NEW.fecha_vencimiento < CURDATE() THEN SET NEW.estado = 'vencida';
- * ELSE SET NEW.estado = 'activa'; END IF;
+ * IF NEW.fecha_vencimiento < CURDATE() THEN SET NEW.estado = 'vencida'; ELSE SET NEW.estado = 'activa'; END IF;
  */
-export const trg_estado_membresia = (fechaVencimiento) => {
-  return fn_dias_restantes(fechaVencimiento) < 0 ? 'vencida' : 'activa';
-};
+export const trg_estado_membresia = (fechaVencimiento) =>
+  fn_dias_restantes(fechaVencimiento) < 0 ? 'vencida' : 'activa';
 
 /**
- * Trigger SQL `trg_evitar_stock_negativo` (BEFORE UPDATE ON producto)
- * IF NEW.stock < 0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock insuficiente'; END IF;
+ * Trigger SQL `trg_evitar_stock_negativo` / `trg_validar_stock_venta` (BEFORE INSERT ON detalle_venta)
+ * Valida si hay stock suficiente. Acepta tanto el objeto producto como el valor numérico directo.
  */
-export const trg_evitar_stock_negativo = (stockActual, cantidadRestar = 0) => {
-  const nuevoStock = (Number(stockActual) || 0) - (Number(cantidadRestar) || 0);
+export const trg_evitar_stock_negativo = (stockOProd, cantidadRestar = 0) => {
+  const stockNum = typeof stockOProd === 'object' && stockOProd !== null
+    ? (Number(stockOProd.stock) || 0)
+    : (Number(stockOProd) || 0);
+  const nuevoStock = stockNum - (Number(cantidadRestar) || 0);
+
   if (nuevoStock < 0) {
     return {
       valido: false,
-      nuevoStock: Number(stockActual) || 0,
-      mensaje: 'Stock insuficiente (Trigger SQL: trg_evitar_stock_negativo)'
+      nuevoStock: stockNum,
+      mensaje: 'Stock insuficiente'
     };
   }
   return { valido: true, nuevoStock, mensaje: 'OK' };
 };
 
+export const trg_validar_stock = (stockOProd, cantidadRestar = 1) =>
+  trg_evitar_stock_negativo(stockOProd, cantidadRestar).valido;
+
 /**
  * Trigger SQL `trg_actualizar_stock_venta` (AFTER INSERT ON detalle_venta)
- * UPDATE producto SET stock = stock - NEW.cantidad WHERE id = NEW.id_producto;
- * Nota: Cuando el detalle_venta se inserta en MySQL, el trigger de la BD ya descuenta el stock automáticamente.
+ * Descuenta stock localmente para actualización inmediata en UI.
  */
 export const trg_actualizar_stock_venta = (productos = [], carrito = []) => {
   return productos.map((p) => {
     const enCarro = carrito.find((c) => Number(c.id) === Number(p.id) && !c.es_membresia);
-    if (enCarro) {
-      const check = trg_evitar_stock_negativo(p.stock, enCarro.cant);
-      return { ...p, stock: check.valido ? check.nuevoStock : 0 };
-    }
-    return p;
+    return enCarro ? { ...p, stock: Math.max(0, (Number(p.stock) || 0) - Number(enCarro.cant || 0)) } : p;
   });
 };
 
 /**
  * Trigger SQL `trg_aumentar_stock_compra` (AFTER INSERT ON detalle_compra)
- * UPDATE producto SET stock = stock + NEW.cantidad WHERE id = NEW.id_producto;
- * Nota: Cuando el detalle_compra se inserta en MySQL, el trigger de la BD ya suma el stock automáticamente.
+ * Suma stock localmente tras compra a proveedor.
  */
 export const trg_aumentar_stock_compra = (productos = [], idProducto, cantidad) => {
-  return productos.map((p) => {
-    if (Number(p.id) === Number(idProducto)) {
-      return { ...p, stock: (Number(p.stock) || 0) + (Number(cantidad) || 0) };
-    }
-    return p;
-  });
+  return productos.map((p) =>
+    Number(p.id) === Number(idProducto)
+      ? { ...p, stock: (Number(p.stock) || 0) + (Number(cantidad) || 0) }
+      : p
+  );
 };
 
 // ============================================================================

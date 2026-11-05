@@ -3,12 +3,10 @@ import {
   Key,
   Search,
   QrCode,
-  Smartphone,
   CheckCircle2,
   AlertTriangle,
   XCircle,
   Clock,
-  RefreshCw,
   X,
   Volume2,
   VolumeX,
@@ -18,7 +16,7 @@ import {
 } from 'lucide-react';
 import '../../CSS/Acceso.css';
 import Toast from '../Extras/Toast';
-import { AlertaFlashAcceso, ModalSimuladorMovil } from '../Extras/Modales/ModalesAcceso';
+import { AlertaFlashAcceso } from '../Extras/Modales/ModalesAcceso';
 import { useAcceso } from '../../Reutilizable/useAcceso';
 
 export default function Acceso({ loggedUser }) {
@@ -37,24 +35,14 @@ export default function Acceso({ loggedUser }) {
     alertaFlash,
     setAlertaFlash,
     tiempoRestanteFlash,
-    showSimuladorMovil,
-    setShowSimuladorMovil,
-    clienteSimulado,
-    setClienteSimulado,
-    qrJwtToken,
-    tokenCountdown,
-    tokenCargando,
     horaActual,
     inputRef,
-    obtenerListaClientes,
-    pedirQrDinamico,
     procesarAcceso,
     accesosFiltrados,
     totalHoy,
     permitidosHoy,
     atencionesHoy,
-    denegadosHoy,
-    CLIENTES_DEMO
+    denegadosHoy
   } = useAcceso({ loggedUser });
 
   return (
@@ -75,21 +63,6 @@ export default function Acceso({ loggedUser }) {
         onClose={() => setAlertaFlash(null)}
       />
 
-      {/* Modal Simulador Móvil con QR Dinámico JWT extraído en `Vista/Extras/Modales/ModalesAcceso.jsx` */}
-      <ModalSimuladorMovil
-        isOpen={showSimuladorMovil}
-        onClose={() => setShowSimuladorMovil(false)}
-        horaActual={horaActual}
-        clienteSimulado={clienteSimulado}
-        setClienteSimulado={setClienteSimulado}
-        listaClientes={obtenerListaClientes()}
-        qrJwtToken={qrJwtToken}
-        tokenCountdown={tokenCountdown}
-        tokenCargando={tokenCargando}
-        pedirQrDinamico={pedirQrDinamico}
-        procesarAcceso={procesarAcceso}
-      />
-
       {/* Encabezado y Estado de la Terminal */}
       <div className="acceso-hero-header">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -103,7 +76,7 @@ export default function Acceso({ loggedUser }) {
                   Control de Acceso y Torniquetes
                 </h1>
                 <p className="text-sm text-zinc-400 mt-1">
-                  Recepción automatizada con validación por token QR / UUID y destello visual.
+                  Recepción automatizada con validación por token QR y destello visual.
                 </p>
               </div>
             </div>
@@ -134,21 +107,13 @@ export default function Acceso({ loggedUser }) {
             >
               {sonidoHabilitado ? <Volume2 size={20} /> : <VolumeX size={20} />}
             </button>
-
-            <button
-              className="btn-abrir-simulador"
-              onClick={() => setShowSimuladorMovil(true)}
-            >
-              <Smartphone size={18} />
-              <span>Celular / QR Socio</span>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Grid Superior: Escáner de Entrada + Pruebas Rápidas */}
+      {/* Grid Superior: Escáner de Entrada */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 my-6">
-        <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-center">
           <div className="scanner-glow-bar" />
 
           <div className="flex items-center justify-between mb-4">
@@ -160,8 +125,8 @@ export default function Acceso({ loggedUser }) {
             </span>
           </div>
 
-          <p className="text-zinc-300 text-sm mb-4">
-            Pase el código QR del celular del socio frente al lector, o ingrese manualmente su token o código:
+          <p className="text-zinc-300 text-sm mb-6">
+            Pase el código QR del celular del socio frente al lector USB, o ingrese manualmente su token:
           </p>
 
           <form
@@ -191,61 +156,6 @@ export default function Acceso({ loggedUser }) {
               </button>
             </div>
           </form>
-
-          <div className="mt-5 pt-4 border-t border-zinc-800">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-2.5">
-              Pruebas Rápidas de Torniquete (1 Clic):
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                className="quick-test-btn test-green"
-                onClick={() => procesarAcceso(CLIENTES_DEMO[0].uuid)}
-                title="Socio Juan Pérez - Membresía Mensual Vigente"
-              >
-                <div className="quick-dot dot-green" />
-                <div className="text-left">
-                  <span className="quick-title">Activo (&gt;5d)</span>
-                  <span className="quick-sub">Destello Verde</span>
-                </div>
-              </button>
-
-              <button
-                className="quick-test-btn test-yellow"
-                onClick={() => procesarAcceso(CLIENTES_DEMO[2].uuid)}
-                title="Socio Diego Martínez - Pase de Invitado 1 Día"
-              >
-                <div className="quick-dot dot-yellow" />
-                <div className="text-left">
-                  <span className="quick-title">Invitado (1d)</span>
-                  <span className="quick-sub">Destello Amarillo</span>
-                </div>
-              </button>
-
-              <button
-                className="quick-test-btn test-yellow"
-                onClick={() => procesarAcceso(CLIENTES_DEMO[3].uuid)}
-                title="Socia Sofía Mendoza - Le quedan 3 días"
-              >
-                <div className="quick-dot dot-yellow" />
-                <div className="text-left">
-                  <span className="quick-title">Por Vencer (&lt;5d)</span>
-                  <span className="quick-sub">Destello Amarillo</span>
-                </div>
-              </button>
-
-              <button
-                className="quick-test-btn test-red"
-                onClick={() => procesarAcceso(CLIENTES_DEMO[4].uuid)}
-                title="Socio Roberto Sánchez - Vencida hace 4 días"
-              >
-                <div className="quick-dot dot-red" />
-                <div className="text-left">
-                  <span className="quick-title">Vencido / Inactivo</span>
-                  <span className="quick-sub">Destello Rojo</span>
-                </div>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Tarjetas de Estadísticas de Hoy */}
@@ -296,7 +206,7 @@ export default function Acceso({ loggedUser }) {
         </div>
       </div>
 
-      {/* Historial de Accesos (Vista SQL `vw_historial_accesos`) */}
+      {/* Historial de Accesos */}
       <div className="acceso-log-section">
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-4">
           <div className="flex items-center gap-2">
@@ -363,18 +273,17 @@ export default function Acceso({ loggedUser }) {
             <table className="acceso-modern-table">
               <thead>
                 <tr>
-                  <th>Socio / Fotografía</th>
+                  <th>Socio</th>
                   <th>Membresía / Plan</th>
                   <th>Fecha y Hora</th>
                   <th>Días Restantes</th>
                   <th>Estado del Torniquete</th>
-                  <th className="text-right">Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {accesosFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-10 text-zinc-400">
+                    <td colSpan="5" className="text-center py-10 text-zinc-400">
                       No se encontraron registros de acceso con los criterios de búsqueda.
                     </td>
                   </tr>
@@ -384,17 +293,9 @@ export default function Acceso({ loggedUser }) {
                       <td>
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            {item.foto ? (
-                              <img
-                                src={item.foto}
-                                alt={item.cliente_nombre}
-                                className="w-10 h-10 rounded-full object-cover border border-zinc-700"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 font-bold">
-                                {item.cliente_nombre?.charAt(0) || '?'}
-                              </div>
-                            )}
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 font-bold uppercase">
+                              {item.cliente_nombre?.charAt(0) || '?'}
+                            </div>
                             <span className={`table-status-dot dot-${item.color}`} />
                           </div>
                           <div>
@@ -446,17 +347,6 @@ export default function Acceso({ loggedUser }) {
                           {item.color === 'red' && <XCircle size={13} />}
                           <span>{item.resultado}</span>
                         </span>
-                      </td>
-
-                      <td className="text-right">
-                        <button
-                          className="btn-retest"
-                          onClick={() => procesarAcceso(item.uuid || String(item.id_cliente))}
-                          title="Simular reingreso de este socio"
-                        >
-                          <RefreshCw size={14} />
-                          <span>Simular</span>
-                        </button>
                       </td>
                     </tr>
                   ))

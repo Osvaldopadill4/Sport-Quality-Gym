@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
-import { getMembresias, createMembresias, updateMembresias, deleteMembresias } from '../JS/membresia';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  getMembresias,
+  updateMembresias,
+  deleteMembresias
+} from '../JS/membresia';
 import { getPlanes } from '../JS/plan';
 import { getClientes } from '../JS/cliente';
 import { createVenta } from '../JS/venta';
+import { getReporteClientesMembresias } from '../JS/reportes_api';
 import {
   fn_dias_restantes,
   fn_estado_membresia,
@@ -41,7 +46,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
 
   const [formData, setFormData] = useState({
     id_cliente: 1,
-    cliente_nombre: 'Juan Pérez',
+    cliente_nombre: '',
     id_plan: 2,
     plan_nombre: 'Mensual',
     duracion_dias: 30,
@@ -50,175 +55,137 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     estado: 'activa'
   });
 
-  const mostrarAlerta = (mensaje, tipo = 'success') => {
+  const mostrarAlerta = useCallback((mensaje, tipo = 'success') => {
     setAlerta({ mensaje, tipo });
-  };
+  }, []);
 
-  const guardarLocalmente = (lista) => {
+  const guardarLocalmente = useCallback((lista) => {
     setMembresias(lista);
     try {
       localStorage.setItem('gymton_membresias', JSON.stringify(lista));
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
-  const obtenerNombreCliente = (m) => {
-    if (!m) return 'Cliente';
-    const cli = clientesCatalogo.find((c) => Number(c.id) === Number(m.id_cliente));
-    if (cli && cli.nombre) return cli.nombre;
-    if (
-      m.cliente_nombre &&
-      !String(m.cliente_nombre).startsWith('Socio #') &&
-      !String(m.cliente_nombre).startsWith('Cliente #')
-    ) {
-      return m.cliente_nombre;
-    }
-    return m.cliente_nombre || 'Cliente General';
-  };
+  // Mapas indexados en memoria para resolución instantánea O(1)
+  const clientesMap = useMemo(
+    () => new Map((clientesCatalogo || []).map((c) => [Number(c.id), c])),
+    [clientesCatalogo]
+  );
 
-  const obtenerNombrePlan = (m) => {
-    if (!m) return 'Plan';
-    const pl = planesCatalogo.find((p) => Number(p.id) === Number(m.id_plan));
-    if (pl && pl.nombre) return pl.nombre;
-    if (m.plan_nombre && !String(m.plan_nombre).startsWith('Plan #')) {
-      return m.plan_nombre;
-    }
-    return m.plan_nombre || 'Plan Estándar';
-  };
+  const planesMap = useMemo(
+    () => new Map((planesCatalogo || []).map((p) => [Number(p.id), p])),
+    [planesCatalogo]
+  );
 
-  const obtenerDuracionPlan = (m) => {
-    if (!m) return 30;
-    const pl = planesCatalogo.find((p) => Number(p.id) === Number(m.id_plan));
-    if (pl && Number(pl.duracion_dias) > 0) return Math.min(365, Number(pl.duracion_dias));
-    if (Number(m.duracion_dias) > 0 && Number(m.duracion_dias) <= 365) return Number(m.duracion_dias);
-    return 30;
-  };
+  const obtenerNombreCliente = useCallback(
+    (m) => {
+      if (!m) return 'Cliente';
+      const c = clientesMap.get(Number(m.id_cliente));
+      return c?.nombre || m.cliente_nombre || 'Cliente General';
+    },
+    [clientesMap]
+  );
 
-  const obtenerPrecioPlan = (planNombre, planId) => {
-    const encontrado = planesCatalogo.find(
-      (p) => Number(p.id) === Number(planId) || (p.nombre && p.nombre.toLowerCase() === (planNombre || '').toLowerCase())
-    );
-    if (encontrado && encontrado.precio !== undefined && encontrado.precio !== null) {
-      return Math.min(9999, Number(encontrado.precio) || 350);
-    }
-    return PRECIOS_DEFAULT[planNombre] || 350;
-  };
+  const obtenerNombrePlan = useCallback(
+    (m) => {
+      if (!m) return 'Plan';
+      const p = planesMap.get(Number(m.id_plan));
+      return p?.nombre || m.plan_nombre || 'Plan Estándar';
+    },
+    [planesMap]
+  );
 
-  const cargarDatos = () => {
-    getClientes()
-      .then((data) => {
-        const lista = Array.isArray(data)
-          ? data
-          : data && Array.isArray(data.content)
-          ? data.content
-          : data && Array.isArray(data.data)
-          ? data.data
-          : null;
-        if (Array.isArray(lista) && lista.length > 0) {
-          setClientesCatalogo(lista);
-          localStorage.setItem('gymton_clientes', JSON.stringify(lista));
-        } else {
-          const local = localStorage.getItem('gymton_clientes');
-          if (local) {
-            try {
-              setClientesCatalogo(JSON.parse(local));
-            } catch {}
-          }
-        }
-      })
-      .catch(() => {});
+  const obtenerDuracionPlan = useCallback(
+    (m) => {
+      if (!m) return 30;
+      const pl = planesMap.get(Number(m.id_plan));
+      const dur = Number(pl?.duracion_dias || m.duracion_dias);
+      return dur > 0 && dur <= 365 ? dur : 30;
+    },
+    [planesMap]
+  );
 
-    getPlanes()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const planesMembresia = data.filter(
-            (p) => p.duracion_dias !== null && p.duracion_dias !== undefined && p.duracion_dias !== ''
-          );
-          setPlanesCatalogo(planesMembresia.length > 0 ? planesMembresia : data);
-        }
-      })
-      .catch(() => {});
-
-    getMembresias().then((data) => {
-      if (Array.isArray(data) && data.length > 0) {
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const listaSanitizada = data.map((m) => {
-          const dias = fn_dias_restantes(m.fecha_vencimiento);
-          const fechaInvalida =
-            !m.fecha_vencimiento ||
-            String(m.fecha_vencimiento).length > 10 ||
-            isNaN(new Date(m.fecha_vencimiento).getTime());
-          if (fechaInvalida || dias > 500) {
-            const inicioDate =
-              m.fecha_inicio && String(m.fecha_inicio).length === 10 && !isNaN(new Date(m.fecha_inicio).getTime())
-                ? new Date(m.fecha_inicio)
-                : hoy;
-            const durSanitizada =
-              Number(m.duracion_dias) > 0 && Number(m.duracion_dias) <= 365 ? Number(m.duracion_dias) : 30;
-            let nuevaVencDate = new Date(inicioDate.getTime() + durSanitizada * 24 * 60 * 60 * 1000);
-            const maxPermitida = new Date(hoy.getTime() + 500 * 24 * 60 * 60 * 1000);
-            if (nuevaVencDate > maxPermitida) nuevaVencDate = maxPermitida;
-            const corregida = {
-              ...m,
-              fecha_inicio: inicioDate.toISOString().split('T')[0],
-              fecha_vencimiento: nuevaVencDate.toISOString().split('T')[0],
-              estado: trg_estado_membresia(nuevaVencDate.toISOString().split('T')[0])
-            };
-            updateMembresias(m.id, corregida).catch(() => {});
-            return corregida;
-          }
-          return m;
-        });
-        setMembresias(listaSanitizada);
-        localStorage.setItem('gymton_membresias', JSON.stringify(listaSanitizada));
-      } else {
-        const local = localStorage.getItem('gymton_membresias');
-        if (local) {
-          try {
-            setMembresias(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        const hoy = Date.now();
-        const fallback = [
-          {
-            id: 1,
-            id_cliente: 1,
-            cliente_nombre: 'Juan Pérez García',
-            id_plan: 2,
-            plan_nombre: 'Mensual',
-            duracion_dias: 30,
-            fecha_inicio: new Date(hoy - 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            fecha_vencimiento: new Date(hoy + 22 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            estado: 'activa'
-          },
-          {
-            id: 2,
-            id_cliente: 2,
-            cliente_nombre: 'Carolina Gómez Soto',
-            id_plan: 3,
-            plan_nombre: 'Anual',
-            duracion_dias: 365,
-            fecha_inicio: new Date(hoy - 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            fecha_vencimiento: new Date(hoy + 245 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            estado: 'activa'
-          }
-        ];
-        setMembresias(fallback);
-        localStorage.setItem('gymton_membresias', JSON.stringify(fallback));
+  const obtenerPrecioPlan = useCallback(
+    (planNombre, planId) => {
+      const pl = planesMap.get(Number(planId)) ||
+        (planesCatalogo || []).find((p) => p.nombre?.toLowerCase() === (planNombre || '').toLowerCase());
+      if (pl && pl.precio !== undefined && pl.precio !== null) {
+        return Math.min(9999, Number(pl.precio) || 350);
       }
-    });
-  };
+      return PRECIOS_DEFAULT[planNombre] || 350;
+    },
+    [planesMap, planesCatalogo]
+  );
+
+  // Carga de datos integrando las vistas de MySQL y APIs
+  const cargarDatos = useCallback(async () => {
+    try {
+      const [resCli, resPlanes, resMem, resVista] = await Promise.allSettled([
+        getClientes(),
+        getPlanes(),
+        getMembresias(),
+        getReporteClientesMembresias()
+      ]);
+
+      if (resCli.status === 'fulfilled' && Array.isArray(resCli.value)) {
+        setClientesCatalogo(resCli.value);
+        localStorage.setItem('gymton_clientes', JSON.stringify(resCli.value));
+      }
+
+      if (resPlanes.status === 'fulfilled' && Array.isArray(resPlanes.value)) {
+        const planesFiltrados = resPlanes.value.filter(
+          (p) => p.duracion_dias !== null && p.duracion_dias !== undefined && p.duracion_dias !== ''
+        );
+        setPlanesCatalogo(planesFiltrados.length > 0 ? planesFiltrados : resPlanes.value);
+      }
+
+      // 1. Preferir la vista SQL de clientes y membresías con JOIN si está disponible
+      if (resVista.status === 'fulfilled' && Array.isArray(resVista.value) && resVista.value.length > 0) {
+        const vistaMembresias = resVista.value
+          .filter((v) => v.id_membresia)
+          .map((v) => ({
+            id: v.id_membresia,
+            id_cliente: v.id_cliente,
+            cliente_nombre: v.cliente,
+            plan_nombre: v.plan,
+            fecha_inicio: v.fecha_inicio,
+            fecha_vencimiento: v.fecha_vencimiento,
+            estado: v.estado_membresia || 'activa'
+          }));
+
+        if (vistaMembresias.length > 0) {
+          guardarLocalmente(vistaMembresias);
+          return;
+        }
+      }
+
+      // 2. Endpoint estándar /api/membresia
+      if (resMem.status === 'fulfilled' && Array.isArray(resMem.value) && resMem.value.length > 0) {
+        guardarLocalmente(resMem.value);
+        return;
+      }
+    } catch (e) {
+      console.warn('Error al cargar catálogo de membresías:', e);
+    }
+
+    // Fallback a LocalStorage si el servidor está en arranque
+    const local = localStorage.getItem('gymton_membresias');
+    if (local) {
+      try {
+        setMembresias(JSON.parse(local));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }, [guardarLocalmente]);
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [cargarDatos]);
 
-  // Abrir modal de renovación usando `sp_renovar_membresia`
+  // Renovación de membresía usando el procedimiento `sp_renovar_membresia`
   const abrirModalRenovacion = (m) => {
     const clienteNombreReal = obtenerNombreCliente(m);
     const planNombreReal = obtenerNombrePlan(m);
@@ -226,14 +193,13 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
 
     if (!resultadoSP.exito) {
       mostrarAlerta(
-        `Restricción: No se puede renovar el plan "${planNombreReal}" para ${clienteNombreReal} porque acumularía ${resultadoSP.diasAcumulados} días de vigencia (el límite máximo permitido es de 500 días).`,
+        `Restricción: No se puede renovar el plan "${planNombreReal}" para ${clienteNombreReal} porque acumularía ${resultadoSP.diasAcumulados} días de vigencia (límite: 500 días).`,
         'error'
       );
       return;
     }
 
     const precio = obtenerPrecioPlan(planNombreReal, m.id_plan);
-
     setRenovacionTarget({
       ...m,
       cliente_nombre: clienteNombreReal,
@@ -250,14 +216,11 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
   const handleMandarAPuntoVenta = () => {
     if (!renovacionTarget) return;
 
-    const clienteNombreReal = obtenerNombreCliente(renovacionTarget);
-    const planNombreReal = obtenerNombrePlan(renovacionTarget);
-
     const payload = {
       cliente_id: Number(renovacionTarget.id_cliente),
-      cliente_nombre: clienteNombreReal,
+      cliente_nombre: obtenerNombreCliente(renovacionTarget),
       id_plan: Number(renovacionTarget.id_plan),
-      plan_nombre: planNombreReal,
+      plan_nombre: obtenerNombrePlan(renovacionTarget),
       precio: Number(renovacionTarget.precio) || 350,
       duracion_dias: Number(renovacionTarget.duracion) || 30,
       membresia_id: Number(renovacionTarget.id),
@@ -275,7 +238,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     if (onIrAPuntoVenta) {
       onIrAPuntoVenta(payload);
     } else {
-      mostrarAlerta('Renovación enviada al Punto de Venta. Diríjase al módulo de Caja para cobrar.', 'info');
+      mostrarAlerta('Renovación enviada al Punto de Venta para cobro.', 'info');
     }
   };
 
@@ -297,13 +260,12 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     };
 
     const nuevaLista = membresias.map((item) => (Number(item.id) === Number(m.id) ? renovada : item));
-    setMembresias(nuevaLista);
     guardarLocalmente(nuevaLista);
 
     try {
       await updateMembresias(m.id, renovada);
     } catch (e) {
-      console.warn('API de membresía no disponible, guardado en cache local:', e);
+      console.warn('API no disponible, guardado en cache local:', e);
     }
     return true;
   };
@@ -351,7 +313,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     }
 
     mostrarAlerta(
-      `Pago verificado y Membresía renovada para ${clienteNombreReal}. Venta de membresía registrada en Reportes.`,
+      `Pago registrado y membresía renovada para ${clienteNombreReal}.`,
       'success'
     );
     setRenovacionTarget(null);
@@ -361,15 +323,14 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     const nuevoEstado = m.estado === 'activa' || m.estado === 'Activo' || m.estado === 1 ? 'inactiva' : 'activa';
     const act = { ...m, estado: nuevoEstado };
     const nuevaLista = membresias.map((item) => (item.id === m.id ? act : item));
-    setMembresias(nuevaLista);
     guardarLocalmente(nuevaLista);
+
     try {
       await updateMembresias(m.id, act);
       mostrarAlerta(`Estado actualizado a: ${nuevoEstado}`, 'info');
       cargarDatos();
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Error al cambiar estado', 'error');
+    } catch {
+      mostrarAlerta('Error al cambiar estado en servidor', 'error');
     }
   };
 
@@ -388,13 +349,11 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     try {
       await deleteMembresias(id);
       const nuevaLista = membresias.filter((m) => m.id !== id);
-      setMembresias(nuevaLista);
       guardarLocalmente(nuevaLista);
       mostrarAlerta('Membresía eliminada correctamente', 'success');
       cargarDatos();
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Error al eliminar', 'error');
+    } catch {
+      mostrarAlerta('Error al eliminar membresía', 'error');
     }
   };
 
@@ -402,7 +361,6 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     setModalMode(mode);
     setBusquedaClienteModal('');
     const hoyStr = new Date().toISOString().split('T')[0];
-
     const primerPlan = planesCatalogo.length > 0 ? planesCatalogo[0] : null;
     const pId = primerPlan ? primerPlan.id : 2;
     const pNom = primerPlan ? primerPlan.nombre : 'Mensual';
@@ -418,10 +376,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
         plan_nombre: plNombre,
         duracion_dias: plDur
       });
-      const cliEncontrado = clientesCatalogo.find((c) => Number(c.id) === Number(m.id_cliente)) || {
-        id: m.id_cliente,
-        nombre: cliNombre
-      };
+      const cliEncontrado = clientesMap.get(Number(m.id_cliente)) || { id: m.id_cliente, nombre: cliNombre };
       setClienteSeleccionadoModal(cliEncontrado);
     } else {
       setClienteSeleccionadoModal(null);
@@ -443,34 +398,46 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     if (e && e.preventDefault) e.preventDefault();
 
     if (!formData.id_cliente || !formData.cliente_nombre) {
-      mostrarAlerta('Por favor busca y selecciona un socio registrado de la base de datos', 'error');
+      mostrarAlerta('Por favor selecciona un socio registrado de la base de datos', 'error');
       return;
     }
 
-    const hoyStr = new Date().toISOString().split('T')[0];
-    if (modalMode === 'create' && (!formData.fecha_inicio || formData.fecha_inicio < hoyStr)) {
-      mostrarAlerta(
-        `Restricción: No se puede registrar una membresía con fecha de inicio (${formData.fecha_inicio || 'vacía'}) anterior a la fecha actual (${hoyStr})`,
-        'error'
-      );
+    // Si es creación de membresía: Transferir a Caja para cobrar primero
+    if (modalMode === 'create') {
+      const precioPlan = obtenerPrecioPlan(formData.plan_nombre, formData.id_plan);
+      const payloadCobro = {
+        cliente_id: Number(formData.id_cliente),
+        cliente_nombre: formData.cliente_nombre,
+        id_plan: Number(formData.id_plan),
+        plan_nombre: formData.plan_nombre || 'Plan',
+        precio: precioPlan,
+        duracion_dias: Number(formData.duracion_dias) || 30,
+        es_nueva: true
+      };
+
+      try {
+        localStorage.setItem('gymton_renovacion_pendiente', JSON.stringify(payloadCobro));
+      } catch (err) {}
+
+      setShowModal(false);
+
+      if (onIrAPuntoVenta) {
+        onIrAPuntoVenta(payloadCobro);
+      } else {
+        mostrarAlerta('Membresía enviada al Punto de Venta. Proceda a cobrar el ticket en Caja.', 'info');
+      }
       return;
     }
 
+    // Modo Edición
     if (!formData.fecha_vencimiento || formData.fecha_vencimiento < formData.fecha_inicio) {
-      mostrarAlerta('La fecha de vencimiento no puede ser anterior a la fecha de inicio', 'error');
+      mostrarAlerta('La fecha de vencimiento no puede ser anterior a la de inicio', 'error');
       return;
     }
 
     const diasVigencia = fn_dias_restantes(formData.fecha_vencimiento);
-    const diasRango = Math.ceil(
-      (new Date(formData.fecha_vencimiento).getTime() - new Date(formData.fecha_inicio).getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    if (diasVigencia > 500 || diasRango > 500) {
-      mostrarAlerta(
-        `Restricción: No se permite acumular o asignar más de 500 días en una membresía (intentaste asignar ${Math.max(diasVigencia, diasRango)} días).`,
-        'error'
-      );
+    if (diasVigencia > 500) {
+      mostrarAlerta(`Restricción: No se permite asignar más de 500 días (${diasVigencia} días calculados).`, 'error');
       return;
     }
 
@@ -478,44 +445,48 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     const payload = { ...formData, estado: estadoTrigger };
 
     try {
-      if (modalMode === 'create') {
-        const res = await createMembresias(payload);
-        const nuevo = res && res.id ? res : { ...payload, id: Date.now() };
-        guardarLocalmente([nuevo, ...membresias]);
-        mostrarAlerta('Membresía registrada correctamente', 'success');
-      } else {
-        await updateMembresias(payload.id, payload);
-        const lista = membresias.map((m) => (Number(m.id) === Number(payload.id) ? { ...m, ...payload } : m));
-        guardarLocalmente(lista);
-        mostrarAlerta('Membresía actualizada correctamente', 'success');
-      }
+      await updateMembresias(payload.id, payload);
+      const lista = membresias.map((m) => (Number(m.id) === Number(payload.id) ? { ...m, ...payload } : m));
+      guardarLocalmente(lista);
+      mostrarAlerta('Membresía actualizada correctamente', 'success');
       setShowModal(false);
       cargarDatos();
-    } catch (e) {
-      console.error(e);
-      mostrarAlerta('Error al guardar datos', 'error');
+    } catch {
+      mostrarAlerta('Error al guardar datos de la membresía', 'error');
     }
   };
 
-  const membresiasFiltradas = membresias.filter((m) => {
-    const estadoCalc = fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento);
+  // Cálculo en una sola pasada de estadísticas y filtro O(n)
+  const { membresiasFiltradas, total, activasCount, porVencerCount, vencidasCount } = useMemo(() => {
+    let act = 0;
+    let porV = 0;
+    let venc = 0;
+    const term = busqueda.toLowerCase().trim();
 
-    if (filtro === 'activas' && estadoCalc !== 'Activa') return false;
-    if (filtro === 'por_vencer' && estadoCalc !== 'Por vencer') return false;
-    if (filtro === 'vencidas' && estadoCalc !== 'Vencida') return false;
+    const filtradas = (membresias || []).filter((m) => {
+      const estadoCalc = fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento);
+      if (estadoCalc === 'Activa') act++;
+      else if (estadoCalc === 'Por vencer') porV++;
+      else if (estadoCalc === 'Vencida') venc++;
 
-    const termino = busqueda.toLowerCase().trim();
-    if (!termino) return true;
+      if (filtro === 'activas' && estadoCalc !== 'Activa') return false;
+      if (filtro === 'por_vencer' && estadoCalc !== 'Por vencer') return false;
+      if (filtro === 'vencidas' && estadoCalc !== 'Vencida') return false;
 
-    const cliente = obtenerNombreCliente(m).toLowerCase();
-    const plan = obtenerNombrePlan(m).toLowerCase();
-    return cliente.includes(termino) || plan.includes(termino) || String(m.id_cliente).includes(termino);
-  });
+      if (!term) return true;
+      const cliente = obtenerNombreCliente(m).toLowerCase();
+      const plan = obtenerNombrePlan(m).toLowerCase();
+      return cliente.includes(term) || plan.includes(term) || String(m.id_cliente).includes(term);
+    });
 
-  const total = membresias.length;
-  const activasCount = membresias.filter((m) => fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento) === 'Activa').length;
-  const porVencerCount = membresias.filter((m) => fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento) === 'Por vencer').length;
-  const vencidasCount = membresias.filter((m) => fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento) === 'Vencida').length;
+    return {
+      membresiasFiltradas: filtradas,
+      total: (membresias || []).length,
+      activasCount: act,
+      porVencerCount: porV,
+      vencidasCount: venc
+    };
+  }, [membresias, filtro, busqueda, obtenerNombreCliente, obtenerNombrePlan]);
 
   return {
     membresiasFiltradas,

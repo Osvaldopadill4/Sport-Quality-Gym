@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCorteCaja, getCorteActivo, abrirCorteCaja, cerrarCorteCaja } from '../JS/corte_caja';
 import { getUsuarios } from '../JS/usuarios';
+import { getVenta } from '../JS/venta';
+import { getCompras } from '../JS/compra';
 import { sp_corte_caja_diario } from './objetosSQL';
 
 /**
@@ -24,6 +26,8 @@ export function useCorteCaja({ loggedUser }) {
 
   const [cortes, setCortes] = useState([]);
   const [usuariosCatalogo, setUsuariosCatalogo] = useState([]);
+  const [ventasBD, setVentasBD] = useState([]);
+  const [comprasBD, setComprasBD] = useState([]);
   const [corteActivo, setCorteActivo] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [alerta, setAlerta] = useState(null);
@@ -73,23 +77,28 @@ export function useCorteCaja({ loggedUser }) {
     return nombreCajeroActivo || `Usuario #${c.id_usuario}`;
   }, [usuariosCatalogo, usuarioActivo, nombreCajeroActivo]);
 
-  // Calcular ventas del día usando `sp_corte_caja_diario`
+  // Calcular ventas y gastos del turno consultando datos de MySQL
   const obtenerVentasTurno = useCallback(() => {
     try {
-      const ventasGuardadas = JSON.parse(localStorage.getItem('gymton_ventas') || '[]');
-      const hoyStr = new Date().toISOString().split('T')[0];
+      const fuenteVentas = ventasBD.length > 0
+        ? ventasBD
+        : JSON.parse(localStorage.getItem('gymton_ventas') || '[]');
+      const fuenteCompras = comprasBD.length > 0
+        ? comprasBD
+        : JSON.parse(localStorage.getItem('gymton_compras') || '[]');
 
-      // Procedimiento SQL `sp_corte_caja_diario`
-      const { totalVentas } = sp_corte_caja_diario(ventasGuardadas, hoyStr);
+      const hoyStr = new Date().toISOString().split('T')[0];
 
       let totalEfectivo = 0;
       let totalTarjeta = 0;
+      let totalGastos = 0;
 
-      ventasGuardadas.forEach(v => {
+      fuenteVentas.forEach(v => {
         const fechaVenta = (v.fecha || '').slice(0, 10);
         if (fechaVenta === hoyStr || !v.fecha) {
           const tot = Number(v.total) || 0;
-          if ((v.metodo_pago || '').toLowerCase().includes('tarjeta')) {
+          const met = String(v.metodo_pago || '').toLowerCase();
+          if (met.includes('tarjeta') || Number(v.id_modopago) === 2) {
             totalTarjeta += tot;
           } else {
             totalEfectivo += tot;
@@ -97,24 +106,43 @@ export function useCorteCaja({ loggedUser }) {
         }
       });
 
+      fuenteCompras.forEach(c => {
+        const fechaComp = (c.fecha || '').slice(0, 10);
+        if (fechaComp === hoyStr || !c.fecha) {
+          totalGastos += Number(c.total) || 0;
+        }
+      });
+
+      const totalVentas = totalEfectivo + totalTarjeta;
+
       return {
-        totalVentas: totalVentas || (totalEfectivo + totalTarjeta),
+        totalVentas,
         totalEfectivo,
-        totalTarjeta
+        totalTarjeta,
+        totalGastos
       };
     } catch {
-      return { totalVentas: 0, totalEfectivo: 0, totalTarjeta: 0 };
+      return { totalVentas: 0, totalEfectivo: 0, totalTarjeta: 0, totalGastos: 0 };
     }
-  }, []);
+  }, [ventasBD, comprasBD]);
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
-      const [lista, activo, listaUsuarios] = await Promise.all([
+      const [lista, activo, listaUsuarios, listaVentas, listaCompras] = await Promise.all([
         getCorteCaja(),
         getCorteActivo(),
-        getUsuarios().catch(() => [])
+        getUsuarios().catch(() => []),
+        getVenta().catch(() => []),
+        getCompras().catch(() => [])
       ]);
+
+      if (Array.isArray(listaVentas) && listaVentas.length > 0) {
+        setVentasBD(listaVentas);
+      }
+      if (Array.isArray(listaCompras) && listaCompras.length > 0) {
+        setComprasBD(listaCompras);
+      }
 
       if (Array.isArray(listaUsuarios) && listaUsuarios.length > 0) {
         setUsuariosCatalogo(listaUsuarios);
@@ -223,11 +251,15 @@ export function useCorteCaja({ loggedUser }) {
       const montoReal = Number(formCierre.monto_real) || 0;
       const diferencia = montoReal - montoCalculado;
 
+      const { totalGastos } = obtenerVentasTurno();
       const payload = {
         id_usuario: usuarioActivo?.id || corteActivo.id_usuario || 1,
         cajero_nombre: nombreCajeroActivo,
         monto_inicial: fondoInicial,
         total_ventas: totalVentas,
+        efectivo: totalEfectivo,
+        tarjeta: totalTarjeta,
+        total_gastos: totalGastos,
         monto_real: montoReal,
         observaciones: formCierre.observaciones
       };
@@ -305,6 +337,7 @@ export function useCorteCaja({ loggedUser }) {
     metricasVentas,
     fondoActual,
     dineroEsperadoEnCaja,
+    sp_corte_caja_diario: () => sp_corte_caja_diario(cortes),
     cargarDatos,
     handleAbrirTurno,
     handlePrepararCierre,

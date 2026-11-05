@@ -1,0 +1,198 @@
+/* ==========================================================================
+   Estilos de Impresión y Formato PDF para Reportes y Tickets - GYMTON
+   ========================================================================== */
+
+/* Vista en pantalla normal para el contenedor oculto */
+.print-only-container {
+  display: none;
+}
+
+@media print {
+  /* Ocultar elementos de navegación, sidebars, botones y temas oscuros */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ocultar toda la interfaz interactiva regular */
+  .no-print,
+  .reportes-wrapper > .gym-header-box,
+  .reportes-wrapper > .grid,
+  .reportes-wrapper > .bg-zinc-900,
+  .admin-layout-sidebar,
+  .admin-layout-header,
+  header,
+  nav,
+  button {
+    display: none !important;
+  }
+
+  /* Mostrar exclusivamente el contenedor imprimible */
+  .print-only-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 10mm 15mm !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Encabezado institucional estilo Ticket Ejecutivo */
+  .ticket-print-header {
+    text-align: center;
+    border-bottom: 2px dashed #374151;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  .ticket-print-header h1 {
+    font-size: 20pt;
+    font-weight: 900;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #111827;
+  }
+
+  .ticket-print-header h2 {
+    font-size: 12pt;
+    font-weight: 700;
+    margin: 4px 0 0 0;
+    color: #374151;
+  }
+
+  .ticket-print-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    color: #4b5563;
+    margin-top: 8px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 6px;
+  }
+
+  /* Resumen Financiero y Balance de Caja */
+  .ticket-balance-box {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    background: #f9fafb !important;
+  }
+
+  .ticket-balance-title {
+    font-size: 11pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    color: #111827;
+  }
+
+  .ticket-balance-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    text-align: center;
+  }
+
+  .ticket-stat-item {
+    padding: 6px;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .ticket-stat-item:last-child {
+    border-right: none;
+  }
+
+  .ticket-stat-item .label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    color: #6b7280;
+    display: block;
+    font-weight: 600;
+  }
+
+  .ticket-stat-item .val {
+    font-size: 13pt;
+    font-weight: 900;
+    color: #111827;
+    margin-top: 2px;
+  }
+
+  /* Tabla formal de datos para PDF */
+  .ticket-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    margin-bottom: 16px;
+    font-size: 9pt;
+  }
+
+  .ticket-print-table th {
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 2px solid #111827;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 8pt;
+  }
+
+  .ticket-print-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+  }
+
+  .ticket-print-table tr:nth-child(even) td {
+    background: #f9fafb !important;
+  }
+
+  .ticket-print-table tfoot td {
+    border-top: 2px solid #111827;
+    border-bottom: none;
+    font-weight: 900;
+    font-size: 10pt;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+
+  /* Sección de firmas al pie */
+  .ticket-firmas-box {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 30px;
+    padding-top: 10px;
+  }
+
+  .ticket-firma {
+    text-align: center;
+    width: 40%;
+  }
+
+  .ticket-firma-linea {
+    border-top: 1px solid #374151;
+    margin-bottom: 4px;
+  }
+
+  .ticket-firma span {
+    font-size: 8.5pt;
+    color: #4b5563;
+    display: block;
+  }
+
+  /* Evitar saltos de página dentro de filas */
+  tr, .ticket-balance-box, .ticket-firmas-box {
+    page-break-inside: avoid;
+  }
+}

@@ -53,6 +53,28 @@ export const validarQrAcceso = async (token) => {
     }
 };
 
+// Validar token QR ejecutando el Stored Procedure `sp_registrar_acceso` en MySQL
+export const validarQrAccesoConProcedure = async (token) => {
+    try {
+        const res = await fetch(`${API_URL}/validar-qr-con-procedure`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            return {
+                acceso: false,
+                mensaje: data.mensaje || 'Acceso denegado: Código QR expirado o inválido'
+            };
+        }
+        return data; // { acceso: boolean, clienteId, clienteNombre, mensaje, resultado }
+    } catch (error) {
+        console.warn('Error al conectar con validador de procedure en backend:', error.message);
+        return null;
+    }
+};
+
 // Obtener historial de accesos de un cliente específico
 export const getHistorialPorCliente = async (clienteId) => {
     try {

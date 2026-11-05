@@ -224,8 +224,9 @@ export function ModalFormMembresia({
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
             <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm">Cancelar</button>
-            <button type="submit" className="btn btn-primary btn-sm bg-emerald-500 hover:bg-emerald-400 text-black border-none font-bold">
-              Guardar Membresía
+            <button type="submit" className="btn btn-primary btn-sm bg-emerald-500 hover:bg-emerald-400 text-black border-none font-bold flex items-center gap-1.5">
+              <ShoppingCart size={15} />
+              {modalMode === 'create' ? 'Mandar a Caja para Cobrar' : 'Guardar Cambios'}
             </button>
           </div>
         </form>

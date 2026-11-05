@@ -39,6 +39,13 @@ export const getVenta = async () => {
         if (!resVentas.ok) throw new Error('Error al obtener ventas');
         const data = await resVentas.json();
         if (Array.isArray(data)) {
+            // Si la base de datos fue vaciada/reiniciada a 0 registros, limpiar la persistencia local previa
+            if (data.length === 0) {
+                localStorage.removeItem('gymton_ventas');
+                localStorage.removeItem('gymton_ventas_meta');
+                return [];
+            }
+
             const listaDetalles = Array.isArray(detallesDB) ? detallesDB : [];
             const enriquecidas = data.map(v => {
                 const meta = metaMap[String(v.id)] || (v.folio ? metaMap[String(v.folio)] : null) ||

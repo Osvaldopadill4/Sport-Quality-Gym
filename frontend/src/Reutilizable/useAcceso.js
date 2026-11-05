@@ -1,104 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
-import { getAcceso, createAcceso, generarQrCliente, validarQrAcceso } from '../JS/acceso';
-import { getClientes } from '../JS/cliente';
-import { getMembresias } from '../JS/membresia';
-import { getPlanes } from '../JS/plan';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  fn_dias_restantes,
-  fn_membresia_activa,
-  sp_registrar_acceso,
-  vw_historial_accesos
-} from './objetosSQL';
+  getAcceso,
+  createAcceso,
+  generarQrCliente,
+  validarQrAccesoConProcedure,
+  validarQrAcceso
+} from '../JS/acceso';
+import { getClientes } from '../JS/cliente';
+import { getReporteAccesos, getReporteEstadoMembresias } from '../JS/reportes_api';
+import { sp_registrar_acceso } from './objetosSQL';
 
-export const CLIENTES_DEMO = [
-  {
-    id: 1,
-    uuid: 'gym-uuid-juan-001',
-    nombre: 'Juan Pérez García',
-    telefono: '555-0101',
-    plan: 'Mensual',
-    tipo_plan: 'Mensual',
-    precio_plan: 350,
-    dias_restantes: 22,
-    fecha_vencimiento: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estado: 1,
-    foto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    es_invitado: false
-  },
-  {
-    id: 2,
-    uuid: 'gym-uuid-carolina-002',
-    nombre: 'Carolina Gómez Soto',
-    telefono: '555-0102',
-    plan: 'Anual',
-    tipo_plan: 'Anual',
-    precio_plan: 2100,
-    dias_restantes: 240,
-    fecha_vencimiento: new Date(Date.now() + 240 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estado: 1,
-    foto: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&auto=format&fit=crop&q=80',
-    es_invitado: false
-  },
-  {
-    id: 3,
-    uuid: 'gym-uuid-diego-003',
-    nombre: 'Diego Martínez Cruz',
-    telefono: '555-0103',
-    plan: 'Invitado',
-    tipo_plan: 'Invitado',
-    precio_plan: 0,
-    dias_restantes: 1,
-    fecha_vencimiento: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estado: 1,
-    foto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-    es_invitado: true
-  },
-  {
-    id: 4,
-    uuid: 'gym-uuid-sofia-004',
-    nombre: 'Sofía Mendoza Luna',
-    telefono: '555-0104',
-    plan: 'Semanal',
-    tipo_plan: 'Semanal',
-    precio_plan: 150,
-    dias_restantes: 3,
-    fecha_vencimiento: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estado: 1,
-    foto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80',
-    es_invitado: false
-  },
-  {
-    id: 5,
-    uuid: 'gym-uuid-roberto-005',
-    nombre: 'Roberto Sánchez Ruiz',
-    telefono: '555-0105',
-    plan: 'Mensual',
-    tipo_plan: 'Mensual',
-    precio_plan: 350,
-    dias_restantes: -4,
-    fecha_vencimiento: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estado: 1,
-    foto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
-    es_invitado: false
-  },
-  {
-    id: 6,
-    uuid: 'gym-uuid-laura-006',
-    nombre: 'Laura Morales Silva',
-    telefono: '555-0106',
-    plan: 'Estudiantil',
-    tipo_plan: 'Estudiantil',
-    precio_plan: 200,
-    dias_restantes: 18,
-    fecha_vencimiento: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    estado: 0,
-    foto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&auto=format&fit=crop&q=80',
-    es_invitado: false
-  }
-];
-
-export function useAcceso(loggedUser) {
-  const usuarioActivo = loggedUser || (() => {
+export function useAcceso(paramUser) {
+  const usuarioActivo = (paramUser && paramUser.loggedUser) || paramUser || (() => {
     try {
       const u = localStorage.getItem('gymton_current_user');
       return u ? JSON.parse(u) : null;
@@ -118,18 +31,12 @@ export function useAcceso(loggedUser) {
   const [tiempoRestanteFlash, setTiempoRestanteFlash] = useState(4);
 
   const [clientesBD, setClientesBD] = useState([]);
-  const [membresiasBD, setMembresiasBD] = useState([]);
-  const [planesBD, setPlanesBD] = useState([]);
-
-  const [showSimuladorMovil, setShowSimuladorMovil] = useState(false);
-  const [clienteSimulado, setClienteSimulado] = useState(CLIENTES_DEMO[0]);
-  const [qrJwtToken, setQrJwtToken] = useState('');
-  const [tokenCountdown, setTokenCountdown] = useState(60);
-  const [tokenCargando, setTokenCargando] = useState(false);
+  const [estadoMembresiasBD, setEstadoMembresiasBD] = useState([]);
 
   const [horaActual, setHoraActual] = useState(new Date().toLocaleTimeString());
   const inputRef = useRef(null);
 
+  // Reloj en tiempo real
   useEffect(() => {
     const timer = setInterval(() => {
       setHoraActual(new Date().toLocaleTimeString());
@@ -137,213 +44,136 @@ export function useAcceso(loggedUser) {
     return () => clearInterval(timer);
   }, []);
 
+  // Mantener foco en el input para la pistola lectora QR USB
   useEffect(() => {
-    if (!alertaFlash && !showSimuladorMovil && inputRef.current) {
+    if (!alertaFlash && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [alertaFlash, showSimuladorMovil]);
+  }, [alertaFlash]);
 
-  // Cargar clientes, membresías y planes reales desde MySQL para sincronizar con la App Móvil y Vistas SQL
+  // Cargar clientes y estado de membresías desde las vistas de MySQL
   useEffect(() => {
-    Promise.allSettled([getClientes(), getMembresias(), getPlanes()]).then(([resCli, resMemb, resPlan]) => {
-      if (resCli.status === 'fulfilled' && Array.isArray(resCli.value) && resCli.value.length > 0) {
+    Promise.allSettled([getClientes(), getReporteEstadoMembresias()]).then(([resCli, resMem]) => {
+      if (resCli.status === 'fulfilled' && Array.isArray(resCli.value)) {
         setClientesBD(resCli.value);
       }
-      if (resMemb.status === 'fulfilled' && Array.isArray(resMemb.value) && resMemb.value.length > 0) {
-        setMembresiasBD(resMemb.value);
-      }
-      if (resPlan.status === 'fulfilled' && Array.isArray(resPlan.value) && resPlan.value.length > 0) {
-        setPlanesBD(resPlan.value);
+      if (resMem.status === 'fulfilled' && Array.isArray(resMem.value)) {
+        setEstadoMembresiasBD(resMem.value);
       }
     });
   }, []);
 
-  // Consolidar clientes con su estado real de `vw_estado_membresias` y `fn_dias_restantes`
-  const obtenerListaClientes = () => {
-    const idsDemo = new Set(CLIENTES_DEMO.map((c) => c.id));
+  // Normaliza lista de socios combinada con vista `vw_estado_membresias`
+  const obtenerListaClientes = useCallback(() => {
+    const mapMemb = new Map(
+      (estadoMembresiasBD || []).map((m) => [Number(m.id_cliente), m])
+    );
 
-    const resolverMembresiaCliente = (idCliente, fallbackPlan = 'Mensual', fallbackDias = 30, fallbackVenc = null) => {
-      const m = membresiasBD.find((item) => Number(item.id_cliente) === Number(idCliente));
-      if (!m) {
-        return {
-          plan: fallbackPlan,
-          dias_restantes: fallbackDias,
-          fecha_vencimiento: fallbackVenc || new Date(Date.now() + fallbackDias * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          es_invitado: String(fallbackPlan).toLowerCase().includes('invitado')
-        };
-      }
-      const pl = planesBD.find((p) => Number(p.id) === Number(m.id_plan));
-      const nombrePlan = pl?.nombre || m.plan_nombre || fallbackPlan;
-      const dias = fn_dias_restantes(m.fecha_vencimiento);
+    return (clientesBD || []).map((c) => {
+      const infoM = mapMemb.get(Number(c.id));
+      const dias = infoM?.dias_restantes !== undefined ? Number(infoM.dias_restantes) : 30;
+      const planNombre = infoM?.plan || 'Membresía General';
+      const esInvitado = String(planNombre).toLowerCase().includes('invitado');
+
       return {
-        plan: nombrePlan,
+        id: c.id,
+        uuid: c.token_qr || `gym-uuid-cl-${c.id}`,
+        nombre: c.nombre || 'Socio Registrado',
+        telefono: c.telefono || 'Sin teléfono',
+        plan: planNombre,
         dias_restantes: dias,
-        fecha_vencimiento: m.fecha_vencimiento,
-        es_invitado: String(nombrePlan).toLowerCase().includes('invitado') || Number(pl?.duracion_dias) === 1
+        fecha_vencimiento: infoM?.fecha_vencimiento || '',
+        estado: c.estado === 1 || c.estado === '1' || String(c.estado).toLowerCase() === 'activo' ? 1 : 0,
+        es_invitado: esInvitado
       };
-    };
-
-    const extrasBD = (clientesBD || [])
-      .filter((c) => !idsDemo.has(c.id))
-      .map((c) => {
-        const infoM = resolverMembresiaCliente(c.id);
-        return {
-          id: c.id,
-          uuid: c.token_qr || `gym-uuid-cl-${c.id}`,
-          nombre: c.nombre || 'Cliente Registrado',
-          telefono: c.telefono || 'Sin teléfono',
-          plan: infoM.plan,
-          tipo_plan: infoM.plan,
-          precio_plan: 350,
-          dias_restantes: infoM.dias_restantes,
-          fecha_vencimiento: infoM.fecha_vencimiento,
-          estado: c.estado === 1 || c.estado === '1' || String(c.estado).toLowerCase() === 'activo' ? 1 : 0,
-          foto: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.nombre || 'C')}`,
-          es_invitado: infoM.es_invitado
-        };
-      });
-
-    const bdMap = new Map((clientesBD || []).map((c) => [c.id, c]));
-    const demosActualizados = CLIENTES_DEMO.map((demo) => {
-      if (bdMap.has(demo.id)) {
-        const fromDb = bdMap.get(demo.id);
-        const infoM = resolverMembresiaCliente(demo.id, demo.plan, demo.dias_restantes, demo.fecha_vencimiento);
-        return {
-          ...demo,
-          nombre: fromDb.nombre || demo.nombre,
-          telefono: fromDb.telefono || demo.telefono,
-          plan: infoM.plan,
-          dias_restantes: infoM.dias_restantes,
-          fecha_vencimiento: infoM.fecha_vencimiento,
-          es_invitado: infoM.es_invitado,
-          estado: fromDb.estado === '1' || fromDb.estado === 1 ? 1 : 0,
-          uuid: fromDb.token_qr || demo.uuid
-        };
-      }
-      return demo;
     });
+  }, [clientesBD, estadoMembresiasBD]);
 
-    return [...demosActualizados, ...extrasBD];
-  };
-
-  // Cargar historial usando `vw_historial_accesos`
-  const cargarAccesos = async () => {
+  // Cargar historial de accesos consumiendo la vista `vw_historial_accesos` de MySQL
+  const cargarAccesos = useCallback(async () => {
     try {
-      const data = await getAcceso();
-      if (Array.isArray(data) && data.length > 0) {
-        const clientesActuales = obtenerListaClientes();
-        const historialEnriquecido = vw_historial_accesos(data, clientesActuales);
-        const mapa = new Map(clientesActuales.map((c) => [Number(c.id), c]));
+      // 1. Intentar cargar directamente desde la vista SQL del backend
+      const dataVista = await getReporteAccesos();
+      const socios = obtenerListaClientes();
+      const mapSocios = new Map(socios.map((s) => [Number(s.id), s]));
 
-        const normalizados = historialEnriquecido.map((item) => {
-          const cliente = mapa.get(Number(item.id_cliente));
-          const esConcedido = item.resultado === 'CONCEDIDO' || item.resultado === 'PERMITIDO' || item.resultado === 'Permitido';
-          const esInvitado = cliente?.es_invitado || cliente?.plan?.toLowerCase().includes('invitado');
-          const porVencer = cliente?.dias_restantes <= 5 && cliente?.dias_restantes >= 0;
+      if (Array.isArray(dataVista) && dataVista.length > 0) {
+        const formateados = dataVista.map((row) => {
+          const socio = mapSocios.get(Number(row.id_cliente));
+          const esConcedido = ['PERMITIDO', 'CONCEDIDO', 'Permitido'].includes(row.resultado);
+          const dias = socio?.dias_restantes !== undefined ? socio.dias_restantes : 30;
+          const esInvitado = socio?.es_invitado;
+          const porVencer = dias <= 5 && dias >= 0;
 
-          let colorBadge = 'green';
+          let color = 'green';
           if (!esConcedido) {
-            colorBadge = 'red';
+            color = 'red';
           } else if (esInvitado || porVencer) {
-            colorBadge = 'yellow';
+            color = 'yellow';
           }
 
           return {
-            id: item.id || Date.now() + Math.random(),
-            id_cliente: item.id_cliente,
-            uuid: item.uuid || cliente?.uuid || `SOCIO-${item.id_cliente}`,
-            cliente_nombre: item.nombre || item.cliente_nombre || cliente?.nombre || `Socio #${item.id_cliente}`,
-            plan: item.plan || cliente?.plan || 'Membresía General',
-            fecha: item.fecha || new Date().toISOString().split('T')[0],
-            hora: item.hora || '00:00:00',
-            resultado: esConcedido ? 'Permitido' : item.resultado,
-            color: colorBadge,
-            dias_restantes: item.dias_restantes !== undefined ? item.dias_restantes : (cliente ? cliente.dias_restantes : 30),
-            foto: item.foto || cliente?.foto || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(item.nombre || 'S')}`
+            id: row.id_acceso || row.id || Date.now() + Math.random(),
+            id_cliente: row.id_cliente,
+            uuid: socio?.uuid || `SOCIO-${row.id_cliente}`,
+            cliente_nombre: row.cliente || socio?.nombre || `Socio #${row.id_cliente}`,
+            plan: socio?.plan || 'Membresía General',
+            fecha: row.fecha || new Date().toISOString().split('T')[0],
+            hora: row.hora || '00:00:00',
+            resultado: esConcedido ? 'Permitido' : (row.resultado || 'Rechazado'),
+            color,
+            dias_restantes: dias
           };
         });
 
-        setAccesos(normalizados);
-        localStorage.setItem('gymton_accesos_log', JSON.stringify(normalizados));
+        setAccesos(formateados);
+        localStorage.setItem('gymton_accesos_log', JSON.stringify(formateados));
+        return;
+      }
+
+      // 2. Fallback a endpoint estándar /api/acceso/historial
+      const fallbackData = await getAcceso();
+      if (Array.isArray(fallbackData) && fallbackData.length > 0) {
+        const formateados = fallbackData.map((row) => {
+          const socio = mapSocios.get(Number(row.id_cliente));
+          const esConcedido = ['PERMITIDO', 'CONCEDIDO', 'Permitido'].includes(row.resultado);
+          return {
+            id: row.id || Date.now() + Math.random(),
+            id_cliente: row.id_cliente,
+            uuid: socio?.uuid || `SOCIO-${row.id_cliente}`,
+            cliente_nombre: socio?.nombre || `Socio #${row.id_cliente}`,
+            plan: socio?.plan || 'Membresía General',
+            fecha: row.fecha,
+            hora: row.hora,
+            resultado: esConcedido ? 'Permitido' : 'Rechazado',
+            color: esConcedido ? 'green' : 'red',
+            dias_restantes: socio?.dias_restantes ?? 30
+          };
+        });
+        setAccesos(formateados);
+        localStorage.setItem('gymton_accesos_log', JSON.stringify(formateados));
         return;
       }
     } catch (err) {
-      console.warn('Error al sincronizar historial con MySQL:', err);
+      console.warn('Error al sincronizar accesos con backend:', err);
     }
 
+    // Fallback offline a LocalStorage
     const local = localStorage.getItem('gymton_accesos_log');
     if (local) {
       try {
         setAccesos(JSON.parse(local));
-        return;
       } catch (e) {
         console.error(e);
       }
     }
-    const hoyStr = new Date().toISOString().split('T')[0];
-    const demoAccesos = [
-      {
-        id: 101,
-        id_cliente: 1,
-        uuid: 'gym-uuid-juan-001',
-        cliente_nombre: 'Juan Pérez García',
-        plan: 'Mensual',
-        fecha: hoyStr,
-        hora: '07:15:30',
-        resultado: 'Permitido',
-        color: 'green',
-        dias_restantes: 22,
-        foto: CLIENTES_DEMO[0].foto
-      },
-      {
-        id: 102,
-        id_cliente: 2,
-        uuid: 'gym-uuid-carolina-002',
-        cliente_nombre: 'Carolina Gómez Soto',
-        plan: 'Anual',
-        fecha: hoyStr,
-        hora: '08:30:12',
-        resultado: 'Permitido',
-        color: 'green',
-        dias_restantes: 240,
-        foto: CLIENTES_DEMO[1].foto
-      },
-      {
-        id: 103,
-        id_cliente: 4,
-        uuid: 'gym-uuid-sofia-004',
-        cliente_nombre: 'Sofía Mendoza Luna',
-        plan: 'Semanal',
-        fecha: hoyStr,
-        hora: '09:02:45',
-        resultado: 'Por Vencer (3 días)',
-        color: 'yellow',
-        dias_restantes: 3,
-        foto: CLIENTES_DEMO[3].foto
-      },
-      {
-        id: 104,
-        id_cliente: 5,
-        uuid: 'gym-uuid-roberto-005',
-        cliente_nombre: 'Roberto Sánchez Ruiz',
-        plan: 'Mensual',
-        fecha: hoyStr,
-        hora: '09:45:00',
-        resultado: 'Denegado (Vencido)',
-        color: 'red',
-        dias_restantes: -4,
-        foto: CLIENTES_DEMO[4].foto
-      }
-    ];
-    setAccesos(demoAccesos);
-    localStorage.setItem('gymton_accesos_log', JSON.stringify(demoAccesos));
-  };
+  }, [obtenerListaClientes]);
 
   useEffect(() => {
     cargarAccesos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientesBD, membresiasBD, planesBD]);
+  }, [cargarAccesos]);
 
+  // Alerta flash temporizada
   useEffect(() => {
     if (!alertaFlash) return;
     setTiempoRestanteFlash(4);
@@ -360,6 +190,7 @@ export function useAcceso(loggedUser) {
     return () => clearInterval(interval);
   }, [alertaFlash]);
 
+  // Descartar flash con Tecla Escape o Espacio
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (alertaFlash && (e.key === 'Escape' || e.key === ' ')) {
@@ -370,46 +201,7 @@ export function useAcceso(loggedUser) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [alertaFlash]);
 
-  // Solicitar token dinámico JWT a Spring Boot (`/api/acceso/generar-qr/{clienteId}`)
-  const pedirQrDinamico = async (clienteId) => {
-    setTokenCargando(true);
-    try {
-      const resp = await generarQrCliente(clienteId);
-      if (resp && resp.token) {
-        setQrJwtToken(resp.token);
-        setTokenCountdown(60);
-      } else {
-        setQrJwtToken(`JWT-FALLBACK-CL-${clienteId}-${Date.now()}`);
-        setTokenCountdown(60);
-      }
-    } catch {
-      setQrJwtToken(`JWT-FALLBACK-CL-${clienteId}-${Date.now()}`);
-      setTokenCountdown(60);
-    } finally {
-      setTokenCargando(false);
-    }
-  };
-
-  useEffect(() => {
-    if (showSimuladorMovil && clienteSimulado) {
-      pedirQrDinamico(clienteSimulado.id);
-    }
-  }, [showSimuladorMovil, clienteSimulado]);
-
-  useEffect(() => {
-    if (!showSimuladorMovil || !qrJwtToken) return;
-    const interval = setInterval(() => {
-      setTokenCountdown((prev) => {
-        if (prev <= 1) {
-          pedirQrDinamico(clienteSimulado.id);
-          return 60;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [showSimuladorMovil, qrJwtToken, clienteSimulado]);
-
+  // Sintetizador Web Audio API para señales del torniquete
   const emitirSonido = (tipo) => {
     if (!sonidoHabilitado) return;
     try {
@@ -445,37 +237,37 @@ export function useAcceso(loggedUser) {
         osc.stop(ctx.currentTime + 0.5);
       }
     } catch {
-      // Ignorar si el navegador restringe reproducción
+      // Ignorar si el navegador bloquea audio sin interacción
     }
   };
 
-  // Procesar acceso integrando validación QR JWT de Spring Boot + `sp_registrar_acceso` + `fn_membresia_activa`
+  // Procesar escaneo QR o entrada manual de socio
   const procesarAcceso = async (codigoParam) => {
     const rawCode = (codigoParam !== undefined ? codigoParam : inputCodigo).trim();
     if (!rawCode) return;
-
     setInputCodigo('');
 
     const ahora = new Date();
     const fechaHoy = ahora.toISOString().split('T')[0];
-    const horaActualStr = ahora.toLocaleTimeString();
-
+    const horaStr = ahora.toLocaleTimeString();
     const pareceJwt = rawCode.includes('.') || rawCode.startsWith('eyJ') || rawCode.length > 50;
 
+    // 1. VALIDACIÓN QR CON PROCEDURE ALMACENADO EN MYSQL (`sp_registrar_acceso`)
     if (pareceJwt) {
-      const respBackend = await validarQrAcceso(rawCode);
-      if (respBackend) {
-        if (respBackend.acceso) {
-          const lista = obtenerListaClientes();
-          const socio = lista.find((c) => Number(c.id) === Number(respBackend.clienteId)) || {
-            id: respBackend.clienteId,
-            nombre: respBackend.clienteNombre || 'Socio Registrado',
-            plan: 'Mensual Activo',
-            dias_restantes: 30,
-            foto: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(respBackend.clienteNombre || 'S')}`
+      const resp = await validarQrAccesoConProcedure(rawCode) || await validarQrAcceso(rawCode);
+
+      if (resp) {
+        if (resp.acceso) {
+          const socios = obtenerListaClientes();
+          const socio = socios.find((s) => Number(s.id) === Number(resp.clienteId)) || {
+            id: resp.clienteId,
+            uuid: rawCode,
+            nombre: resp.clienteNombre || 'Socio Registrado',
+            plan: 'Membresía Activa',
+            dias_restantes: 30
           };
 
-          const esInvitado = socio.es_invitado || socio.plan?.toLowerCase().includes('invitado');
+          const esInvitado = socio.es_invitado;
           const porVencer = socio.dias_restantes <= 5 && socio.dias_restantes >= 0;
           const colorFlash = esInvitado || porVencer ? 'yellow' : 'green';
 
@@ -486,40 +278,37 @@ export function useAcceso(loggedUser) {
             subtitulo: colorFlash === 'yellow'
               ? (esInvitado ? 'Pase de Invitado (1 Día)' : `Le quedan ${socio.dias_restantes} días`)
               : 'Torniquete Automático Desbloqueado',
-            razon: `Validado con token JWT por el servidor Spring Boot. Hora: ${respBackend.horaEntrada || horaActualStr}`,
+            razon: `Validado por procedimiento MySQL. Hora: ${resp.horaEntrada || horaStr}`,
             cliente: socio
           });
 
-          cargarAccesos();
+          await cargarAccesos();
           return;
         } else {
+          // Acceso Denegado por procedimiento o token expirado
           emitirSonido('red');
           setAlertaFlash({
             color: 'red',
             titulo: '¡ACCESO DENEGADO!',
-            subtitulo: 'Token QR Expirado o Inválido',
-            razon: respBackend.mensaje || 'Firma digital no válida o tiempo límite de 60 segundos excedido.',
-            cliente: {
-              nombre: 'Acceso No Autorizado',
-              plan: 'Token Expirado',
-              dias_restantes: 0,
-              foto: null
-            }
+            subtitulo: resp.resultado === 'Rechazado' ? 'Membresía Inactiva o Vencida' : 'Token QR Inválido',
+            razon: resp.mensaje || 'Firma digital expirada o membresía sin vigencia.',
+            cliente: { nombre: resp.clienteNombre || 'Acceso No Autorizado', plan: 'Sin Vigencia', dias_restantes: 0 }
           });
-          cargarAccesos();
+
+          await cargarAccesos();
           return;
         }
       }
     }
 
-    const listaCompleta = obtenerListaClientes();
-    const codigoMinuscula = rawCode.toLowerCase();
-
-    const clienteEncontrado = listaCompleta.find(
+    // 2. VALIDACIÓN MANUAL / POR TECLADO
+    const socios = obtenerListaClientes();
+    const busq = rawCode.toLowerCase();
+    const clienteEncontrado = socios.find(
       (c) =>
-        c.uuid?.toLowerCase() === codigoMinuscula ||
         String(c.id) === rawCode ||
-        c.nombre?.toLowerCase().includes(codigoMinuscula)
+        c.uuid?.toLowerCase() === busq ||
+        c.nombre?.toLowerCase().includes(busq)
     );
 
     if (!clienteEncontrado) {
@@ -527,117 +316,78 @@ export function useAcceso(loggedUser) {
       setAlertaFlash({
         color: 'red',
         titulo: '¡ACCESO DENEGADO!',
-        subtitulo: 'Código QR no reconocido o inexistente',
-        razon: `El código "${rawCode}" no coincide con ningún socio en la base de datos.`,
-        cliente: {
-          nombre: 'Desconocido / No Registrado',
-          plan: 'Sin Membresía',
-          dias_restantes: 0,
-          foto: null
-        }
+        subtitulo: 'Socio no encontrado',
+        razon: `El código "${rawCode}" no coincide con ningún registro activo.`,
+        cliente: { nombre: 'Desconocido', plan: 'Ninguno', dias_restantes: 0 }
       });
-
-      const nuevoLog = {
-        id: Date.now(),
-        id_cliente: 0,
-        uuid: rawCode,
-        cliente_nombre: 'Código Desconocido (' + rawCode + ')',
-        plan: 'Ninguno',
-        fecha: fechaHoy,
-        hora: horaActualStr,
-        resultado: 'Denegado (No registrado)',
-        color: 'red',
-        dias_restantes: 0
-      };
-
-      const actualizados = [nuevoLog, ...accesos];
-      setAccesos(actualizados);
-      localStorage.setItem('gymton_accesos_log', JSON.stringify(actualizados));
       return;
     }
 
-    // Evaluar con `sp_registrar_acceso` y `fn_membresia_activa`
-    const spRes = sp_registrar_acceso(clienteEncontrado.id, membresiasBD);
-    const tieneMembresiaEnBD = membresiasBD.some((m) => Number(m.id_cliente) === Number(clienteEncontrado.id));
-
-    const esInactivo = clienteEncontrado.estado === 0 || clienteEncontrado.estado === 'Inactivo';
-    const esVencido = clienteEncontrado.dias_restantes < 0 || (tieneMembresiaEnBD && fn_membresia_activa(clienteEncontrado.id, membresiasBD) === 0);
-    const esInvitado = clienteEncontrado.es_invitado || clienteEncontrado.plan?.toLowerCase().includes('invitado');
-    const porVencer = clienteEncontrado.dias_restantes <= 5 && clienteEncontrado.dias_restantes >= 0;
-
-    let resultadoColor = 'green';
-    let tituloFlash = '¡CORRECTO! ACCESO PERMITIDO';
-    let subtituloFlash = 'Torniquete Automático Desbloqueado';
-    let razonMensaje = 'Membresía activa y al corriente. ¡Disfruta tu entrenamiento!';
-    let resultadoBadge = 'Permitido';
-
-    if (esInactivo) {
-      resultadoColor = 'red';
-      tituloFlash = '¡ACCESO DENEGADO!';
-      subtituloFlash = 'Torniquete Bloqueado';
-      razonMensaje = 'Socio suspendido o dado de baja administrativa. Acudir a recepción.';
-      resultadoBadge = 'Denegado (Inactivo)';
-    } else if (esVencido) {
-      resultadoColor = 'red';
-      tituloFlash = '¡ACCESO DENEGADO!';
-      subtituloFlash = 'Membresía Vencida';
-      razonMensaje = `Su membresía venció hace ${Math.abs(clienteEncontrado.dias_restantes)} días (${clienteEncontrado.fecha_vencimiento}). Por favor renueve en caja.`;
-      resultadoBadge = 'Denegado (Vencido)';
-    } else if (esInvitado) {
-      resultadoColor = 'yellow';
-      tituloFlash = '¡ATENCIÓN! ACCESO CON PRECAUCIÓN';
-      subtituloFlash = 'Pase de Invitado (1 Día)';
-      razonMensaje = 'Pase de cortesía válido únicamente por 24 horas. ¡Bienvenido a Gymton!';
-      resultadoBadge = 'Invitado (1 Día)';
-    } else if (porVencer) {
-      resultadoColor = 'yellow';
-      tituloFlash = '¡ATENCIÓN! MEMBRESÍA POR VENCER';
-      subtituloFlash = `Le quedan ${clienteEncontrado.dias_restantes} días de acceso`;
-      razonMensaje = `Su membresía vence pronto (${clienteEncontrado.fecha_vencimiento}). Puede renovar anticipadamente en recepción.`;
-      resultadoBadge = `Por Vencer (${clienteEncontrado.dias_restantes} d)`;
+    // Intentar ejecutar el procedimiento del servidor generando un QR temporal para el cliente
+    try {
+      const qrData = await generarQrCliente(clienteEncontrado.id);
+      if (qrData && qrData.token) {
+        const respProc = await validarQrAccesoConProcedure(qrData.token);
+        if (respProc && respProc.acceso) {
+          emitirSonido('green');
+          setAlertaFlash({
+            color: 'green',
+            titulo: '¡CORRECTO! ACCESO PERMITIDO',
+            subtitulo: 'Torniquete Automático Desbloqueado',
+            razon: `Validado en MySQL para ${clienteEncontrado.nombre}.`,
+            cliente: clienteEncontrado
+          });
+          await cargarAccesos();
+          return;
+        }
+      }
+    } catch {
+      // Continuar con fallback offline si no responde el backend
     }
 
-    emitirSonido(resultadoColor);
+    // Fallback Offline usando el procedimiento simulado `sp_registrar_acceso`
+    const spLocal = sp_registrar_acceso(clienteEncontrado.id, estadoMembresiasBD);
+    const esPermitido = spLocal.resultado === 'PERMITIDO';
+    const esInvitado = clienteEncontrado.es_invitado;
+    const porVencer = clienteEncontrado.dias_restantes <= 5 && clienteEncontrado.dias_restantes >= 0;
+
+    let color = esPermitido ? (esInvitado || porVencer ? 'yellow' : 'green') : 'red';
+    emitirSonido(color);
 
     setAlertaFlash({
-      color: resultadoColor,
-      titulo: tituloFlash,
-      subtitulo: subtituloFlash,
-      razon: razonMensaje,
+      color,
+      titulo: color === 'green' ? '¡CORRECTO! ACCESO PERMITIDO' : color === 'yellow' ? '¡ATENCIÓN! ACCESO CON PRECAUCIÓN' : '¡ACCESO DENEGADO!',
+      subtitulo: color === 'green' ? 'Torniquete Desbloqueado' : color === 'yellow' ? `Restan ${clienteEncontrado.dias_restantes} días` : 'Membresía Vencida o Inactiva',
+      razon: color === 'red' ? 'Acudir a recepción a renovar membresía.' : 'Acceso registrado localmente.',
       cliente: clienteEncontrado
     });
 
-    const nuevoRegistro = {
+    const logLocal = {
       id: Date.now(),
       id_cliente: clienteEncontrado.id,
       uuid: clienteEncontrado.uuid,
       cliente_nombre: clienteEncontrado.nombre,
       plan: clienteEncontrado.plan,
-      fecha: spRes.fecha,
-      hora: horaActualStr,
-      resultado: resultadoBadge,
-      color: resultadoColor,
-      dias_restantes: clienteEncontrado.dias_restantes,
-      foto: clienteEncontrado.foto
+      fecha: fechaHoy,
+      hora: horaStr,
+      resultado: esPermitido ? 'Permitido' : 'Rechazado',
+      color,
+      dias_restantes: clienteEncontrado.dias_restantes
     };
 
-    const listaActualizada = [nuevoRegistro, ...accesos];
-    setAccesos(listaActualizada);
-    localStorage.setItem('gymton_accesos_log', JSON.stringify(listaActualizada));
+    const nuevosLogs = [logLocal, ...accesos];
+    setAccesos(nuevosLogs);
+    localStorage.setItem('gymton_accesos_log', JSON.stringify(nuevosLogs));
 
-    try {
-      await createAcceso({
-        id_cliente: clienteEncontrado.id,
-        fecha: spRes.fecha,
-        hora: spRes.hora,
-        resultado: resultadoColor === 'green' || resultadoColor === 'yellow' ? 'CONCEDIDO' : 'DENEGADO'
-      });
-      cargarAccesos();
-    } catch {
-      // Backend offline, el log local ya está resguardado
-    }
+    createAcceso({
+      id_cliente: clienteEncontrado.id,
+      fecha: fechaHoy,
+      hora: horaStr,
+      resultado: esPermitido ? 'CONCEDIDO' : 'DENEGADO'
+    }).catch(() => {});
   };
 
+  // Filtrado de accesos para la tabla
   const accesosFiltrados = accesos.filter((item) => {
     const texto = busqueda.toLowerCase().trim();
     const coincideTexto =
@@ -676,16 +426,8 @@ export function useAcceso(loggedUser) {
     alertaFlash,
     setAlertaFlash,
     tiempoRestanteFlash,
-    showSimuladorMovil,
-    setShowSimuladorMovil,
-    clienteSimulado,
-    setClienteSimulado,
-    qrJwtToken,
-    tokenCountdown,
-    tokenCargando,
     horaActual,
     obtenerListaClientes,
-    pedirQrDinamico,
     procesarAcceso,
     totalHoy,
     permitidosHoy,

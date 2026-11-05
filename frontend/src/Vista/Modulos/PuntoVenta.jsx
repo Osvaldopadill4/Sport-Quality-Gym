@@ -10,7 +10,8 @@ import {
   Receipt,
   Percent,
   User,
-  X
+  X,
+  DollarSign
 } from 'lucide-react';
 import '../../CSS/PuntoVenta.css';
 import Toast from '../Extras/Toast';
@@ -52,6 +53,7 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
     totalPagar,
     agregarAlCarrito,
     modificarCant,
+    establecerCantidad,
     eliminarDelCarrito,
     procesarVenta,
     fnCalcularSubtotal: calcSubtotal
@@ -59,8 +61,9 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
 
   const [cobroConfirmacion, setCobroConfirmacion] = React.useState({
     isOpen: false,
-    metodo: ''
+    metodo: 'Efectivo'
   });
+  const [cargandoCobro, setCargandoCobro] = React.useState(false);
 
   return (
     <div className="puntoventa-wrapper p-6 bg-zinc-950 min-h-screen text-gray-200">
@@ -306,11 +309,37 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
 
                     <div className="flex items-center justify-between pt-1 border-t border-zinc-700/40">
                       <div className="flex items-center gap-1 bg-zinc-950 rounded-lg p-0.5 border border-zinc-700 shrink-0">
-                        <button onClick={() => modificarCant(c.id, -1)} className="p-1 hover:bg-zinc-800 rounded text-gray-300 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => modificarCant(c.id, -1)}
+                          className="p-1 hover:bg-zinc-800 rounded text-gray-300 transition-colors"
+                          title="Restar 1"
+                        >
                           <Minus size={12} />
                         </button>
-                        <span className="w-6 text-center text-xs font-mono font-bold text-white">{c.cant}</span>
-                        <button onClick={() => modificarCant(c.id, 1)} className="p-1 hover:bg-zinc-800 rounded text-gray-300 transition-colors">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={2}
+                          value={c.cant}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 2);
+                            establecerCantidad(c.id, val);
+                          }}
+                          onBlur={() => {
+                            if (!c.cant || Number(c.cant) < 1) {
+                              establecerCantidad(c.id, 1);
+                            }
+                          }}
+                          className="w-7 text-center text-xs font-mono font-bold text-white bg-transparent outline-none focus:bg-zinc-800 rounded py-0.5"
+                          title="Cantidad (1 a 99)"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => modificarCant(c.id, 1)}
+                          className="p-1 hover:bg-zinc-800 rounded text-gray-300 transition-colors"
+                          title="Sumar 1"
+                        >
                           <Plus size={12} />
                         </button>
                       </div>
@@ -360,67 +389,99 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="pt-2">
               <button
+                type="button"
                 onClick={() => {
                   if (carrito.length === 0) return;
                   setCobroConfirmacion({ isOpen: true, metodo: 'Efectivo' });
                 }}
                 disabled={carrito.length === 0}
-                className="btn bg-emerald-500 hover:bg-emerald-400 text-black font-bold flex gap-2 border-none"
+                className="btn w-full bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-black flex items-center justify-center gap-2 border-none shadow-xl active:scale-[0.98] py-3.5 h-auto transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <Banknote size={18} /> Efectivo
-              </button>
-              <button
-                onClick={() => {
-                  if (carrito.length === 0) return;
-                  setCobroConfirmacion({ isOpen: true, metodo: 'Tarjeta' });
-                }}
-                disabled={carrito.length === 0}
-                className="btn bg-blue-500 hover:bg-blue-400 text-black font-bold flex gap-2 border-none"
-              >
-                <CreditCard size={18} /> Tarjeta
+                <DollarSign size={18} /> Cobrar Ticket (${totalPagar.toFixed(2)})
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de Confirmación de Cobro */}
+      {/* Modal de Confirmación y Selección de Modo de Pago */}
       <ConfirmModal
         isOpen={cobroConfirmacion.isOpen}
-        title="¿Estás seguro de cobrar?"
+        title="Confirmar Cobro"
         message={
-          <div className="space-y-2 text-left">
-            <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
-              <span className="text-zinc-400">Método de pago:</span>
-              <span className="font-bold text-white uppercase">{cobroConfirmacion.metodo}</span>
+          <div className="space-y-4 text-left pt-1">
+            {/* Resumen del ticket */}
+            <div className="bg-zinc-950/80 p-3.5 rounded-2xl border border-zinc-800 space-y-1.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Cliente / Socio:</span>
+                <span className="font-semibold text-emerald-400 truncate max-w-[200px]">{clienteSeleccionado}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Artículos en ticket:</span>
+                <span className="font-mono text-zinc-300 font-bold">{carrito.reduce((acc, c) => acc + (Number(c.cant) || 1), 0)} ítems</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-zinc-800/80">
+                <span className="text-zinc-300 font-bold text-sm">Total a cobrar:</span>
+                <span className="text-2xl font-black text-emerald-400 font-mono">${totalPagar.toFixed(2)}</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
-              <span className="text-zinc-400">Cliente / Socio:</span>
-              <span className="font-medium text-emerald-400">{clienteSeleccionado}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
-              <span className="text-zinc-400">Artículos en ticket:</span>
-              <span className="font-mono text-zinc-300">{carrito.reduce((acc, c) => acc + (Number(c.cant) || 1), 0)} ítems</span>
-            </div>
-            <div className="flex justify-between items-center text-base py-1">
-              <span className="font-bold text-white">Total a cobrar:</span>
-              <span className="text-2xl font-black text-emerald-400">${totalPagar.toFixed(2)}</span>
+
+            {/* Selector interactivo de Modo de Pago (Efectivo vs Tarjeta) */}
+            <div>
+              <label className="text-xs font-bold uppercase text-zinc-400 block mb-2">
+                Selecciona el Modo de Pago:
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCobroConfirmacion(prev => ({ ...prev, metodo: 'Efectivo' }))}
+                  className={`flex items-center justify-center gap-2.5 py-3 px-3 rounded-2xl text-xs font-black transition-all border ${
+                    cobroConfirmacion.metodo === 'Efectivo'
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-500 scale-[1.02]'
+                      : 'bg-zinc-800/80 text-zinc-400 border-zinc-700 hover:text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  <Banknote size={18} />
+                  <span>Efectivo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCobroConfirmacion(prev => ({ ...prev, metodo: 'Tarjeta' }))}
+                  className={`flex items-center justify-center gap-2.5 py-3 px-3 rounded-2xl text-xs font-black transition-all border ${
+                    cobroConfirmacion.metodo === 'Tarjeta'
+                      ? 'bg-blue-500/20 text-blue-400 border-blue-500 shadow-lg shadow-blue-500/20 ring-1 ring-blue-500 scale-[1.02]'
+                      : 'bg-zinc-800/80 text-zinc-400 border-zinc-700 hover:text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  <CreditCard size={18} />
+                  <span>Tarjeta</span>
+                </button>
+              </div>
             </div>
           </div>
         }
-        confirmText={`Confirmar Cobro ($${totalPagar.toFixed(2)})`}
-        cancelText="Volver"
+        confirmText={cargandoCobro ? "Procesando cobro..." : `Confirmar Cobro con ${cobroConfirmacion.metodo || 'Efectivo'}`}
+        cancelText="Volver al Ticket"
         tipo="success"
         onConfirm={async () => {
-          const met = cobroConfirmacion.metodo;
-          setCobroConfirmacion({ isOpen: false, metodo: '' });
-          if (met) {
+          if (cargandoCobro) return;
+          const met = cobroConfirmacion.metodo || 'Efectivo';
+          try {
+            setCargandoCobro(true);
             await procesarVenta(met);
+          } finally {
+            setCargandoCobro(false);
+            setCobroConfirmacion({ isOpen: false, metodo: 'Efectivo' });
           }
         }}
-        onCancel={() => setCobroConfirmacion({ isOpen: false, metodo: '' })}
+        onCancel={() => {
+          if (!cargandoCobro) {
+            setCobroConfirmacion({ isOpen: false, metodo: 'Efectivo' });
+          }
+        }}
       />
 
       {/* Modal Ticket de Venta extraído en `Vista/Extras/Modales/ModalTicketVenta.jsx` */}

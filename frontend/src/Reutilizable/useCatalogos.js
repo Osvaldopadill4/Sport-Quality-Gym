@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { getClientes, createCliente, updateCliente, deleteCliente } from '../JS/cliente';
-import { createMembresias } from '../JS/membresia';
 import { getPlanes, createPlanes, updatePlanes, deletePlanes } from '../JS/plan';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from '../JS/proveedor';
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from '../JS/usuarios';
@@ -19,7 +18,7 @@ export const generarUUID = () => {
 // =========================================================
 // 1. HOOK REUTILIZABLE: `useClientes`
 // =========================================================
-export function useClientes({ loggedUser }) {
+export function useClientes({ loggedUser, onIrAPuntoVenta }) {
   const usuarioActivo = loggedUser || (() => {
     try {
       const u = localStorage.getItem('gymton_current_user');
@@ -39,6 +38,7 @@ export function useClientes({ loggedUser }) {
   const [modalMode, setModalMode] = useState('create');
   const [cargandoBD, setCargandoBD] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
+  const [paseInvitadoModal, setPaseInvitadoModal] = useState({ isOpen: false, cliente: null, plan: null });
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -288,30 +288,12 @@ export function useClientes({ loggedUser }) {
           }
         } catch {}
 
-        const hoyDate = new Date();
-        const hoyStr = hoyDate.toISOString().split('T')[0];
-        const mananaStr = new Date(hoyDate.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-        const membresiaDefault = {
-          id_cliente: Number(nuevoClienteId),
-          cliente_nombre: payload.nombre.trim(),
-          id_plan: Number(plan1Dia.id),
-          plan_nombre: plan1Dia.nombre,
-          duracion_dias: 1,
-          fecha_inicio: hoyStr,
-          fecha_vencimiento: mananaStr,
-          estado: 'activa'
-        };
-
-        try {
-          const membCreada = await createMembresias(membresiaDefault);
-          const membGuardar = (membCreada && membCreada.id) ? membCreada : { ...membresiaDefault, id: Date.now() };
-          const membsLocal = JSON.parse(localStorage.getItem('gymton_membresias') || '[]');
-          const sinDup = membsLocal.filter(m => Number(m.id) !== Number(membGuardar.id));
-          localStorage.setItem('gymton_membresias', JSON.stringify([membGuardar, ...sinDup]));
-        } catch {}
-
-        mostrarAlerta(`Cliente "${payload.nombre.trim()}" registrado con Membresía Individual de 1 día por defecto`, 'success');
+        setPaseInvitadoModal({
+          isOpen: true,
+          cliente: { id: nuevoClienteId, nombre: payload.nombre.trim() },
+          plan: plan1Dia
+        });
+        mostrarAlerta(`Socio "${payload.nombre.trim()}" registrado exitosamente en la base de datos`, 'success');
         await cargarDatos();
       } else {
         await updateCliente(formData.id, payload);
@@ -383,6 +365,8 @@ export function useClientes({ loggedUser }) {
     inactivos,
     confirmModal,
     setConfirmModal,
+    paseInvitadoModal,
+    setPaseInvitadoModal,
     handleToggleEstado,
     pedirConfirmacionEliminar,
     confirmarEliminar,

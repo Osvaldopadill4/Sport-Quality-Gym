@@ -39,6 +39,13 @@ export const getCompras = async () => {
         if (!resCompras.ok) throw new Error('Error al obtener compras');
         const data = await resCompras.json();
         if (Array.isArray(data)) {
+            // Si la base de datos fue vaciada/reiniciada a 0 registros, limpiar la persistencia local previa
+            if (data.length === 0) {
+                localStorage.removeItem('gymton_compras');
+                localStorage.removeItem('gymton_compras_meta');
+                return [];
+            }
+
             const listaDetalles = Array.isArray(detallesDB) ? detallesDB : [];
             const enriquecidas = data.map(c => {
                 const meta = metaMap[String(c.id)] ||

@@ -16,6 +16,7 @@ import {
   Tag,
   User
 } from 'lucide-react';
+import '../../CSS/ReportesPrint.css';
 import { useReportes } from '../../Reutilizable/useReportes';
 
 export default function Reportes({ loggedUser }) {
@@ -27,8 +28,12 @@ export default function Reportes({ loggedUser }) {
     cortes,
     busqueda,
     setBusqueda,
-    filtroFecha,
-    setFiltroFecha,
+    fechaInicio,
+    setFechaInicio,
+    fechaFin,
+    setFechaFin,
+    limpiarFiltroFechas,
+    modoImpresion,
     metricas,
     ventasFiltradas,
     comprasFiltradas,
@@ -36,7 +41,10 @@ export default function Reportes({ loggedUser }) {
     resolverNombreClienteVenta,
     resolverDatosCompra,
     resolverCajeroCorte,
-    handleImprimir
+    handleImprimir,
+    imprimirVentas,
+    imprimirCompras,
+    imprimirCortes
   } = useReportes({ loggedUser });
 
   return (
@@ -53,30 +61,40 @@ export default function Reportes({ loggedUser }) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center bg-zinc-800 rounded-xl p-1 border border-zinc-700">
-            {[
-              { id: 'hoy', label: 'Hoy' },
-              { id: 'semana', label: '7 Días' },
-              { id: 'mes', label: '30 Días' },
-              { id: 'todos', label: 'Histórico' }
-            ].map(f => (
+          {/* Selector de Fechas Personalizadas (Desde / Hasta) */}
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs">
+            <span className="text-zinc-400 font-semibold">Desde:</span>
+            <input
+              type="date"
+              value={fechaInicio}
+              onChange={e => setFechaInicio(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-emerald-500"
+            />
+            <span className="text-zinc-400 font-semibold">Hasta:</span>
+            <input
+              type="date"
+              value={fechaFin}
+              onChange={e => setFechaFin(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:border-emerald-500"
+            />
+            {(fechaInicio || fechaFin) && (
               <button
-                key={f.id}
-                onClick={() => setFiltroFecha(f.id)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  filtroFecha === f.id ? 'bg-emerald-500 text-black shadow' : 'text-zinc-400 hover:text-white'
-                }`}
+                type="button"
+                onClick={limpiarFiltroFechas}
+                className="ml-1 text-[11px] text-zinc-400 hover:text-white underline cursor-pointer"
+                title="Limpiar rango de fechas"
               >
-                {f.label}
+                Limpiar
               </button>
-            ))}
+            )}
           </div>
 
           <button
             onClick={handleImprimir}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold border border-zinc-700 transition-all shadow"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-xl text-xs transition-all shadow-lg hover:shadow-emerald-500/20"
+            title="Imprimir Balance General Ejecutivo en formato Ticket / PDF"
           >
-            <Printer size={15} /> Imprimir / PDF
+            <Printer size={15} /> Imprimir Balance / Ticket PDF
           </button>
         </div>
       </div>
@@ -143,6 +161,172 @@ export default function Reportes({ loggedUser }) {
         </div>
       </div>
 
+      {/* ========================================================================= */}
+      {/* SECCIÓN DE GRÁFICAS COMPARATIVAS (3 PANELES VISUALES)                     */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+        {/* GRÁFICA 1: EFECTIVO VS TARJETA */}
+        <div className="bg-zinc-900/90 border border-zinc-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Banknote className="text-emerald-400 w-4 h-4" /> Métodos de Pago
+              </h3>
+              <span className="text-[11px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md">
+                Efectivo vs Tarjeta
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mb-4">
+              Distribución de ingresos según el medio de liquidación.
+            </p>
+
+            {/* Barra visual de distribución */}
+            <div className="w-full h-3.5 bg-zinc-800 rounded-full overflow-hidden flex p-0.5 gap-1 mb-4">
+              <div
+                style={{ width: `${metricas.pctEfectivo || 50}%` }}
+                className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
+                title={`Efectivo: ${metricas.pctEfectivo}%`}
+              />
+              <div
+                style={{ width: `${metricas.pctTarjeta || 50}%` }}
+                className="h-full bg-blue-500 rounded-r-full transition-all duration-500"
+                title={`Tarjeta: ${metricas.pctTarjeta}%`}
+              />
+            </div>
+
+            {/* Desglose numérico */}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center bg-zinc-950/70 p-2.5 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 text-zinc-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                  Efectivo ({metricas.pctEfectivo || 0}%)
+                </span>
+                <span className="font-bold text-emerald-400 font-mono">
+                  ${(metricas.ventasEfectivo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-950/70 p-2.5 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 text-zinc-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                  Tarjeta ({metricas.pctTarjeta || 0}%)
+                </span>
+                <span className="font-bold text-blue-400 font-mono">
+                  ${(metricas.ventasTarjeta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* GRÁFICA 2: MEMBRESÍAS VS TIENDA */}
+        <div className="bg-zinc-900/90 border border-zinc-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Tag className="text-purple-400 w-4 h-4" /> Líneas de Negocio
+              </h3>
+              <span className="text-[11px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md">
+                Planes vs Tienda
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mb-4">
+              Aportación de suscripciones vs venta física de suplementos y accesorios.
+            </p>
+
+            {/* Barra visual de distribución */}
+            <div className="w-full h-3.5 bg-zinc-800 rounded-full overflow-hidden flex p-0.5 gap-1 mb-4">
+              <div
+                style={{ width: `${metricas.pctMembresias || 50}%` }}
+                className="h-full bg-purple-500 rounded-l-full transition-all duration-500"
+                title={`Membresías: ${metricas.pctMembresias}%`}
+              />
+              <div
+                style={{ width: `${metricas.pctProductos || 50}%` }}
+                className="h-full bg-amber-500 rounded-r-full transition-all duration-500"
+                title={`Tienda: ${metricas.pctProductos}%`}
+              />
+            </div>
+
+            {/* Desglose numérico */}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center bg-zinc-950/70 p-2.5 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 text-zinc-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span>
+                  Membresías ({metricas.pctMembresias || 0}%)
+                </span>
+                <span className="font-bold text-purple-300 font-mono">
+                  ${(metricas.ingresosMembresias || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-950/70 p-2.5 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 text-zinc-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                  Tienda / Mostrador ({metricas.pctProductos || 0}%)
+                </span>
+                <span className="font-bold text-amber-400 font-mono">
+                  ${(metricas.ingresosProductos || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* GRÁFICA 3: VENTAS VS GASTOS (COMPRAS) */}
+        <div className="bg-zinc-900/90 border border-zinc-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <TrendingUp className="text-emerald-400 w-4 h-4" /> Balance: Ingresos vs Gastos
+              </h3>
+              <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded-md ${
+                metricas.margenEstimado >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'
+              }`}>
+                {metricas.margenEstimado >= 0 ? '+ Superávit' : '- Déficit'}
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mb-4">
+              Comparativa entre ventas brutas e inversión en reabastecimiento.
+            </p>
+
+            {/* Barra visual de distribución */}
+            <div className="w-full h-3.5 bg-zinc-800 rounded-full overflow-hidden flex p-0.5 gap-1 mb-4">
+              <div
+                style={{ width: `${metricas.pctVentasFlujo || 50}%` }}
+                className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
+                title={`Ventas: ${metricas.pctVentasFlujo}%`}
+              />
+              <div
+                style={{ width: `${metricas.pctComprasFlujo || 50}%` }}
+                className="h-full bg-red-500 rounded-r-full transition-all duration-500"
+                title={`Compras: ${metricas.pctComprasFlujo}%`}
+              />
+            </div>
+
+            {/* Desglose numérico */}
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center bg-zinc-950/70 p-2.5 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 text-zinc-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                  Ventas / Entradas ({metricas.pctVentasFlujo || 0}%)
+                </span>
+                <span className="font-bold text-emerald-400 font-mono">
+                  ${(metricas.totalVentas || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center bg-zinc-950/70 p-2.5 rounded-xl border border-zinc-800">
+                <span className="flex items-center gap-2 text-zinc-300 font-medium">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                  Compras / Salidas ({metricas.pctComprasFlujo || 0}%)
+                </span>
+                <span className="font-bold text-red-400 font-mono">
+                  ${(metricas.totalCompras || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Selector de Pestañas / Tablas */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <div className="flex items-center gap-2 flex-wrap border-b border-zinc-800 pb-2 w-full sm:w-auto">
@@ -180,7 +364,8 @@ export default function Reportes({ loggedUser }) {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          
           {tabActiva === 'ventas' && (
             <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-1 text-[11px] font-bold">
               <button
@@ -205,6 +390,38 @@ export default function Reportes({ loggedUser }) {
                 Tienda ({metricas.ticketsProductos})
               </button>
             </div>
+          )}
+
+          
+          {/* Botones de exportación PDF individuales por tabla */}
+          {tabActiva === 'ventas' && (
+            <button
+              onClick={imprimirVentas}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs text-white font-bold transition-all shadow"
+              title="Descargar o Imprimir sólo Tabla de Ventas en PDF"
+            >
+              <Printer size={13} className="text-emerald-400" /> PDF Ventas
+            </button>
+          )}
+
+          {tabActiva === 'compras' && (
+            <button
+              onClick={imprimirCompras}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs text-white font-bold transition-all shadow"
+              title="Descargar o Imprimir sólo Tabla de Compras en PDF"
+            >
+              <Printer size={13} className="text-amber-400" /> PDF Compras
+            </button>
+          )}
+
+          {tabActiva === 'cortes' && (
+            <button
+              onClick={imprimirCortes}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs text-white font-bold transition-all shadow"
+              title="Descargar o Imprimir sólo Arqueos y Cortes en PDF"
+            >
+              <Printer size={13} className="text-blue-400" /> PDF Cortes
+            </button>
           )}
 
           <div className="relative w-full sm:w-64">
@@ -432,6 +649,184 @@ export default function Reportes({ loggedUser }) {
             </table>
           </div>
         )}
+      
+      </div>
+
+      {/* SECCIÓN IMPRIMIBLE EXCLUSIVA (ESTILO TICKET EJECUTIVO / PDF FORMAL) */}
+      <div className="print-only-container">
+        <div className="ticket-print-header">
+          <h1>GYMTON FITNESS CLUB</h1>
+          <h2>
+            {modoImpresion === 'ventas' ? 'REPORTE AUDITADO DE VENTAS' :
+             modoImpresion === 'compras' ? 'REPORTE DE COMPRAS Y GASTOS A PROVEEDORES' :
+             modoImpresion === 'cortes' ? 'AUDITORÍA Y ARQUEOS DE CORTE DE CAJA' :
+             'BALANCE GENERAL Y REPORTE EJECUTIVO DE OPERACIONES'}
+          </h2>
+          <div className="ticket-print-meta">
+            <span><strong>Fecha Emisión:</strong> {new Date().toLocaleDateString('es-MX')} {new Date().toLocaleTimeString()}</span>
+            <span><strong>Período Consultado:</strong> {fechaInicio || 'Inicio'} al {fechaFin || 'Hoy'}</span>
+            <span><strong>Emitido por:</strong> {loggedUser?.nombre || 'Administrador'}</span>
+          </div>
+        </div>
+
+        {/* Resumen Financiero de Balance */}
+        <div className="ticket-balance-box">
+          <div className="ticket-balance-title">Resumen Financiero y Balance de Caja</div>
+          <div className="ticket-balance-grid">
+            <div className="ticket-stat-item">
+              <span className="label">Ingresos Ventas</span>
+              <span className="val">${metricas.totalVentas.toFixed(2)}</span>
+            </div>
+            <div className="ticket-stat-item">
+              <span className="label">Efectivo ({metricas.pctEfectivo}%)</span>
+              <span className="val">${metricas.ventasEfectivo.toFixed(2)}</span>
+            </div>
+            <div className="ticket-stat-item">
+              <span className="label">Tarjeta ({metricas.pctTarjeta}%)</span>
+              <span className="val">${metricas.ventasTarjeta.toFixed(2)}</span>
+            </div>
+            <div className="ticket-stat-item">
+              <span className="label">Egresos Compras</span>
+              <span className="val">${metricas.totalCompras.toFixed(2)}</span>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #e5e7eb', fontSize: '11pt', fontWeight: 'bold' }}>
+            BALANCE NETO: <span style={{ color: metricas.balanceNeto >= 0 ? '#059669' : '#dc2626' }}>${metricas.balanceNeto.toFixed(2)} MXN</span>
+          </div>
+        </div>
+
+        {/* TABLA: Ventas */}
+        {(modoImpresion === 'general' || modoImpresion === 'ventas') && (
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid #374151' }}>
+              Desglose de Ventas ({ventasFiltradas.length} operaciones)
+            </h3>
+            <table className="ticket-print-table">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Fecha</th>
+                  <th>Cliente</th>
+                  <th>Concepto / Artículos</th>
+                  <th>Modo Pago</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ventasFiltradas.slice(0, 100).map(v => (
+                  <tr key={v.id}>
+                    <td>{v.folio || '#' + v.id}</td>
+                    <td>{(v.fecha || '').slice(0, 16)}</td>
+                    <td>{resolverNombreClienteVenta(v)}</td>
+                    <td>{clasificarVenta(v).conceptoResumen}</td>
+                    <td>{v.metodo_pago || 'Efectivo'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(v.total || 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="5">TOTAL VENTAS REGISTRADAS</td>
+                  <td style={{ textAlign: 'right' }}>${metricas.totalVentas.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* TABLA: Compras */}
+        {(modoImpresion === 'general' || modoImpresion === 'compras') && (
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid #374151' }}>
+              Desglose de Compras y Suministros ({comprasFiltradas.length} registros)
+            </h3>
+            <table className="ticket-print-table">
+              <thead>
+                <tr>
+                  <th># Compra</th>
+                  <th>Fecha</th>
+                  <th>Proveedor</th>
+                  <th>Artículos / Insumos</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comprasFiltradas.slice(0, 100).map(c => {
+                  const datos = resolverDatosCompra(c);
+                  return (
+                    <tr key={c.id}>
+                      <td>#{c.id}</td>
+                      <td>{(c.fecha || '').slice(0, 10)}</td>
+                      <td>{datos.proveedor}</td>
+                      <td>{datos.articulos}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(c.total || 0).toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="4">TOTAL COMPRAS Y GASTOS</td>
+                  <td style={{ textAlign: 'right' }}>${metricas.totalCompras.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* TABLA: Cortes */}
+        {(modoImpresion === 'general' || modoImpresion === 'cortes') && (
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid #374151' }}>
+              Auditoría de Cortes y Arqueos de Caja ({cortes.length} turnos)
+            </h3>
+            <table className="ticket-print-table">
+              <thead>
+                <tr>
+                  <th># Corte</th>
+                  <th>Cajero</th>
+                  <th>Apertura</th>
+                  <th>Cierre</th>
+                  <th style={{ textAlign: 'right' }}>Fondo</th>
+                  <th style={{ textAlign: 'right' }}>Ventas</th>
+                  <th style={{ textAlign: 'right' }}>Físico</th>
+                  <th style={{ textAlign: 'right' }}>Diferencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cortes.map(cc => {
+                  const dif = Number(cc.diferencia || 0);
+                  return (
+                    <tr key={cc.id}>
+                      <td>#{cc.id}</td>
+                      <td>{resolverCajeroCorte(cc)}</td>
+                      <td>{(cc.fecha_apertura || '').slice(0, 16)}</td>
+                      <td>{(cc.fecha_cierre || 'En Curso').slice(0, 16)}</td>
+                      <td style={{ textAlign: 'right' }}>${Number(cc.monto_inicial || 500).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }}>${Number(cc.total_ventas || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }}>${Number(cc.monto_real || 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                        {dif === 0 ? '$0.00' : dif > 0 ? `+${dif.toFixed(2)}` : `-${Math.abs(dif).toFixed(2)}`}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Firmas de Autorización */}
+        <div className="ticket-firmas-box">
+          <div className="ticket-firma">
+            <div className="ticket-firma-linea"></div>
+            <span>Firma del Cajero / Responsable</span>
+          </div>
+          <div className="ticket-firma">
+            <div className="ticket-firma-linea"></div>
+            <span>Firma de Auditoría / Gerencia</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -4,9 +4,9 @@ import { getCompras } from '../JS/compra';
 import { getCorteCaja } from '../JS/corte_caja';
 import { getProductos } from '../JS/producto';
 import { getClientes } from '../JS/cliente';
-import { getPlanes } from '../JS/plan';
 import { getProveedores } from '../JS/proveedor';
 import { getUsuarios } from '../JS/usuarios';
+import { getReporteVentas } from '../JS/reportes_api';
 import {
   sp_ventas_por_fecha,
   sp_productos_mas_vendidos,
@@ -15,11 +15,9 @@ import {
 
 /**
  * Hook Reutilizable `useReportes`:
- * Centraliza las consultas de ventas, compras, cortes de caja y catálogos,
- * e integra los procedimientos y funciones SQL de `gympos.sql`:
- * - `sp_ventas_por_fecha`
- * - `sp_productos_mas_vendidos`
- * - `fn_total_gastado_cliente`
+ * Consume de forma optimizada la vista SQL `vw_detalle_ventas` (/api/reporte/ventas),
+ * centraliza métricas financieras (Efectivo/Tarjeta, Membresías/Tienda, Ventas/Gastos),
+ * permite filtrado dinámico por fechas libres e integra reportes impresos/PDF.
  */
 export function useReportes({ loggedUser }) {
   const [tabActiva, setTabActiva] = useState('ventas');
@@ -29,41 +27,64 @@ export function useReportes({ loggedUser }) {
   const [cortes, setCortes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
-  const [planes, setPlanes] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroFecha, setFiltroFecha] = useState('todos');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+  const [modoImpresion, setModoImpresion] = useState('general'); // 'general' | 'ventas' | 'compras' | 'cortes'
 
+  // Carga optimizada: Si la vista SQL `/api/reporte/ventas` está disponible, la usa directamente
   useEffect(() => {
     const cargarTodo = async () => {
       try {
         const [
-          resVentas,
+          resVistaVentas,
+          resVentasNormales,
           resCompras,
           resCortes,
           resProds,
           resClis,
-          resPlanes,
           resProvs,
           resUsrs
         ] = await Promise.allSettled([
+          getReporteVentas(),
           getVenta(),
           getCompras(),
           getCorteCaja(),
           getProductos(),
           getClientes(),
-          getPlanes(),
           getProveedores(),
           getUsuarios()
         ]);
 
-        if (resVentas.status === 'fulfilled' && Array.isArray(resVentas.value)) setVentas(resVentas.value);
+        if (resVistaVentas.status === 'fulfilled' && Array.isArray(resVistaVentas.value) && resVistaVentas.value.length > 0) {
+          const adaptadas = resVistaVentas.value.map(row => ({
+            id: row.id_venta,
+            folio: `V-${String(row.id_venta).padStart(6, '0')}`,
+            fecha: row.fecha,
+            cliente: row.cliente || 'Público General',
+            empleado: row.empleado || 'Cajero',
+            articulo: row.articulo || 'Producto',
+            conceptoResumen: row.articulo || 'Producto',
+            cantidad: Number(row.cantidad) || 1,
+            precio_unitario: Number(row.precio_unitario) || 0,
+            subtotal: Number(row.subtotal) || Number(row.total) || 0,
+            total: Number(row.total) || Number(row.subtotal) || 0,
+            metodo_pago: row.metodo_pago || 'Efectivo',
+            es_membresia: Boolean(
+              String(row.articulo || '').toLowerCase().match(/membres|plan|mensual|anual|semanal|renov/)
+            )
+          }));
+          setVentas(adaptadas);
+        } else if (resVentasNormales.status === 'fulfilled' && Array.isArray(resVentasNormales.value)) {
+          setVentas(resVentasNormales.value);
+        }
+
         if (resCompras.status === 'fulfilled' && Array.isArray(resCompras.value)) setCompras(resCompras.value);
         if (resCortes.status === 'fulfilled' && Array.isArray(resCortes.value)) setCortes(resCortes.value);
         if (resProds.status === 'fulfilled' && Array.isArray(resProds.value)) setProductos(resProds.value);
         if (resClis.status === 'fulfilled' && Array.isArray(resClis.value)) setClientes(resClis.value);
-        if (resPlanes.status === 'fulfilled' && Array.isArray(resPlanes.value)) setPlanes(resPlanes.value);
         if (resProvs.status === 'fulfilled' && Array.isArray(resProvs.value)) setProveedores(resProvs.value);
         if (resUsrs.status === 'fulfilled' && Array.isArray(resUsrs.value)) setUsuarios(resUsrs.value);
       } catch (err) {
@@ -74,238 +95,159 @@ export function useReportes({ loggedUser }) {
     cargarTodo();
   }, []);
 
+  // Función compacta para resolver nombre del cliente
   const resolverNombreClienteVenta = useCallback((v) => {
     if (!v) return 'Público General';
-    if (v.id_cliente) {
-      const cli = clientes.find(c => Number(c.id) === Number(v.id_cliente));
-      if (cli && cli.nombre) return cli.nombre;
-    }
     if (v.cliente && v.cliente !== 'Público General') {
-      const match = String(v.cliente).match(/#(\d+)/);
-      if (match) {
-        const idExtraido = Number(match[1]);
-        const cli = clientes.find(c => Number(c.id) === idExtraido);
-        if (cli && cli.nombre) return cli.nombre;
-      }
       return String(v.cliente).replace(/\s*\(Socio\s*#\d+\)/gi, '').trim() || v.cliente;
+    }
+    if (v.id_cliente) {
+      const c = clientes.find(cli => Number(cli.id) === Number(v.id_cliente));
+      if (c && c.nombre) return c.nombre;
     }
     return 'Público General';
   }, [clientes]);
 
-  const esItemMembresia = useCallback((d) => {
-    if (!d) return false;
-    if (d.es_membresia || (d.id_plan && !d.id_producto)) return true;
-    const art = String(d.articulo || '').toLowerCase();
-    if (
-      art.includes('membresía') ||
-      art.includes('membresia') ||
-      art.includes('plan') ||
-      art.includes('renovación') ||
-      art.includes('renovacion') ||
-      art.includes('mensual') ||
-      art.includes('anual') ||
-      art.includes('semanal') ||
-      art.includes('estudiantil') ||
-      art.includes('invitado') ||
-      art.includes('individual')
-    ) {
-      return true;
-    }
-    if (planes.some(pl => pl.nombre && pl.duracion_dias && art.includes(pl.nombre.toLowerCase()))) {
-      return true;
-    }
-    return false;
-  }, [planes]);
-
+  // Clasificación rápida de tipo de venta (Membresía vs Producto)
   const clasificarVenta = useCallback((v) => {
-    if (!v) return { esMembresia: false, montoMembresia: 0, montoProducto: 0, conceptoResumen: 'Venta Mostrador' };
-    const totalVenta = Number(v.total) || 0;
+    if (!v) return { esMembresia: false, esMixta: false, montoMembresia: 0, montoProducto: 0, conceptoResumen: 'Venta Mostrador' };
+    const tot = Number(v.total) || 0;
+    const esMembresia = Boolean(
+      v.es_membresia ||
+      v.tipo_venta === 'Membresía' ||
+      String(v.articulo || '').toLowerCase().match(/membres|plan|mensual|anual|semanal|renov/) ||
+      (Array.isArray(v.detalles) && v.detalles.some(d => d.es_membresia || d.id_plan || String(d.articulo || '').toLowerCase().match(/membres|plan|renov/)))
+    );
 
-    if (Array.isArray(v.detalles) && v.detalles.length > 0) {
-      let mMemb = 0;
-      let mProd = 0;
-      const nombres = [];
-
-      v.detalles.forEach(d => {
-        const subt = Number(d.subtotal) || (Number(d.cantidad || 1) * Number(d.precio_unitario || 0)) || 0;
-        let nombreArt = d.articulo || '';
-        if (d.id_plan && (!nombreArt || nombreArt.startsWith('Membresía / Plan #'))) {
-          const plObj = planes.find(p => Number(p.id) === Number(d.id_plan));
-          if (plObj) nombreArt = `Plan ${plObj.nombre}`;
-        } else if (d.id_producto && (!nombreArt || nombreArt.startsWith('Producto #'))) {
-          const prObj = productos.find(p => Number(p.id) === Number(d.id_producto));
-          if (prObj) nombreArt = prObj.nombre;
-        }
-        if (nombreArt) nombres.push(`${d.cantidad || 1}x ${nombreArt}`);
-
-        if (esItemMembresia(d)) {
-          mMemb += subt;
-        } else {
-          mProd += subt;
-        }
-      });
-
-      if (mMemb > 0 && mProd === 0) {
-        return {
-          esMembresia: true,
-          esMixta: false,
-          montoMembresia: totalVenta,
-          montoProducto: 0,
-          conceptoResumen: nombres.join(', ') || 'Renovación / Membresía'
-        };
-      }
-      if (mMemb > 0 && mProd > 0) {
-        return {
-          esMembresia: true,
-          esMixta: true,
-          montoMembresia: mMemb,
-          montoProducto: Math.max(0, totalVenta - mMemb),
-          conceptoResumen: nombres.join(', ')
-        };
-      }
-      return {
-        esMembresia: false,
-        esMixta: false,
-        montoMembresia: 0,
-        montoProducto: totalVenta,
-        conceptoResumen: nombres.join(', ') || 'Productos de Tienda'
-      };
-    }
-
-    if (v.es_membresia || v.tipo_venta === 'Membresía') {
-      return {
-        esMembresia: true,
-        esMixta: false,
-        montoMembresia: totalVenta,
-        montoProducto: 0,
-        conceptoResumen: 'Renovación / Membresía'
-      };
-    }
+    const concepto = v.conceptoResumen || v.articulo || (Array.isArray(v.detalles) && v.detalles.length > 0 ? v.detalles.map(d => `${d.cantidad || 1}x ${d.articulo || 'Art'}`).join(', ') : 'Venta Tienda');
 
     return {
-      esMembresia: false,
+      esMembresia,
       esMixta: false,
-      montoMembresia: 0,
-      montoProducto: totalVenta,
-      conceptoResumen: 'Productos de Tienda'
+      montoMembresia: esMembresia ? tot : 0,
+      montoProducto: esMembresia ? 0 : tot,
+      conceptoResumen: concepto
     };
-  }, [esItemMembresia, planes, productos]);
+  }, []);
 
-  // Calcular rango de fechas y usar `sp_ventas_por_fecha`
+  // Rango de fechas libre (personalizado)
   const obtenerRangoFechas = useCallback(() => {
-    const hoy = new Date();
-    const finStr = hoy.toISOString().split('T')[0];
-    if (filtroFecha === 'hoy') {
-      return { inicio: finStr, fin: finStr };
-    }
-    if (filtroFecha === 'semana') {
-      const hace7 = new Date(hoy.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      return { inicio: hace7, fin: finStr };
-    }
-    if (filtroFecha === 'mes') {
-      const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      return { inicio: hace30, fin: finStr };
-    }
-    return { inicio: null, fin: null };
-  }, [filtroFecha]);
+    return {
+      inicio: fechaInicio || null,
+      fin: fechaFin || null
+    };
+  }, [fechaInicio, fechaFin]);
 
   const filtrarPorFecha = useCallback((fechaStr) => {
-    if (filtroFecha === 'todos' || !fechaStr) return true;
-    const { inicio, fin } = obtenerRangoFechas();
-    const res = sp_ventas_por_fecha([{ fecha: fechaStr }], inicio, fin);
-    return res.length > 0;
-  }, [filtroFecha, obtenerRangoFechas]);
+    if (!fechaStr) return true;
+    const soloFecha = String(fechaStr).slice(0, 10);
+    if (fechaInicio && soloFecha < fechaInicio) return false;
+    if (fechaFin && soloFecha > fechaFin) return false;
+    return true;
+  }, [fechaInicio, fechaFin]);
 
+  const limpiarFiltroFechas = () => {
+    setFechaInicio('');
+    setFechaFin('');
+  };
+
+  const imprimirSeccion = (seccion = 'general') => {
+    setModoImpresion(seccion);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  // Cálculo consolidado de métricas y porcentajes para las 3 gráficas
   const metricas = useMemo(() => {
     const { inicio, fin } = obtenerRangoFechas();
-    const ventasFiltradas = sp_ventas_por_fecha(ventas, inicio, fin);
-    const comprasFiltradas = sp_ventas_por_fecha(compras, inicio, fin);
+    const vFiltradas = sp_ventas_por_fecha(ventas, inicio, fin);
+    const cFiltradas = sp_ventas_por_fecha(compras, inicio, fin);
 
     let ingresosMembresias = 0;
     let ingresosProductos = 0;
     let ticketsMembresias = 0;
     let ticketsProductos = 0;
+    let ventasEfectivo = 0;
+    let ventasTarjeta = 0;
 
-    ventasFiltradas.forEach(v => {
+    vFiltradas.forEach(v => {
       const info = clasificarVenta(v);
       ingresosMembresias += info.montoMembresia;
       ingresosProductos += info.montoProducto;
-      if (info.esMembresia) ticketsMembresias += 1;
-      else ticketsProductos += 1;
+      if (info.esMembresia) ticketsMembresias++; else ticketsProductos++;
+
+      const tot = Number(v.total) || 0;
+      const met = String(v.metodo_pago || '').toLowerCase();
+      if (met.includes('tarjeta') || Number(v.id_modopago) === 2) {
+        ventasTarjeta += tot;
+      } else {
+        ventasEfectivo += tot;
+      }
     });
 
     const totalVentas = ingresosMembresias + ingresosProductos;
-    const totalCompras = comprasFiltradas.reduce((acc, c) => acc + (Number(c.total) || (Number(c.cantidad) * Number(c.costo_unitario)) || 0), 0);
+    const totalCompras = cFiltradas.reduce((acc, c) => acc + (Number(c.total) || (Number(c.cantidad) * Number(c.costo_unitario)) || 0), 0);
     const margenEstimado = totalVentas - totalCompras;
 
-    // Procedimiento SQL `sp_productos_mas_vendidos`
-    const topProductos = sp_productos_mas_vendidos(ventasFiltradas, productos);
+    const basePago = (ventasEfectivo + ventasTarjeta) || 1;
+    const baseNegocio = (ingresosMembresias + ingresosProductos) || 1;
+    const baseFlujo = (totalVentas + totalCompras) || 1;
 
     return {
       totalVentas,
       totalCompras,
       margenEstimado,
-      cantidadTickets: ventasFiltradas.length,
+      balanceNeto: margenEstimado,
+      cantidadTickets: vFiltradas.length,
       ticketsMembresias,
       ticketsProductos,
-      cantidadCompras: comprasFiltradas.length,
+      cantidadCompras: cFiltradas.length,
       ingresosMembresias,
       ingresosProductos,
-      topProductos
+      ventasEfectivo,
+      ventasTarjeta,
+      pctEfectivo: Math.round((ventasEfectivo / basePago) * 100),
+      pctTarjeta: Math.max(0, 100 - Math.round((ventasEfectivo / basePago) * 100)),
+      pctMembresias: Math.round((ingresosMembresias / baseNegocio) * 100),
+      pctProductos: Math.max(0, 100 - Math.round((ingresosMembresias / baseNegocio) * 100)),
+      pctVentasFlujo: Math.round((totalVentas / baseFlujo) * 100),
+      pctComprasFlujo: Math.max(0, 100 - Math.round((totalVentas / baseFlujo) * 100)),
+      topProductos: sp_productos_mas_vendidos(vFiltradas, productos)
     };
   }, [ventas, compras, productos, obtenerRangoFechas, clasificarVenta]);
 
+  // Lista filtrada de ventas para la tabla
   const ventasFiltradas = useMemo(() => {
     return ventas.filter(v => {
       if (!filtrarPorFecha(v.fecha)) return false;
       const info = clasificarVenta(v);
       if (subFiltroVentas === 'membresias' && !info.esMembresia) return false;
-      if (subFiltroVentas === 'productos' && info.esMembresia && !info.esMixta) return false;
+      if (subFiltroVentas === 'productos' && info.esMembresia) return false;
 
       if (!busqueda) return true;
       const b = busqueda.toLowerCase();
-      const clienteNom = resolverNombreClienteVenta(v).toLowerCase();
+      const cliNom = resolverNombreClienteVenta(v).toLowerCase();
       return (
         (v.folio && v.folio.toLowerCase().includes(b)) ||
-        clienteNom.includes(b) ||
+        cliNom.includes(b) ||
         info.conceptoResumen.toLowerCase().includes(b) ||
         (v.empleado && v.empleado.toLowerCase().includes(b))
       );
     });
   }, [ventas, busqueda, subFiltroVentas, filtrarPorFecha, clasificarVenta, resolverNombreClienteVenta]);
 
+  // Resolución de datos de compras a proveedores
   const resolverDatosCompra = useCallback((c) => {
     const totalInv = Number(c.total) || (Number(c.cantidad || 0) * Number(c.costo_unitario || 0)) || 0;
-    const provObj = proveedores.find(pr => Number(pr.id) === Number(c.id_proveedor));
-    const provNombre = c.proveedor_nombre || (provObj ? (provObj.nombre_empresa || provObj.nombre) : 'Proveedor Comercial');
+    const prov = proveedores.find(pr => Number(pr.id) === Number(c.id_proveedor));
+    const provNombre = c.proveedor_nombre || (prov ? (prov.nombre_empresa || prov.nombre) : 'Proveedor Comercial');
+    const prod = productos.find(p => Number(p.id) === Number(c.id_producto));
+    const prodNombre = c.producto_nombre || prod?.nombre || 'Reabastecimiento de Suplementos';
+    const cant = Number(c.cantidad) || (totalInv > 0 ? 10 : 0);
+    const costoUnit = Number(c.costo_unitario ?? c.costo) || (cant > 0 ? Number((totalInv / cant).toFixed(2)) : 0);
 
-    const prodObj = productos.find(p => Number(p.id) === Number(c.id_producto));
-    let prodNombre = c.producto_nombre || prodObj?.nombre || null;
-    let cant = Number(c.cantidad) || 0;
-    let costoUnit = Number(c.costo_unitario ?? c.costo) || 0;
-
-    if (!prodNombre) {
-      const prodPorCosto = productos.find(p => p.precio && totalInv > 0 && totalInv % Math.max(1, Math.round(Number(p.precio) * 0.6)) === 0);
-      prodNombre = prodPorCosto?.nombre || productos[0]?.nombre || 'Reabastecimiento de Suplementos';
-    }
-    if (cant <= 0 && totalInv > 0) {
-      if (costoUnit > 0) {
-        cant = Math.max(1, Math.round(totalInv / costoUnit));
-      } else {
-        cant = 10;
-        costoUnit = Number((totalInv / cant).toFixed(2));
-      }
-    } else if (costoUnit <= 0 && cant > 0 && totalInv > 0) {
-      costoUnit = Number((totalInv / cant).toFixed(2));
-    }
-
-    return {
-      provNombre,
-      prodNombre,
-      cant,
-      costoUnit,
-      totalInv
-    };
+    return { provNombre, prodNombre, cant, costoUnit, totalInv };
   }, [productos, proveedores]);
 
   const comprasFiltradas = useMemo(() => {
@@ -324,17 +266,13 @@ export function useReportes({ loggedUser }) {
 
   const resolverCajeroCorte = useCallback((cc) => {
     if (cc.cajero_nombre && !String(cc.cajero_nombre).startsWith('Usuario #')) return cc.cajero_nombre;
-    const uObj = usuarios.find(u => Number(u.id) === Number(cc.id_usuario));
-    if (uObj && uObj.nombre) return `${uObj.nombre} ${uObj.apellido || ''}`.trim();
+    const u = usuarios.find(usr => Number(usr.id) === Number(cc.id_usuario));
+    if (u && u.nombre) return `${u.nombre} ${u.apellido || ''}`.trim();
     if (loggedUser && (Number(loggedUser.id) === Number(cc.id_usuario) || !cc.id_usuario)) {
       return `${loggedUser.nombre || ''} ${loggedUser.apellido || ''}`.trim() || 'Administrador';
     }
     return `Usuario #${cc.id_usuario || 1}`;
   }, [usuarios, loggedUser]);
-
-  const handleImprimir = () => {
-    window.print();
-  };
 
   return {
     tabActiva,
@@ -344,8 +282,13 @@ export function useReportes({ loggedUser }) {
     cortes,
     busqueda,
     setBusqueda,
-    filtroFecha,
-    setFiltroFecha,
+    fechaInicio,
+    setFechaInicio,
+    fechaFin,
+    setFechaFin,
+    limpiarFiltroFechas,
+    modoImpresion,
+    imprimirSeccion,
     metricas,
     ventasFiltradas,
     comprasFiltradas,
@@ -353,7 +296,10 @@ export function useReportes({ loggedUser }) {
     resolverNombreClienteVenta,
     resolverDatosCompra,
     resolverCajeroCorte,
-    handleImprimir,
+    handleImprimir: () => imprimirSeccion('general'),
+    imprimirVentas: () => imprimirSeccion('ventas'),
+    imprimirCompras: () => imprimirSeccion('compras'),
+    imprimirCortes: () => imprimirSeccion('cortes'),
     fnTotalGastadoCliente: (idCli) => fn_total_gastado_cliente(idCli, ventas)
   };
 }

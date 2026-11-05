@@ -86,10 +86,14 @@ export const abrirCorteCaja = async (datos) => {
         id_usuario: datos.id_usuario ? Number(datos.id_usuario) : 1,
         fecha_apertura: datos.fecha_apertura || hoyStr,
         fecha_cierre: null,
-        total_ventas: "0",
+        monto_inicial: montoInicial,
+        total_ventas: "0.00",
         monto_calculado: String(montoInicial),
-        monto_real: "0",
-        diferencia: "0"
+        monto_real: "0.00",
+        diferencia: "0.00",
+        total_gastos: 0,
+        tarjeta: 0,
+        efectivo: 0
     };
 
     let corteCreado = null;
@@ -150,10 +154,14 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
         id_usuario: datosCierre.id_usuario ? Number(datosCierre.id_usuario) : (corteActual?.id_usuario ? Number(corteActual.id_usuario) : 1),
         fecha_apertura: corteActual?.fecha_apertura || hoyStr,
         fecha_cierre: hoyStr,
-        total_ventas: String(totalVentas),
-        monto_calculado: String(montoCalculado),
-        monto_real: String(montoReal),
-        diferencia: String(diferencia)
+        monto_inicial: montoInicial,
+        total_ventas: String(totalVentas.toFixed(2)),
+        monto_calculado: String(montoCalculado.toFixed(2)),
+        monto_real: String(montoReal.toFixed(2)),
+        diferencia: String(diferencia.toFixed(2)),
+        total_gastos: Number(datosCierre.total_gastos || 0),
+        tarjeta: Number(datosCierre.tarjeta || datosCierre.ventas_tarjeta || 0),
+        efectivo: Number(datosCierre.efectivo || datosCierre.ventas_efectivo || 0)
     };
 
     let corteActualizado = null;

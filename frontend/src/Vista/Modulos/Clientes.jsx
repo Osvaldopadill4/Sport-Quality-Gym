@@ -21,7 +21,7 @@ import { useClientes, esEstadoActivo as checkActivo } from '../../Reutilizable/u
 
 export const esEstadoActivo = checkActivo;
 
-export default function Clientes({ loggedUser }) {
+export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
   const {
     usuarioActivo,
     clientesFiltrados,
@@ -47,6 +47,8 @@ export default function Clientes({ loggedUser }) {
     inactivos,
     confirmModal,
     setConfirmModal,
+    paseInvitadoModal,
+    setPaseInvitadoModal,
     handleToggleEstado,
     pedirConfirmacionEliminar,
     confirmarEliminar,
@@ -54,7 +56,7 @@ export default function Clientes({ loggedUser }) {
     handleSave,
     esEstadoActivo: esActivoFn,
     generarUUID
-  } = useClientes({ loggedUser });
+  } = useClientes({ loggedUser, onIrAPuntoVenta });
 
   return (
     <div className="clientes-wrapper">
@@ -287,7 +289,7 @@ export default function Clientes({ loggedUser }) {
         generarUUID={generarUUID}
       />
 
-      <ConfirmModal
+            <ConfirmModal
         isOpen={confirmModal.isOpen}
         title="¿Eliminar Cliente?"
         message={`¿Estás seguro de que deseas eliminar permanentemente al cliente "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
@@ -296,6 +298,51 @@ export default function Clientes({ loggedUser }) {
         onConfirm={confirmarEliminar}
         onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
         tipo="danger"
+      />
+
+      <ConfirmModal
+        isOpen={paseInvitadoModal?.isOpen}
+        title="¿Cobrar Pase de Invitado en Caja?"
+        message={
+          <div className="space-y-3 text-left pt-1">
+            <p className="text-sm text-zinc-300">
+              El socio <strong className="text-emerald-400">{paseInvitadoModal?.cliente?.nombre}</strong> ha sido registrado en la base de datos.
+            </p>
+            <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1.5">
+              <div className="flex justify-between items-center">
+                <span>Plan sugerido:</span>
+                <span className="text-white font-bold">{paseInvitadoModal?.plan?.nombre || 'Individual (1 Día)'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Costo en Caja:</span>
+                <span className="text-emerald-400 font-bold font-mono text-sm">${paseInvitadoModal?.plan?.precio || 30}.00</span>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-400">
+              ¿Deseas enviar a este nuevo socio a Caja para cobrar su pase y activar su acceso al gimnasio?
+            </p>
+          </div>
+        }
+        confirmText="Ir a Cobrar a Caja ($30)"
+        cancelText="Solo Registrar (Sin Cobro)"
+        tipo="success"
+        onConfirm={() => {
+          if (!paseInvitadoModal?.cliente) return;
+          const payloadCobro = {
+            cliente_id: paseInvitadoModal.cliente.id,
+            cliente_nombre: paseInvitadoModal.cliente.nombre,
+            id_plan: paseInvitadoModal.plan?.id || 5,
+            plan_nombre: paseInvitadoModal.plan?.nombre || 'Individual (1 Día)',
+            precio: paseInvitadoModal.plan?.precio || 30,
+            duracion_dias: 1,
+            es_nueva: true
+          };
+          setPaseInvitadoModal({ isOpen: false, cliente: null, plan: null });
+          if (onIrAPuntoVenta) {
+            onIrAPuntoVenta(payloadCobro);
+          }
+        }}
+        onCancel={() => setPaseInvitadoModal({ isOpen: false, cliente: null, plan: null })}
       />
     </div>
   );

@@ -41,7 +41,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
   const [alerta, setAlerta] = useState(null);
   const [ticketVenta, setTicketVenta] = useState(null);
 
-  // Manejar renovación transferida desde el módulo de Membresías
+  // Manejar renovación transferida desde el módulo de Membresías o Clientes
   useEffect(() => {
     const datosRenov = renovacionPendiente || (() => {
       try {
@@ -63,9 +63,10 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
       setClienteSeleccionado(nombreSocioReal);
 
       const durDias = Math.min(365, Number(datosRenov.duracion_dias) || 30);
+      const prefijo = datosRenov.es_nueva ? 'Alta' : 'Renovación';
       const itemRenov = {
         id: `renovacion-${datosRenov.id_plan || 1}-${datosRenov.membresia_id || idCli}`,
-        nombre: `Renovación: Plan ${datosRenov.plan_nombre || 'Membresía'} (${durDias} días)`,
+        nombre: `${prefijo}: Plan ${datosRenov.plan_nombre || 'Membresía'} (${durDias} días)`,
         precio: Math.min(9999, Number(datosRenov.precio) || 350),
         stock: 999,
         categoria: 'Membresías',
@@ -85,7 +86,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
       });
 
       setAlerta({
-        mensaje: `Renovación de membresía asociada al cliente ${nombreSocioReal}. Seleccione Efectivo o Tarjeta para cobrar y renovar en BD.`,
+        mensaje: `${prefijo} de membresía cargada para ${nombreSocioReal}. Seleccione Cobrar Ticket para recibir el pago en Caja.`,
         tipo: 'info'
       });
     }
@@ -129,17 +130,17 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
 
   const agregarAlCarrito = (prod) => {
     const existe = carrito.find(item => item.id === prod.id);
-    const cantActual = existe ? existe.cant : 0;
+    const cantActual = existe ? (Number(existe.cant) || 0) : 0;
 
     // Trigger SQL `trg_evitar_stock_negativo`
-    const checkStock = trg_evitar_stock_negativo(prod, cantActual + 1);
+    const checkStock = trg_evitar_stock_negativo(prod.stock ?? prod, cantActual + 1);
     if (!checkStock.valido) {
-      setAlerta({ mensaje: `${checkStock.mensaje} (${prod.nombre} - Disponibles: ${prod.stock})`, tipo: 'error' });
+      setAlerta({ mensaje: `Stock insuficiente (${prod.nombre} - Disponibles: ${prod.stock})`, tipo: 'error' });
       return;
     }
 
     if (existe) {
-      setCarrito(carrito.map(item => item.id === prod.id ? { ...item, cant: item.cant + 1 } : item));
+      setCarrito(carrito.map(item => item.id === prod.id ? { ...item, cant: Math.min(99, cantActual + 1) } : item));
     } else {
       setCarrito([...carrito, { ...prod, cant: 1 }]);
     }
@@ -149,21 +150,52 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     const item = carrito.find(c => c.id === id);
     if (!item) return;
 
+    const cantActual = Number(item.cant) || 1;
+    const nuevaCant = cantActual + delta;
+
     if (delta > 0) {
-      const checkStock = trg_evitar_stock_negativo(item, item.cant + delta);
+      if (nuevaCant > 99) return;
+      const checkStock = trg_evitar_stock_negativo(item.stock ?? item, nuevaCant);
       if (!checkStock.valido) {
-        setAlerta({ mensaje: `No hay más stock disponible de ${item.nombre}`, tipo: 'warning' });
+        setAlerta({ mensaje: `No hay más stock disponible de ${item.nombre} (Disponibles: ${item.stock})`, tipo: 'warning' });
         return;
       }
     }
 
     setCarrito(carrito.map(c => {
       if (c.id === id) {
-        const nuevaCant = c.cant + delta;
-        return nuevaCant > 0 ? { ...c, cant: nuevaCant } : c;
+        return nuevaCant > 0 ? { ...c, cant: Math.min(99, nuevaCant) } : c;
       }
       return c;
     }));
+  };
+
+  // Permite ingresar la cantidad directamente como texto en el carrito (máximo 2 dígitos: 1 a 99)
+  const establecerCantidad = (id, nuevaCantidad) => {
+    const item = carrito.find(c => c.id === id);
+    if (!item) return;
+
+    if (nuevaCantidad === '' || nuevaCantidad === null || nuevaCantidad === undefined) {
+      setCarrito(carrito.map(c => c.id === id ? { ...c, cant: '' } : c));
+      return;
+    }
+
+    let cantNum = parseInt(nuevaCantidad, 10);
+    if (isNaN(cantNum) || cantNum < 1) cantNum = 1;
+    if (cantNum > 99) cantNum = 99;
+
+    if (!item.es_membresia && item.stock !== undefined && item.stock !== null) {
+      const checkStock = trg_evitar_stock_negativo(item.stock, cantNum);
+      if (!checkStock.valido) {
+        setAlerta({
+          mensaje: `Stock insuficiente para ${item.nombre} (Disponibles: ${item.stock})`,
+          tipo: 'warning'
+        });
+        cantNum = Math.min(Number(item.stock) || 1, 99);
+      }
+    }
+
+    setCarrito(carrito.map(c => c.id === id ? { ...c, cant: cantNum } : c));
   };
 
   const eliminarDelCarrito = (id) => {
@@ -171,14 +203,20 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
   };
 
   // Cálculo de totales con las funciones SQL `fn_calcular_subtotal_producto` y `fn_calcular_descuento`
-  const subtotalBruto = carrito.reduce((sum, item) => sum + fn_calcular_subtotal_producto(item.precio, item.cant), 0);
+  const subtotalBruto = carrito.reduce((sum, item) => sum + fn_calcular_subtotal_producto(item.precio, Number(item.cant) || 0), 0);
   const montoDescuento = fn_calcular_descuento(subtotalBruto, descuentoPorcentaje);
   const totalPagar = Math.max(0, subtotalBruto - montoDescuento);
 
   const procesarVenta = async (metodo) => {
     if (carrito.length === 0) return;
 
-    const itemsMembresia = carrito.filter(item => item.es_membresia);
+    // Normalizar cualquier cantidad vacía a 1
+    const carritoNormalizado = carrito.map(item => ({
+      ...item,
+      cant: Number(item.cant) > 0 ? Number(item.cant) : 1
+    }));
+
+    const itemsMembresia = carritoNormalizado.filter(item => item.es_membresia);
     const idClienteResuelto = clienteIdSeleccionado || itemsMembresia[0]?.cliente_id || (() => {
       const m = String(clienteSeleccionado || '').match(/#(\d+)/);
       return m ? Number(m[1]) : null;
@@ -219,6 +257,10 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     const pad = (n) => String(n).padStart(2, '0');
     const fechaSQL = `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())} ${pad(ahora.getHours())}:${pad(ahora.getMinutes())}:${pad(ahora.getSeconds())}`;
 
+    const subtotalFinal = carritoNormalizado.reduce((sum, item) => sum + fn_calcular_subtotal_producto(item.precio, item.cant), 0);
+    const montoDescuentoFinal = fn_calcular_descuento(subtotalFinal, descuentoPorcentaje);
+    const totalPagarFinal = Math.max(0, subtotalFinal - montoDescuentoFinal);
+
     const ventaPayload = {
       folio: folioGenerado,
       id_usuario: usuarioActivo?.id || 1,
@@ -227,15 +269,16 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
       cliente: etiquetaClienteFinal,
       fecha: fechaSQL,
       metodo_pago: metodo,
-      subtotal: subtotalBruto,
-      descuento: montoDescuento,
+      id_modopago: metodo === 'Tarjeta' ? 2 : 1,
+      subtotal: subtotalFinal,
+      descuento: montoDescuentoFinal,
       descuento_porcentaje: descuentoPorcentaje,
-      total: totalPagar,
+      total: totalPagarFinal,
       es_membresia: itemsMembresia.length > 0,
-      tipo_venta: itemsMembresia.length > 0 && itemsMembresia.length === carrito.length
+      tipo_venta: itemsMembresia.length > 0 && itemsMembresia.length === carritoNormalizado.length
         ? 'Membresía'
         : (itemsMembresia.length > 0 ? 'Mixta (Membresía + Tienda)' : 'Tienda / Mostrador'),
-      detalles: carrito.map(item => ({
+      detalles: carritoNormalizado.map(item => ({
         id_producto: item.es_membresia ? null : Number(item.id),
         id_plan: item.es_membresia ? Number(item.id_plan || 2) : null,
         es_membresia: Boolean(item.es_membresia),
@@ -254,7 +297,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
       console.warn('Fallback local en venta:', errV);
     }
 
-    // Si la venta incluye renovación de membresía, ejecutar `sp_renovar_membresia`
+    // Si la venta incluye membresía, asegurar sincronización local y de base de datos
     if (itemsMembresia.length > 0) {
       try {
         const membsLocal = listaMembresiasBD.length > 0
@@ -314,12 +357,10 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     }
 
     // Trigger SQL `trg_actualizar_stock_venta`:
-    // Si la venta y su detalle_venta se guardaron en MySQL, el trigger `trg_actualizar_stock_venta`
-    // ya descontó el stock en la BD automáticamente. Solo llamamos a `updateProductos` si fue fallback offline.
-    const productosActualizados = trg_actualizar_stock_venta(productos, carrito);
+    const productosActualizados = trg_actualizar_stock_venta(productos, carritoNormalizado);
     if (!ventaPersistidaEnBD) {
       productosActualizados.forEach(p => {
-        const enCarro = carrito.find(c => c.id === p.id);
+        const enCarro = carritoNormalizado.find(c => c.id === p.id);
         if (enCarro && !enCarro.es_membresia) {
           updateProductos(p.id, p).catch(() => {});
         }
@@ -335,7 +376,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     setCarrito([]);
     setDescuentoPorcentaje(0);
     const mensajeExito = itemsMembresia.length > 0
-      ? `¡Cobro completado y Membresía renovada con éxito! Folio generado: ${folioGenerado}`
+      ? `¡Cobro completado y Membresía activada con éxito! Folio generado: ${folioGenerado}`
       : `¡Venta registrada con éxito! Folio generado: ${folioGenerado}`;
     setAlerta({ mensaje: mensajeExito, tipo: 'success' });
   };
@@ -358,6 +399,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     setDescuentoPorcentaje,
     clienteSeleccionado,
     setClienteSeleccionado,
+    clienteIdSeleccionado,
     setClienteIdSeleccionado,
     socios,
     busquedaSocioTicket,
@@ -373,6 +415,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     totalPagar,
     agregarAlCarrito,
     modificarCant,
+    establecerCantidad,
     eliminarDelCarrito,
     procesarVenta,
     fnCalcularSubtotal: fn_calcular_subtotal_producto

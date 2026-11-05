@@ -18,12 +18,14 @@ import {
   Key, 
   ClipboardList, 
   RefreshCw, 
-  ArrowUpRight 
+  ArrowUpRight,
+  TrendingUp 
 } from 'lucide-react';
 import { getClientes } from '../../JS/cliente';
 import { getAcceso } from '../../JS/acceso';
 import { getCorteCaja } from '../../JS/corte_caja';
 import { getProductos } from '../../JS/producto';
+import { getVenta } from '../../JS/venta';
 import Toast from '../Extras/Toast';
 
 export default function Dashboard({ usuario, alCerrarSesion }) {
@@ -60,6 +62,14 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
   // Estado dinámico para estadísticas
   const [stats, setStats] = useState({
     ingresosHoy: 0,
+    ventasEfectivoHoy: 0,
+    ventasTarjetaHoy: 0,
+    pctEfectivoHoy: 50,
+    pctTarjetaHoy: 50,
+    ventasMembresiaHoy: 0,
+    ventasTiendaHoy: 0,
+    pctMembresiaHoy: 50,
+    pctTiendaHoy: 50,
     clientesActivos: 0,
     totalClientes: 0,
     clientesInactivos: 0,
@@ -77,17 +87,19 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       const hoyStr = new Date().toISOString().split('T')[0];
 
       // Peticiones paralelas a los servicios del sistema
-      const [resClientes, resAccesos, resCortes, resProductos] = await Promise.allSettled([
+      const [resClientes, resAccesos, resCortes, resProductos, resVentas] = await Promise.allSettled([
         getClientes(),
         getAcceso(),
         getCorteCaja(),
-        getProductos()
+        getProductos(),
+        getVenta()
       ]);
 
       const clientes = resClientes.status === 'fulfilled' && Array.isArray(resClientes.value) ? resClientes.value : [];
       const accesos = resAccesos.status === 'fulfilled' && Array.isArray(resAccesos.value) ? resAccesos.value : [];
       const cortes = resCortes.status === 'fulfilled' && Array.isArray(resCortes.value) ? resCortes.value : [];
       const productos = resProductos.status === 'fulfilled' && Array.isArray(resProductos.value) ? resProductos.value : [];
+      const ventas = resVentas.status === 'fulfilled' && Array.isArray(resVentas.value) ? resVentas.value : [];
 
       // 1. Clientes
       const activos = clientes.filter(c => c.estado === '1' || c.estado === 1 || String(c.estado).toLowerCase() === 'activo');
@@ -117,7 +129,42 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
         };
       });
 
-      // 3. Ingresos (Corte de caja o cálculo de ventas del día)
+      // 3. Ventas de hoy por método de pago y tipo
+      let ventasHoyTotal = 0;
+      let vEfectivo = 0;
+      let vTarjeta = 0;
+      let vMembresia = 0;
+      let vTienda = 0;
+
+      ventas.forEach(v => {
+        const f = String(v.fecha || '');
+        const esHoy = f.startsWith(hoyStr) || f.includes(hoyStr);
+        if (esHoy) {
+          const tot = Number(v.total) || 0;
+          ventasHoyTotal += tot;
+          const met = String(v.metodo_pago || '').toLowerCase();
+          if (met.includes('tarjeta') || Number(v.id_modopago) === 2) {
+            vTarjeta += tot;
+          } else {
+            vEfectivo += tot;
+          }
+
+          if (v.es_membresia || v.tipo_venta === 'Membresía') {
+            vMembresia += tot;
+          } else {
+            vTienda += tot;
+          }
+        }
+      });
+
+      const baseP = (vEfectivo + vTarjeta) || 1;
+      const baseM = (vMembresia + vTienda) || 1;
+      const pctEf = vEfectivo + vTarjeta === 0 ? 50 : Math.round((vEfectivo / baseP) * 100);
+      const pctTar = vEfectivo + vTarjeta === 0 ? 50 : Math.max(0, 100 - pctEf);
+      const pctMem = vMembresia + vTienda === 0 ? 50 : Math.round((vMembresia / baseM) * 100);
+      const pctTda = vMembresia + vTienda === 0 ? 50 : Math.max(0, 100 - pctMem);
+
+      // 4. Ingresos (Corte de caja o cálculo de ventas del día)
       let ingresosCalculados = 0;
       cortes.forEach(c => {
         if (c.fecha === hoyStr || !c.fecha) {
@@ -125,14 +172,23 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
         }
       });
 
-      // Si aún no hay corte hoy, calcular estimación basada en membresías o ventas del día
-      if (ingresosCalculados === 0 && activos.length > 0) {
-        // Ingreso estimado base por membresías promedio
+      // Si no hay corte pero hubo ventas registradas hoy, tomar el total de ventas reales
+      if (ingresosCalculados === 0 && ventasHoyTotal > 0) {
+        ingresosCalculados = ventasHoyTotal;
+      } else if (ingresosCalculados === 0 && activos.length > 0) {
         ingresosCalculados = activos.length * 350;
       }
 
       setStats({
         ingresosHoy: ingresosCalculados,
+        ventasEfectivoHoy: vEfectivo,
+        ventasTarjetaHoy: vTarjeta,
+        pctEfectivoHoy: pctEf,
+        pctTarjetaHoy: pctTar,
+        ventasMembresiaHoy: vMembresia,
+        ventasTiendaHoy: vTienda,
+        pctMembresiaHoy: pctMem,
+        pctTiendaHoy: pctTda,
         clientesActivos: activos.length,
         totalClientes: clientes.length,
         clientesInactivos: inactivos,
@@ -215,13 +271,13 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
         </div>
       </div>
 
-      {/* Grid para otras gráficas o tablas rápidas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      {/* Grid para gráficas del día, actividad y atajos */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         {/* Panel de Actividad Reciente */}
         <div className="card bg-base-200 shadow-xl border border-base-300">
           <div className="card-body">
             <h2 className="card-title text-white flex items-center justify-between">
-              <span>Accesos Recientes en Torniquete</span>
+              <span>Accesos en Torniquete</span>
               <span className="badge badge-primary badge-outline text-xs">En Vivo</span>
             </h2>
             <div className="overflow-x-auto">
@@ -274,26 +330,85 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
           </div>
         </div>
 
+        {/* Panel Gráfico: Cobros y Líneas de Hoy */}
+        <div className="card bg-base-200 shadow-xl border border-base-300">
+          <div className="card-body flex flex-col justify-between">
+            <div>
+              <h2 className="card-title text-white flex items-center justify-between mb-1">
+                <span className="flex items-center gap-2 text-base">
+                  <Banknote className="w-5 h-5 text-emerald-400" /> Cobro del Día
+                </span>
+                <span className="badge badge-outline border-zinc-700 text-gray-300 text-xs">Hoy</span>
+              </h2>
+              <p className="text-xs text-gray-400 mb-4">
+                Distribución en caja de pagos y líneas de ingreso.
+              </p>
+
+              {/* 1. Efectivo vs Tarjeta */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-gray-300 mb-1 font-semibold">
+                  <span>Efectivo ({stats.pctEfectivoHoy}%)</span>
+                  <span>Tarjeta ({stats.pctTarjetaHoy}%)</span>
+                </div>
+                <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden flex gap-0.5">
+                  <div style={{ width: `${stats.pctEfectivoHoy}%` }} className="bg-emerald-500 rounded-l-full" />
+                  <div style={{ width: `${stats.pctTarjetaHoy}%` }} className="bg-blue-500 rounded-r-full" />
+                </div>
+                <div className="flex justify-between text-[11px] font-mono text-gray-400 mt-1">
+                  <span className="text-emerald-400 font-bold">${stats.ventasEfectivoHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-blue-400 font-bold">${stats.ventasTarjetaHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              {/* 2. Membresías vs Tienda */}
+              <div className="mb-2">
+                <div className="flex justify-between text-xs text-gray-300 mb-1 font-semibold">
+                  <span>Membresías ({stats.pctMembresiaHoy}%)</span>
+                  <span>Tienda ({stats.pctTiendaHoy}%)</span>
+                </div>
+                <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden flex gap-0.5">
+                  <div style={{ width: `${stats.pctMembresiaHoy}%` }} className="bg-purple-500 rounded-l-full" />
+                  <div style={{ width: `${stats.pctTiendaHoy}%` }} className="bg-amber-500 rounded-r-full" />
+                </div>
+                <div className="flex justify-between text-[11px] font-mono text-gray-400 mt-1">
+                  <span className="text-purple-300 font-bold">${stats.ventasMembresiaHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-amber-400 font-bold">${stats.ventasTiendaHoy.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-actions justify-end mt-4">
+              <button 
+                onClick={() => setActiveModule('reportes')} 
+                className="btn btn-sm btn-outline btn-success flex items-center gap-2"
+              >
+                <TrendingUp className="w-4 h-4" />
+                Ver Reportes
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Panel de Accesos Rápidos */}
         <div className="card bg-base-200 shadow-xl border border-base-300">
           <div className="card-body">
             <h2 className="card-title text-white">Atajos Rápidos</h2>
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <button onClick={() => setActiveModule('acceso')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
-                <Key className="w-7 h-7 text-emerald-400" />
-                Torniquetes / Acceso
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <button onClick={() => setActiveModule('caja')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-3.5 gap-1.5">
+                <Banknote className="w-6 h-6 text-emerald-400" />
+                <span className="text-xs">Caja / POS</span>
               </button>
-              <button onClick={() => setActiveModule('planes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
-                <ClipboardList className="w-7 h-7 text-primary" />
-                Planes y Precios
+              <button onClick={() => setActiveModule('planes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-3.5 gap-1.5">
+                <ClipboardList className="w-6 h-6 text-primary" />
+                <span className="text-xs">Planes</span>
               </button>
-              <button onClick={() => setActiveModule('clientes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
-                <Users className="w-7 h-7 text-blue-400" />
-                Socios / Clientes
+              <button onClick={() => setActiveModule('clientes')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-3.5 gap-1.5">
+                <Users className="w-6 h-6 text-blue-400" />
+                <span className="text-xs">Socios</span>
               </button>
-              <button onClick={() => setActiveModule('productos')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-5 gap-2">
-                <Package className="w-7 h-7 text-amber-400" />
-                Inventario ({stats.totalProductos} arts)
+              <button onClick={() => setActiveModule('productos')} className="btn btn-outline border-base-300 text-gray-300 hover:btn-primary flex flex-col h-auto py-3.5 gap-1.5">
+                <Package className="w-6 h-6 text-amber-400" />
+                <span className="text-xs">Inventario</span>
               </button>
             </div>
           </div>
@@ -332,7 +447,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       {/* Controlamos qué pantalla mostrar según el botón del menú presionado */}
       {activeModule === 'inicio' ? renderInicio() : 
        activeModule === 'usuarios' ? <Usuarios loggedUser={usuario} /> : 
-       activeModule === 'clientes' ? <Clientes loggedUser={usuario} /> : 
+       activeModule === 'clientes' ? <Clientes loggedUser={usuario} onIrAPuntoVenta={handleIrAPuntoVentaConRenovacion} /> : 
        activeModule === 'proveedores' ? <Proveedores loggedUser={usuario} /> : 
        activeModule === 'productos' ? <Productos loggedUser={usuario} /> : 
        activeModule === 'planes' ? <Planes loggedUser={usuario} /> : 
