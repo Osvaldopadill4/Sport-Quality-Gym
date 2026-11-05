@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost
--- Tiempo de generación: 03-11-2026 a las 19:50:07
+-- Tiempo de generación: 04-11-2026 a las 16:56:08
 -- Versión del servidor: 8.0.17
 -- Versión de PHP: 7.3.10
 
@@ -286,21 +286,24 @@ INSERT INTO `compra` (`id`, `id_usuario`, `id_proveedor`, `fecha`, `total`, `est
 CREATE TABLE `corte_caja` (
   `id` int(11) NOT NULL,
   `id_usuario` int(11) NOT NULL,
-  `fecha_apertura` varchar(255) DEFAULT NULL,
-  `fecha_cierre` varchar(255) DEFAULT NULL,
+  `fecha_apertura` datetime DEFAULT NULL,
+  `fecha_cierre` datetime DEFAULT NULL,
   `monto_inicial` decimal(38,2) NOT NULL,
-  `total_ventas` varchar(255) DEFAULT NULL,
-  `monto_calculado` varchar(255) DEFAULT NULL,
-  `monto_real` varchar(255) DEFAULT NULL,
-  `diferencia` varchar(255) DEFAULT NULL
+  `total_ventas` decimal(20,6) DEFAULT NULL,
+  `monto_calculado` decimal(20,6) DEFAULT NULL,
+  `monto_real` decimal(20,6) DEFAULT NULL,
+  `diferencia` decimal(20,6) DEFAULT NULL,
+  `total_gastos` decimal(20,6) DEFAULT NULL,
+  `tarjeta` decimal(20,6) DEFAULT NULL,
+  `efectivo` decimal(20,6) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Volcado de datos para la tabla `corte_caja`
 --
 
-INSERT INTO `corte_caja` (`id`, `id_usuario`, `fecha_apertura`, `fecha_cierre`, `monto_inicial`, `total_ventas`, `monto_calculado`, `monto_real`, `diferencia`) VALUES
-(1, 1, '2026-10-31 03:49:56', '2026-10-30 21:50:58', '500.00', '0', '500', '500', '0.00');
+INSERT INTO `corte_caja` (`id`, `id_usuario`, `fecha_apertura`, `fecha_cierre`, `monto_inicial`, `total_ventas`, `monto_calculado`, `monto_real`, `diferencia`, `total_gastos`, `tarjeta`, `efectivo`) VALUES
+(1, 1, '2026-10-31 03:49:56', '2026-10-30 21:50:58', '500.00', '0.000000', '500.000000', '500.000000', '0.000000', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -535,7 +538,7 @@ CREATE TABLE `membresia` (
 INSERT INTO `membresia` (`id`, `id_cliente`, `id_plan`, `fecha_inicio`, `fecha_vencimiento`, `estado`) VALUES
 (2, 1, 1, '2026-10-28', '2026-11-04', 'activa'),
 (3, 2, 13, '2026-11-01', '2027-01-07', 'activa'),
-(4, 1, 1, '2026-11-01', '275760-06-08', 'activa');
+(4, 1, 1, '2026-11-01', '2026-12-01', 'activa');
 
 --
 -- Disparadores `membresia`
@@ -592,6 +595,25 @@ CREATE TRIGGER `trg_validar_membresia` BEFORE INSERT ON `membresia` FOR EACH ROW
 END
 $$
 DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `modo_pago`
+--
+
+CREATE TABLE `modo_pago` (
+  `id` int(11) NOT NULL,
+  `nombre` varchar(30) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Volcado de datos para la tabla `modo_pago`
+--
+
+INSERT INTO `modo_pago` (`id`, `nombre`) VALUES
+(1, 'Efectivo'),
+(2, 'Tarjeta');
 
 -- --------------------------------------------------------
 
@@ -790,9 +812,9 @@ CREATE TABLE `venta` (
   `id` int(11) NOT NULL,
   `id_usuario` int(11) NOT NULL,
   `id_cliente` int(11) DEFAULT NULL,
-  `fecha` varchar(255) DEFAULT NULL,
-  `total` varchar(255) DEFAULT NULL,
-  `metodo_pago` varchar(255) DEFAULT NULL,
+  `id_modopago` int(11) DEFAULT NULL,
+  `fecha` datetime DEFAULT NULL,
+  `total` decimal(20,6) DEFAULT NULL,
   `folio` varchar(255) DEFAULT NULL,
   `estado` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -801,12 +823,12 @@ CREATE TABLE `venta` (
 -- Volcado de datos para la tabla `venta`
 --
 
-INSERT INTO `venta` (`id`, `id_usuario`, `id_cliente`, `fecha`, `total`, `metodo_pago`, `folio`, `estado`) VALUES
-(3, 1, NULL, '1/11/2026, 11:41:24 a.m.', '52142.67', 'Efectivo', 'V-20261101114124-5B7549', 'Completada'),
-(4, 1, NULL, '1/11/2026, 11:42:23 a.m.', '4422', 'Tarjeta', 'V-20261101114223-E7C226', 'Completada'),
-(5, 1, 1, '1/11/2026, 11:48:49 a.m.', '217.67000000000002', 'Tarjeta', 'V-20261101114849-A38B5E', 'Completada'),
-(6, 1, 1, '1/11/2026, 11:49:33 a.m.', '370', 'Tarjeta', 'V-20261101114933-F23DDA', 'Completada'),
-(7, 1, 1, '2/11/2026, 12:05:31 p.m.', '150', 'Efectivo', 'V-20261102120531-E2E5A4', 'Completada');
+INSERT INTO `venta` (`id`, `id_usuario`, `id_cliente`, `id_modopago`, `fecha`, `total`, `folio`, `estado`) VALUES
+(3, 1, NULL, NULL, '0000-00-00 00:00:00', '52142.670000', 'V-20261101114124-5B7549', 'Completada'),
+(4, 1, NULL, NULL, '0000-00-00 00:00:00', '4422.000000', 'V-20261101114223-E7C226', 'Completada'),
+(5, 1, 1, NULL, '0000-00-00 00:00:00', '217.670000', 'V-20261101114849-A38B5E', 'Completada'),
+(6, 1, 1, NULL, '0000-00-00 00:00:00', '370.000000', 'V-20261101114933-F23DDA', 'Completada'),
+(7, 1, 1, NULL, '0000-00-00 00:00:00', '150.000000', 'V-20261102120531-E2E5A4', 'Completada');
 
 --
 -- Disparadores `venta`
@@ -853,16 +875,6 @@ CREATE TABLE `vw_clientes_membresias` (
 -- (Véase abajo para la vista actual)
 --
 CREATE TABLE `vw_detalle_ventas` (
-`id_venta` int(11)
-,`fecha` varchar(255)
-,`empleado` varchar(255)
-,`cliente` varchar(255)
-,`articulo` varchar(255)
-,`cantidad` varchar(255)
-,`precio_unitario` varchar(255)
-,`subtotal` varchar(255)
-,`total` varchar(255)
-,`metodo_pago` varchar(255)
 );
 
 -- --------------------------------------------------------
@@ -895,6 +907,21 @@ CREATE TABLE `vw_historial_accesos` (
 ,`hora` varchar(255)
 ,`resultado` varchar(255)
 );
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `vw_historial_accessos`
+--
+
+CREATE TABLE `vw_historial_accessos` (
+  `id_acceso` int(11) NOT NULL,
+  `cliente` varchar(255) DEFAULT NULL,
+  `fecha` varchar(255) DEFAULT NULL,
+  `hora` varchar(255) DEFAULT NULL,
+  `id_cliente` int(11) DEFAULT NULL,
+  `resultado` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -1014,6 +1041,12 @@ ALTER TABLE `membresia`
   ADD KEY `id_plan` (`id_plan`);
 
 --
+-- Indices de la tabla `modo_pago`
+--
+ALTER TABLE `modo_pago`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indices de la tabla `plan`
 --
 ALTER TABLE `plan`
@@ -1050,7 +1083,14 @@ ALTER TABLE `usuario`
 ALTER TABLE `venta`
   ADD PRIMARY KEY (`id`),
   ADD KEY `id_cliente` (`id_cliente`),
-  ADD KEY `id_usuario` (`id_usuario`);
+  ADD KEY `id_usuario` (`id_usuario`),
+  ADD KEY `modopago_ibfk_1` (`id_modopago`);
+
+--
+-- Indices de la tabla `vw_historial_accessos`
+--
+ALTER TABLE `vw_historial_accessos`
+  ADD PRIMARY KEY (`id_acceso`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -1099,6 +1139,12 @@ ALTER TABLE `membresia`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT de la tabla `modo_pago`
+--
+ALTER TABLE `modo_pago`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
 -- AUTO_INCREMENT de la tabla `plan`
 --
 ALTER TABLE `plan`
@@ -1133,6 +1179,12 @@ ALTER TABLE `usuario`
 --
 ALTER TABLE `venta`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- AUTO_INCREMENT de la tabla `vw_historial_accessos`
+--
+ALTER TABLE `vw_historial_accessos`
+  MODIFY `id_acceso` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Restricciones para tablas volcadas
@@ -1189,6 +1241,7 @@ ALTER TABLE `usuario`
 -- Filtros para la tabla `venta`
 --
 ALTER TABLE `venta`
+  ADD CONSTRAINT `modopago_ibfk_1` FOREIGN KEY (`id_modopago`) REFERENCES `modo_pago` (`id`),
   ADD CONSTRAINT `venta_ibfk_1` FOREIGN KEY (`id_cliente`) REFERENCES `cliente` (`id`),
   ADD CONSTRAINT `venta_ibfk_2` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id`);
 COMMIT;
