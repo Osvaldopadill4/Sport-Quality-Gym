@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import '../../CSS/ReportesPrint.css';
 import { useReportes } from '../../Reutilizable/useReportes';
+import { DescargarReportePDF, ReportePDF } from '../Extras/Reportes/ReportePDF';
 
 export default function Reportes({ loggedUser }) {
   const {
@@ -41,11 +42,60 @@ export default function Reportes({ loggedUser }) {
     resolverNombreClienteVenta,
     resolverDatosCompra,
     resolverCajeroCorte,
-    handleImprimir,
-    imprimirVentas,
-    imprimirCompras,
-    imprimirCortes
   } = useReportes({ loggedUser });
+
+  const datosReportePDF = {
+    loggedUser,
+    fechaInicio,
+    fechaFin,
+    metricas,
+    ventas: ventasFiltradas.map(venta => {
+      const tipo = clasificarVenta(venta);
+      return {
+        id: venta.id,
+        folio: venta.folio || `FOL-${venta.id}`,
+        fecha: venta.fecha || 'N/A',
+        cliente: resolverNombreClienteVenta(venta),
+        tipo: tipo.esMembresia ? 'Membresía' : 'Tienda',
+        concepto: tipo.conceptoResumen,
+        metodo: venta.metodo_pago || 'Efectivo',
+        subtotal: `$${Number(venta.subtotal || 0).toFixed(2)}`,
+        descuento: `$${Number(venta.descuento || 0).toFixed(2)}`,
+        total: `$${Number(venta.total || 0).toFixed(2)}`
+      };
+    }),
+    compras: comprasFiltradas.map(compra => {
+      const datos = resolverDatosCompra(compra);
+      return {
+        id: compra.id,
+        folio: `COM-${String(compra.id).padStart(4, '0')}`,
+        fecha: compra.fecha || 'Registrada',
+        proveedor: datos.provNombre,
+        articulo: datos.prodNombre,
+        cantidad: String(datos.cant),
+        costo: `$${datos.costoUnit.toFixed(2)}`,
+        total: `$${datos.totalInv.toFixed(2)}`
+      };
+    }),
+    cortes: cortes.map(corte => {
+      const diferencia = Number(corte.diferencia) || 0;
+      return {
+        id: corte.id,
+        folio: `#${corte.id}`,
+        cajero: resolverCajeroCorte(corte),
+        apertura: corte.fecha_apertura || '—',
+        cierre: corte.fecha_cierre || 'En curso',
+        fondo: `$${Number(corte.monto_inicial || 500).toFixed(2)}`,
+        ventas: `$${Number(corte.total_ventas ?? corte.ventas_totales ?? 0).toFixed(2)}`,
+        fisico: `$${Number(corte.monto_real ?? corte.dinero_real ?? 0).toFixed(2)}`,
+        diferencia: diferencia === 0
+          ? '$0.00'
+          : `${diferencia > 0 ? '+' : '-'}$${Math.abs(diferencia).toFixed(2)}`
+      };
+    })
+  };
+  const crearDocumentoPDF = modo => <ReportePDF {...datosReportePDF} modo={modo} />;
+  const nombreArchivoPDF = modo => `gymton-reporte-${modo}-${new Date().toISOString().slice(0, 10)}.pdf`;
 
   return (
     <div className="reportes-wrapper p-6 bg-zinc-950 min-h-screen text-gray-200">
@@ -89,13 +139,13 @@ export default function Reportes({ loggedUser }) {
             )}
           </div>
 
-          <button
-            onClick={handleImprimir}
+          <DescargarReportePDF
+            documento={crearDocumentoPDF('general')}
+            nombreArchivo={nombreArchivoPDF('general')}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-xl text-xs transition-all shadow-lg hover:shadow-emerald-500/20"
-            title="Imprimir Balance General Ejecutivo en formato Ticket / PDF"
           >
-            <Printer size={15} /> Imprimir Balance / Ticket PDF
-          </button>
+            <Printer size={15} /> Descargar Balance PDF
+          </DescargarReportePDF>
         </div>
       </div>
 
@@ -395,33 +445,33 @@ export default function Reportes({ loggedUser }) {
           
           {/* Botones de exportación PDF individuales por tabla */}
           {tabActiva === 'ventas' && (
-            <button
-              onClick={imprimirVentas}
+            <DescargarReportePDF
+              documento={crearDocumentoPDF('ventas')}
+              nombreArchivo={nombreArchivoPDF('ventas')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs text-white font-bold transition-all shadow"
-              title="Descargar o Imprimir sólo Tabla de Ventas en PDF"
             >
               <Printer size={13} className="text-emerald-400" /> PDF Ventas
-            </button>
+            </DescargarReportePDF>
           )}
 
           {tabActiva === 'compras' && (
-            <button
-              onClick={imprimirCompras}
+            <DescargarReportePDF
+              documento={crearDocumentoPDF('compras')}
+              nombreArchivo={nombreArchivoPDF('compras')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs text-white font-bold transition-all shadow"
-              title="Descargar o Imprimir sólo Tabla de Compras en PDF"
             >
               <Printer size={13} className="text-amber-400" /> PDF Compras
-            </button>
+            </DescargarReportePDF>
           )}
 
           {tabActiva === 'cortes' && (
-            <button
-              onClick={imprimirCortes}
+            <DescargarReportePDF
+              documento={crearDocumentoPDF('cortes')}
+              nombreArchivo={nombreArchivoPDF('cortes')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs text-white font-bold transition-all shadow"
-              title="Descargar o Imprimir sólo Arqueos y Cortes en PDF"
             >
               <Printer size={13} className="text-blue-400" /> PDF Cortes
-            </button>
+            </DescargarReportePDF>
           )}
 
           <div className="relative w-full sm:w-64">
