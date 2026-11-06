@@ -151,7 +151,7 @@ export function useReportes({ loggedUser }) {
     setFechaFin('');
   };
 
-  const imprimirSeccion = (seccion = 'general') => {
+  const imprimirSeccion = (seccion = 'ventas') => {
     setModoImpresion(seccion);
     setTimeout(() => {
       window.print();
@@ -296,7 +296,7 @@ export function useReportes({ loggedUser }) {
     resolverNombreClienteVenta,
     resolverDatosCompra,
     resolverCajeroCorte,
-    handleImprimir: () => imprimirSeccion('general'),
+    handleImprimir: () => imprimirSeccion(tabActiva),
     imprimirVentas: () => imprimirSeccion('ventas'),
     imprimirCompras: () => imprimirSeccion('compras'),
     imprimirCortes: () => imprimirSeccion('cortes'),

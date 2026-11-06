@@ -372,6 +372,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       const plDur = obtenerDuracionPlan(m);
       setFormData({
         ...m,
+        id_plan_original: Number(m.id_plan),
         cliente_nombre: cliNombre,
         plan_nombre: plNombre,
         duracion_dias: plDur
@@ -402,8 +403,10 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       return;
     }
 
-    // Si es creación de membresía: Transferir a Caja para cobrar primero
-    if (modalMode === 'create') {
+    // Si es creación de membresía o cambio de plan: Transferir a Caja para cobrar primero
+    const esCambioDePlan = modalMode === 'edit' && formData.id_plan_original && Number(formData.id_plan) !== Number(formData.id_plan_original);
+
+    if (modalMode === 'create' || esCambioDePlan) {
       const precioPlan = obtenerPrecioPlan(formData.plan_nombre, formData.id_plan);
       const payloadCobro = {
         cliente_id: Number(formData.id_cliente),
@@ -412,7 +415,9 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
         plan_nombre: formData.plan_nombre || 'Plan',
         precio: precioPlan,
         duracion_dias: Number(formData.duracion_dias) || 30,
-        es_nueva: true
+        membresia_id: esCambioDePlan ? Number(formData.id) : null,
+        es_cambio_plan: esCambioDePlan,
+        es_nueva: modalMode === 'create'
       };
 
       try {
@@ -424,7 +429,12 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       if (onIrAPuntoVenta) {
         onIrAPuntoVenta(payloadCobro);
       } else {
-        mostrarAlerta('Membresía enviada al Punto de Venta. Proceda a cobrar el ticket en Caja.', 'info');
+        mostrarAlerta(
+          esCambioDePlan
+            ? 'Actualización de membresía enviada a Caja. Proceda a cobrar el nuevo plan en Punto de Venta.'
+            : 'Membresía enviada al Punto de Venta. Proceda a cobrar el ticket en Caja.',
+          'info'
+        );
       }
       return;
     }

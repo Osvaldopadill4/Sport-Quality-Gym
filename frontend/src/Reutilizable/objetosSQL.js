@@ -191,9 +191,31 @@ export const sp_registrar_acceso = (idCliente, listaMembresias = []) => {
  * Procedimiento SQL `sp_renovar_membresia(IN p_id_cliente INT, IN p_id_plan INT)`
  * Calcula la nueva vigencia según `duracion_dias` del plan respetando el tope de 500 días.
  */
-export const sp_renovar_membresia = (idCliente, idPlan, planesCatalogo = [], membresiaActual = null) => {
-  const planObj = planesCatalogo.find((p) => Number(p.id) === Number(idPlan));
-  const duracion = Math.min(365, Number(planObj?.duracion_dias || membresiaActual?.duracion_dias || 30));
+export const sp_renovar_membresia = (arg1, arg2, arg3, arg4) => {
+  let idCliente = null;
+  let idPlan = null;
+  let planesCatalogo = [];
+  let membresiaActual = null;
+  let duracion = 30;
+
+  if (arg1 && typeof arg1 === 'object' && !Array.isArray(arg1)) {
+    membresiaActual = arg1;
+    idCliente = membresiaActual.id_cliente;
+    if (arg2 && typeof arg2 === 'object') {
+      idPlan = arg2.id || arg2.id_plan || 2;
+      duracion = Math.min(365, Number(arg2.duracion_dias || membresiaActual?.duracion_dias || 30));
+    } else {
+      idPlan = Number(arg2) || 2;
+      duracion = Math.min(365, Number(membresiaActual?.duracion_dias || 30));
+    }
+  } else {
+    idCliente = arg1;
+    idPlan = arg2;
+    planesCatalogo = Array.isArray(arg3) ? arg3 : [];
+    membresiaActual = arg4 || null;
+    const planObj = planesCatalogo.find((p) => Number(p.id) === Number(idPlan));
+    duracion = Math.min(365, Number(planObj?.duracion_dias || membresiaActual?.duracion_dias || 30));
+  }
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -206,6 +228,7 @@ export const sp_renovar_membresia = (idCliente, idPlan, planesCatalogo = [], mem
   if (diasActuales + duracion > 500) {
     return {
       exito: false,
+      permitido: false,
       diasAcumulados: diasActuales + duracion,
       mensaje: `Restricción: No se pueden acumular más de 500 días de vigencia (acumularía ${diasActuales + duracion} días).`
     };
@@ -219,6 +242,7 @@ export const sp_renovar_membresia = (idCliente, idPlan, planesCatalogo = [], mem
 
   return {
     exito: true,
+    permitido: true,
     id_cliente: Number(idCliente),
     id_plan: Number(idPlan),
     duracion_dias: duracion,

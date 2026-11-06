@@ -63,7 +63,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
       setClienteSeleccionado(nombreSocioReal);
 
       const durDias = Math.min(365, Number(datosRenov.duracion_dias) || 30);
-      const prefijo = datosRenov.es_nueva ? 'Alta' : 'Renovación';
+      const prefijo = datosRenov.es_cambio_plan ? 'Cambio de Plan' : (datosRenov.es_nueva ? 'Alta' : 'Renovación');
       const itemRenov = {
         id: `renovacion-${datosRenov.id_plan || 1}-${datosRenov.membresia_id || idCli}`,
         nombre: `${prefijo}: Plan ${datosRenov.plan_nombre || 'Membresía'} (${durDias} días)`,
@@ -144,6 +144,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     } else {
       setCarrito([...carrito, { ...prod, cant: 1 }]);
     }
+    setAlerta({ mensaje: `Agregado al ticket: ${prod.nombre}`, tipo: 'success' });
   };
 
   const modificarCant = (id, delta) => {
@@ -200,6 +201,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
 
   const eliminarDelCarrito = (id) => {
     setCarrito(carrito.filter(item => item.id !== id));
+    setAlerta({ mensaje: 'Artículo retirado del ticket', tipo: 'info' });
   };
 
   // Cálculo de totales con las funciones SQL `fn_calcular_subtotal_producto` y `fn_calcular_descuento`
@@ -217,10 +219,17 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
     }));
 
     const itemsMembresia = carritoNormalizado.filter(item => item.es_membresia);
-    const idClienteResuelto = clienteIdSeleccionado || itemsMembresia[0]?.cliente_id || (() => {
+    let idClienteResuelto = clienteIdSeleccionado || itemsMembresia[0]?.cliente_id || (() => {
       const m = String(clienteSeleccionado || '').match(/#(\d+)/);
       return m ? Number(m[1]) : null;
     })();
+
+    if (!idClienteResuelto && clienteSeleccionado && clienteSeleccionado !== 'Público General') {
+      const socioPorNombre = socios.find(s => (s.nombre || '').toLowerCase().trim() === String(clienteSeleccionado).toLowerCase().trim());
+      if (socioPorNombre) {
+        idClienteResuelto = socioPorNombre.id;
+      }
+    }
 
     const socioObj = socios.find(s => Number(s.id) === Number(idClienteResuelto));
     const nombreClienteLimpio = socioObj?.nombre || itemsMembresia[0]?.cliente_nombre || String(clienteSeleccionado).replace(/\s*\(Socio #\d+\)/, '').trim();
@@ -244,7 +253,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
                         listaMembresiasBD.find(m => Number(m.id_cliente) === Number(idClienteResuelto));
         const dur = Math.min(365, Number(mItem.duracion_dias) || 30) * (Number(mItem.cant) || 1);
         const calcRenov = sp_renovar_membresia(mActual, { id: mItem.id_plan, nombre: mItem.plan_nombre, duracion_dias: dur });
-        if (!calcRenov.permitido) {
+        if (calcRenov && calcRenov.exito === false) {
           setAlerta({ mensaje: calcRenov.mensaje, tipo: 'error' });
           return;
         }
@@ -263,9 +272,9 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
 
     const ventaPayload = {
       folio: folioGenerado,
-      id_usuario: usuarioActivo?.id || 1,
+      id_usuario: (usuarioActivo?.id && Number(usuarioActivo.id) > 0) ? Number(usuarioActivo.id) : 1,
       empleado: usuarioActivo ? `${usuarioActivo.nombre} ${usuarioActivo.apellido || ''}`.trim() : 'Cajero',
-      id_cliente: idClienteResuelto,
+      id_cliente: (idClienteResuelto && Number(idClienteResuelto) > 0) ? Number(idClienteResuelto) : null,
       cliente: etiquetaClienteFinal,
       fecha: fechaSQL,
       metodo_pago: metodo,
@@ -279,7 +288,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
         ? 'Membresía'
         : (itemsMembresia.length > 0 ? 'Mixta (Membresía + Tienda)' : 'Tienda / Mostrador'),
       detalles: carritoNormalizado.map(item => ({
-        id_producto: item.es_membresia ? null : Number(item.id),
+        id_producto: item.es_membresia ? null : ((Number(item.id) && Number(item.id) < 1000000000) ? Number(item.id) : null),
         id_plan: item.es_membresia ? Number(item.id_plan || 2) : null,
         es_membresia: Boolean(item.es_membresia),
         articulo: item.nombre,

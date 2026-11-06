@@ -82,15 +82,19 @@ export const abrirCorteCaja = async (datos) => {
     const hoyStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
     const montoInicial = 500;
 
-    const payload = {
-        id_usuario: datos.id_usuario ? Number(datos.id_usuario) : 1,
+    const payloadParaBackend = {
+        id_usuario: (datos.id_usuario && Number(datos.id_usuario) > 0) ? Number(datos.id_usuario) : 1,
         fecha_apertura: datos.fecha_apertura || hoyStr,
         fecha_cierre: null,
-        monto_inicial: montoInicial,
         total_ventas: "0.00",
-        monto_calculado: String(montoInicial),
+        monto_calculado: "500.00",
         monto_real: "0.00",
-        diferencia: "0.00",
+        diferencia: "0.00"
+    };
+
+    const payload = {
+        ...payloadParaBackend,
+        monto_inicial: montoInicial,
         total_gastos: 0,
         tarjeta: 0,
         efectivo: 0
@@ -102,7 +106,7 @@ export const abrirCorteCaja = async (datos) => {
         const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payloadParaBackend)
         });
         if (res.ok) {
             corteCreado = await res.json();
@@ -149,16 +153,21 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
     const montoReal = Number(datosCierre.monto_real || 0);
     const diferencia = montoReal - montoCalculado;
 
-    const payloadCierre = {
-        id: Number(id),
-        id_usuario: datosCierre.id_usuario ? Number(datosCierre.id_usuario) : (corteActual?.id_usuario ? Number(corteActual.id_usuario) : 1),
+    const idUsr = (datosCierre.id_usuario && Number(datosCierre.id_usuario) > 0) ? Number(datosCierre.id_usuario) : (corteActual?.id_usuario ? Number(corteActual.id_usuario) : 1);
+    const payloadCierreBackend = {
+        id_usuario: idUsr,
         fecha_apertura: corteActual?.fecha_apertura || hoyStr,
         fecha_cierre: hoyStr,
-        monto_inicial: montoInicial,
         total_ventas: String(totalVentas.toFixed(2)),
         monto_calculado: String(montoCalculado.toFixed(2)),
         monto_real: String(montoReal.toFixed(2)),
-        diferencia: String(diferencia.toFixed(2)),
+        diferencia: String(diferencia.toFixed(2))
+    };
+
+    const payloadCierre = {
+        ...payloadCierreBackend,
+        id: Number(id),
+        monto_inicial: montoInicial,
         total_gastos: Number(datosCierre.total_gastos || 0),
         tarjeta: Number(datosCierre.tarjeta || datosCierre.ventas_tarjeta || 0),
         efectivo: Number(datosCierre.efectivo || datosCierre.ventas_efectivo || 0)
@@ -170,7 +179,7 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
         const res = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadCierre)
+            body: JSON.stringify(payloadCierreBackend)
         });
         if (res.ok) {
             corteActualizado = await res.json();

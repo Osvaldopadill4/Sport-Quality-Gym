@@ -5,8 +5,6 @@ import {
   Calendar,
   CreditCard,
   ShoppingCart,
-  CheckCircle2,
-  AlertTriangle,
   ArrowRight
 } from 'lucide-react';
 import { fn_dias_restantes } from '../../../Reutilizable/objetosSQL';
@@ -157,7 +155,7 @@ export function ModalFormMembresia({
                 const pObj = planesCatalogo.find((p) => Number(p.id) === planId);
                 if (pObj) {
                   const d = Number(pObj.duracion_dias) || 30;
-                  const inicio = new Date(formData.fecha_inicio);
+                  const inicio = new Date(formData.fecha_inicio || new Date());
                   const fin = new Date(inicio.getTime() + d * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                   setFormData({
                     ...formData,
@@ -179,6 +177,18 @@ export function ModalFormMembresia({
                 ))
               )}
             </select>
+
+            {modalMode === 'edit' && formData.id_plan_original && Number(formData.id_plan) !== Number(formData.id_plan_original) && (
+              <div className="mt-2.5 p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-start gap-2.5 text-xs animate-fadeIn">
+                <ShoppingCart size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-white block">Esta actualización tiene que pasar por caja</span>
+                  <span className="text-zinc-400 text-[11px] mt-0.5 block leading-relaxed">
+                    Al confirmar, serás transferido a Caja para cobrar el nuevo plan ({formData.plan_nombre}) y expedir el ticket oficial.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -224,9 +234,11 @@ export function ModalFormMembresia({
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
             <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm">Cancelar</button>
-            <button type="submit" className="btn btn-primary btn-sm bg-emerald-500 hover:bg-emerald-400 text-black border-none font-bold flex items-center gap-1.5">
+            <button type="submit" className="btn btn-primary btn-sm bg-emerald-500 hover:bg-emerald-400 text-black border-none font-bold flex items-center gap-1.5 shadow-md">
               <ShoppingCart size={15} />
-              {modalMode === 'create' ? 'Mandar a Caja para Cobrar' : 'Guardar Cambios'}
+              {modalMode === 'create' || (modalMode === 'edit' && formData.id_plan_original && Number(formData.id_plan) !== Number(formData.id_plan_original))
+                ? 'Mandar a Caja para Cobrar'
+                : 'Guardar Cambios'}
             </button>
           </div>
         </form>
@@ -238,14 +250,7 @@ export function ModalFormMembresia({
 export function ModalRenovacionMembresia({
   renovacionTarget,
   setRenovacionTarget,
-  modoVerificacion,
-  setModoVerificacion,
-  metodoPagoPrevio,
-  setMetodoPagoPrevio,
-  referenciaPago,
-  setReferenciaPago,
-  handleMandarAPuntoVenta,
-  handleVerificarPagoPrevioYRenovar
+  handleMandarAPuntoVenta
 }) {
   if (!renovacionTarget) return null;
 
@@ -262,7 +267,7 @@ export function ModalRenovacionMembresia({
                 Renovación de Membresía
               </h3>
               <p className="text-xs text-zinc-400">
-                Se requiere verificar el cobro previo antes de extender la vigencia.
+                Extiende la vigencia enviando el cobro directamente al Punto de Venta.
               </p>
             </div>
           </div>
@@ -306,88 +311,17 @@ export function ModalRenovacionMembresia({
             </div>
           </div>
 
-          <div className="flex rounded-xl bg-zinc-950 p-1 border border-zinc-800 text-xs">
-            <button
-              type="button"
-              onClick={() => setModoVerificacion('caja')}
-              className={`flex-1 py-2 px-3 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all ${
-                modoVerificacion === 'caja'
-                  ? 'bg-emerald-500 text-black shadow-md'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <ShoppingCart size={15} />
-              <span>Cobrar en Punto de Venta</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setModoVerificacion('manual')}
-              className={`flex-1 py-2 px-3 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all ${
-                modoVerificacion === 'manual'
-                  ? 'bg-zinc-800 text-white shadow-md'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <CheckCircle2 size={15} />
-              <span>Verificar Pago Previo</span>
-            </button>
+          <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-4 text-xs space-y-3">
+            <div className="flex items-start gap-2.5">
+              <ShoppingCart size={18} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h5 className="font-bold text-white text-sm">Cobro en Mostrador / Caja</h5>
+                <p className="text-zinc-400 mt-1 leading-relaxed">
+                  Al confirmar, serás transferido automáticamente al <strong>Punto de Venta</strong> con este socio y su plan precargados en el carrito para cobrar el importe y registrar la venta en caja.
+                </p>
+              </div>
+            </div>
           </div>
-
-          {modoVerificacion === 'caja' ? (
-            <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-4 text-xs space-y-3">
-              <div className="flex items-start gap-2.5">
-                <ShoppingCart size={18} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h5 className="font-bold text-white text-sm">Flujo Recomendado: Cobro en Mostrador</h5>
-                  <p className="text-zinc-400 mt-1 leading-relaxed">
-                    Al presionar el botón inferior, serás transferido automáticamente al <strong>Punto de Venta</strong> con este socio y su plan precargados en el carrito para expedir el ticket oficial y registrar el ingreso en caja.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-xs space-y-3">
-              <span className="font-bold text-zinc-300 block text-xs">
-                Comprobación de Pago Recibido Previamente:
-              </span>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-zinc-400 uppercase font-semibold mb-1">
-                    Método de Pago:
-                  </label>
-                  <select
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-emerald-500"
-                    value={metodoPagoPrevio}
-                    onChange={(e) => setMetodoPagoPrevio(e.target.value)}
-                  >
-                    <option value="Efectivo">Efectivo Recibido</option>
-                    <option value="Transferencia">Transferencia / SPEI</option>
-                    <option value="Tarjeta">Tarjeta / Terminal</option>
-                    <option value="Depósito">Depósito Bancario</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-zinc-400 uppercase font-semibold mb-1">
-                    Folio o Referencia:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej. REF-8392 o N/A"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-emerald-500 font-mono"
-                    value={referenciaPago}
-                    onChange={(e) => setReferenciaPago(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <p className="text-[11px] text-amber-300/80 flex items-center gap-1.5 pt-1">
-                <AlertTriangle size={13} />
-                Solo confirmar si el importe total (${renovacionTarget.precio.toFixed(2)}) ya fue acreditado.
-              </p>
-            </div>
-          )}
 
           <div className="flex justify-end gap-3 pt-2 border-t border-zinc-800">
             <button
@@ -398,25 +332,14 @@ export function ModalRenovacionMembresia({
               Cancelar
             </button>
 
-            {modoVerificacion === 'caja' ? (
-              <button
-                type="button"
-                onClick={handleMandarAPuntoVenta}
-                className="btn btn-sm bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold border-none flex items-center gap-1.5 shadow-lg"
-              >
-                <span>Ir a Cobrar a Punto de Venta</span>
-                <ArrowRight size={16} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleVerificarPagoPrevioYRenovar}
-                className="btn btn-sm bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold border-none flex items-center gap-1.5 shadow-lg"
-              >
-                <CheckCircle2 size={16} />
-                <span>Confirmar Pago y Renovar</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleMandarAPuntoVenta}
+              className="btn btn-sm bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold border-none flex items-center gap-1.5 shadow-lg"
+            >
+              <span>Ir a Cobrar a Punto de Venta</span>
+              <ArrowRight size={16} />
+            </button>
           </div>
         </div>
       </div>

@@ -1,8 +1,13 @@
 import React from 'react';
 import { Printer } from 'lucide-react';
 
-export default function ModalTicketVenta({ ticketVenta, setTicketVenta }) {
+export default function ModalTicketVenta({ ticketVenta, setTicketVenta, onClose }) {
   if (!ticketVenta) return null;
+
+  const cerrarModal = () => {
+    if (typeof onClose === 'function') onClose();
+    if (typeof setTicketVenta === 'function') setTicketVenta(null);
+  };
 
   return (
     <dialog className="modal modal-open">
@@ -27,7 +32,7 @@ export default function ModalTicketVenta({ ticketVenta, setTicketVenta }) {
             <span>Cant / Articulo</span>
             <span>Subtotal</span>
           </div>
-          {ticketVenta.detalles.map((d, i) => (
+          {(ticketVenta.detalles || []).map((d, i) => (
             <div key={i} className="flex justify-between text-xs">
               <span>{d.cantidad}x {d.articulo} (${d.precio_unitario})</span>
               <strong>${Number(d.subtotal || 0).toFixed(2)}</strong>
@@ -37,7 +42,7 @@ export default function ModalTicketVenta({ ticketVenta, setTicketVenta }) {
 
         <div className="pt-3 text-xs space-y-1">
           <div className="flex justify-between"><span>Subtotal:</span><span>${Number(ticketVenta.subtotal || 0).toFixed(2)}</span></div>
-          {ticketVenta.descuento > 0 && (
+          {Number(ticketVenta.descuento || 0) > 0 && (
             <div className="flex justify-between text-amber-700">
               <span>Descuento ({ticketVenta.descuento_porcentaje}%):</span>
               <span>-${Number(ticketVenta.descuento || 0).toFixed(2)}</span>
@@ -57,7 +62,7 @@ export default function ModalTicketVenta({ ticketVenta, setTicketVenta }) {
           <button onClick={() => window.print()} className="btn btn-sm btn-outline text-zinc-800">
             <Printer size={15} /> Imprimir
           </button>
-          <button onClick={() => setTicketVenta(null)} className="btn btn-sm bg-zinc-900 text-white hover:bg-black">
+          <button onClick={cerrarModal} className="btn btn-sm bg-zinc-900 text-white hover:bg-black">
             Cerrar
           </button>
         </div>

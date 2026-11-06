@@ -140,11 +140,12 @@ export default function Reportes({ loggedUser }) {
           </div>
 
           <DescargarReportePDF
-            documento={crearDocumentoPDF('general')}
-            nombreArchivo={nombreArchivoPDF('general')}
+            documento={crearDocumentoPDF(tabActiva)}
+            nombreArchivo={nombreArchivoPDF(tabActiva)}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-xl text-xs transition-all shadow-lg hover:shadow-emerald-500/20"
+            title="Descargar exclusivamente la tabla del área activa en PDF"
           >
-            <Printer size={15} /> Descargar Balance PDF
+            <Printer size={15} /> Descargar PDF {tabActiva === 'ventas' ? 'Ventas' : tabActiva === 'compras' ? 'Compras' : 'Cortes'}
           </DescargarReportePDF>
         </div>
       </div>
@@ -702,94 +703,71 @@ export default function Reportes({ loggedUser }) {
       
       </div>
 
-      {/* SECCIÓN IMPRIMIBLE EXCLUSIVA (ESTILO TICKET EJECUTIVO / PDF FORMAL) */}
+      {/* SECCIÓN IMPRIMIBLE EXCLUSIVA (SOLO LA TABLA DEL ÁREA RESPECTIVA) */}
       <div className="print-only-container">
         <div className="ticket-print-header">
           <h1>GYMTON FITNESS CLUB</h1>
           <h2>
             {modoImpresion === 'ventas' ? 'REPORTE AUDITADO DE VENTAS' :
              modoImpresion === 'compras' ? 'REPORTE DE COMPRAS Y GASTOS A PROVEEDORES' :
-             modoImpresion === 'cortes' ? 'AUDITORÍA Y ARQUEOS DE CORTE DE CAJA' :
-             'BALANCE GENERAL Y REPORTE EJECUTIVO DE OPERACIONES'}
+             'AUDITORÍA Y ARQUEOS DE CORTE DE CAJA'}
           </h2>
           <div className="ticket-print-meta">
             <span><strong>Fecha Emisión:</strong> {new Date().toLocaleDateString('es-MX')} {new Date().toLocaleTimeString()}</span>
             <span><strong>Período Consultado:</strong> {fechaInicio || 'Inicio'} al {fechaFin || 'Hoy'}</span>
-            <span><strong>Emitido por:</strong> {loggedUser?.nombre || 'Administrador'}</span>
+            <span><strong>Generado por:</strong> {loggedUser?.nombre || 'Administrador'}</span>
           </div>
         </div>
 
-        {/* Resumen Financiero de Balance */}
-        <div className="ticket-balance-box">
-          <div className="ticket-balance-title">Resumen Financiero y Balance de Caja</div>
-          <div className="ticket-balance-grid">
-            <div className="ticket-stat-item">
-              <span className="label">Ingresos Ventas</span>
-              <span className="val">${metricas.totalVentas.toFixed(2)}</span>
-            </div>
-            <div className="ticket-stat-item">
-              <span className="label">Efectivo ({metricas.pctEfectivo}%)</span>
-              <span className="val">${metricas.ventasEfectivo.toFixed(2)}</span>
-            </div>
-            <div className="ticket-stat-item">
-              <span className="label">Tarjeta ({metricas.pctTarjeta}%)</span>
-              <span className="val">${metricas.ventasTarjeta.toFixed(2)}</span>
-            </div>
-            <div className="ticket-stat-item">
-              <span className="label">Egresos Compras</span>
-              <span className="val">${metricas.totalCompras.toFixed(2)}</span>
-            </div>
-          </div>
-          <div style={{ textAlign: 'right', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #e5e7eb', fontSize: '11pt', fontWeight: 'bold' }}>
-            BALANCE NETO: <span style={{ color: metricas.balanceNeto >= 0 ? '#059669' : '#dc2626' }}>${metricas.balanceNeto.toFixed(2)} MXN</span>
-          </div>
-        </div>
-
-        {/* TABLA: Ventas */}
-        {(modoImpresion === 'general' || modoImpresion === 'ventas') && (
+        {/* TABLA EXCLUSIVA: Ventas */}
+        {modoImpresion === 'ventas' && (
           <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid #374151' }}>
-              Desglose de Ventas ({ventasFiltradas.length} operaciones)
-            </h3>
             <table className="ticket-print-table">
               <thead>
                 <tr>
                   <th>Folio</th>
                   <th>Fecha</th>
-                  <th>Cliente</th>
+                  <th>Cliente / Socio</th>
                   <th>Concepto / Artículos</th>
-                  <th>Modo Pago</th>
+                  <th>Método Pago</th>
                   <th style={{ textAlign: 'right' }}>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {ventasFiltradas.slice(0, 100).map(v => (
-                  <tr key={v.id}>
-                    <td>{v.folio || '#' + v.id}</td>
-                    <td>{(v.fecha || '').slice(0, 16)}</td>
-                    <td>{resolverNombreClienteVenta(v)}</td>
-                    <td>{clasificarVenta(v).conceptoResumen}</td>
-                    <td>{v.metodo_pago || 'Efectivo'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(v.total || 0).toFixed(2)}</td>
+                {ventasFiltradas.length > 0 ? (
+                  ventasFiltradas.map(v => (
+                    <tr key={v.id || v.folio}>
+                      <td>{v.folio || '#' + v.id}</td>
+                      <td>{(v.fecha || '').slice(0, 16)}</td>
+                      <td>{resolverNombreClienteVenta(v)}</td>
+                      <td>{clasificarVenta(v).conceptoResumen}</td>
+                      <td>{v.metodo_pago || (Number(v.id_modopago) === 2 ? 'Tarjeta' : 'Efectivo')}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(v.total || 0).toFixed(2)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '16px', color: '#6b7280' }}>
+                      No se encontraron registros de ventas en este período.
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan="5">TOTAL VENTAS REGISTRADAS</td>
-                  <td style={{ textAlign: 'right' }}>${metricas.totalVentas.toFixed(2)}</td>
+                  <td colSpan="5">TOTAL VENTAS REGISTRADAS ({ventasFiltradas.length} operaciones)</td>
+                  <td style={{ textAlign: 'right' }}>
+                    ${ventasFiltradas.reduce((acc, v) => acc + (Number(v.total) || 0), 0).toFixed(2)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
 
-        {/* TABLA: Compras */}
-        {(modoImpresion === 'general' || modoImpresion === 'compras') && (
+        {/* TABLA EXCLUSIVA: Compras */}
+        {modoImpresion === 'compras' && (
           <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid #374151' }}>
-              Desglose de Compras y Suministros ({comprasFiltradas.length} registros)
-            </h3>
             <table className="ticket-print-table">
               <thead>
                 <tr>
@@ -801,35 +779,42 @@ export default function Reportes({ loggedUser }) {
                 </tr>
               </thead>
               <tbody>
-                {comprasFiltradas.slice(0, 100).map(c => {
-                  const datos = resolverDatosCompra(c);
-                  return (
-                    <tr key={c.id}>
-                      <td>#{c.id}</td>
-                      <td>{(c.fecha || '').slice(0, 10)}</td>
-                      <td>{datos.proveedor}</td>
-                      <td>{datos.articulos}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(c.total || 0).toFixed(2)}</td>
-                    </tr>
-                  );
-                })}
+                {comprasFiltradas.length > 0 ? (
+                  comprasFiltradas.map(c => {
+                    const datos = resolverDatosCompra(c);
+                    return (
+                      <tr key={c.id}>
+                        <td>#{c.id}</td>
+                        <td>{(c.fecha || '').slice(0, 10)}</td>
+                        <td>{datos.proveedor}</td>
+                        <td>{datos.articulos}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(c.total || 0).toFixed(2)}</td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '16px', color: '#6b7280' }}>
+                      No se encontraron registros de compras en este período.
+                    </td>
+                  </tr>
+                )}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan="4">TOTAL COMPRAS Y GASTOS</td>
-                  <td style={{ textAlign: 'right' }}>${metricas.totalCompras.toFixed(2)}</td>
+                  <td colSpan="4">TOTAL COMPRAS Y GASTOS ({comprasFiltradas.length} órdenes)</td>
+                  <td style={{ textAlign: 'right' }}>
+                    ${comprasFiltradas.reduce((acc, c) => acc + (Number(c.total) || 0), 0).toFixed(2)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
 
-        {/* TABLA: Cortes */}
-        {(modoImpresion === 'general' || modoImpresion === 'cortes') && (
+        {/* TABLA EXCLUSIVA: Cortes */}
+        {modoImpresion === 'cortes' && (
           <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '10pt', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1px solid #374151' }}>
-              Auditoría de Cortes y Arqueos de Caja ({cortes.length} turnos)
-            </h3>
             <table className="ticket-print-table">
               <thead>
                 <tr>
@@ -844,39 +829,41 @@ export default function Reportes({ loggedUser }) {
                 </tr>
               </thead>
               <tbody>
-                {cortes.map(cc => {
-                  const dif = Number(cc.diferencia || 0);
-                  return (
-                    <tr key={cc.id}>
-                      <td>#{cc.id}</td>
-                      <td>{resolverCajeroCorte(cc)}</td>
-                      <td>{(cc.fecha_apertura || '').slice(0, 16)}</td>
-                      <td>{(cc.fecha_cierre || 'En Curso').slice(0, 16)}</td>
-                      <td style={{ textAlign: 'right' }}>${Number(cc.monto_inicial || 500).toFixed(2)}</td>
-                      <td style={{ textAlign: 'right' }}>${Number(cc.total_ventas || 0).toFixed(2)}</td>
-                      <td style={{ textAlign: 'right' }}>${Number(cc.monto_real || 0).toFixed(2)}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                        {dif === 0 ? '$0.00' : dif > 0 ? `+${dif.toFixed(2)}` : `-${Math.abs(dif).toFixed(2)}`}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {cortes.length > 0 ? (
+                  cortes.map(cc => {
+                    const dif = Number(cc.diferencia || 0);
+                    return (
+                      <tr key={cc.id}>
+                        <td>#{cc.id}</td>
+                        <td>{resolverCajeroCorte(cc)}</td>
+                        <td>{(cc.fecha_apertura || '').slice(0, 16)}</td>
+                        <td>{(cc.fecha_cierre || 'En Curso').slice(0, 16)}</td>
+                        <td style={{ textAlign: 'right' }}>${Number(cc.monto_inicial || 500).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${Number(cc.total_ventas || 0).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${Number(cc.monto_real || 0).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          {dif === 0 ? '$0.00' : dif > 0 ? `+${dif.toFixed(2)}` : `-${Math.abs(dif).toFixed(2)}`}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '16px', color: '#6b7280' }}>
+                      No se encontraron registros de cortes de caja.
+                    </td>
+                  </tr>
+                )}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="7">TOTAL TURNOS AUDITADOS</td>
+                  <td style={{ textAlign: 'right' }}>{cortes.length} cortes</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
-
-        {/* Firmas de Autorización */}
-        <div className="ticket-firmas-box">
-          <div className="ticket-firma">
-            <div className="ticket-firma-linea"></div>
-            <span>Firma del Cajero / Responsable</span>
-          </div>
-          <div className="ticket-firma">
-            <div className="ticket-firma-linea"></div>
-            <span>Firma de Auditoría / Gerencia</span>
-          </div>
-        </div>
       </div>
     </div>
   );

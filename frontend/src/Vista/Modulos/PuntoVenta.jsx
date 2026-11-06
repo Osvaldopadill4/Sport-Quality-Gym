@@ -67,7 +67,7 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
 
   return (
     <div className="puntoventa-wrapper p-6 bg-zinc-950 min-h-screen text-gray-200">
-      {alerta && <Toast mensaje={alerta.mensaje} tipo={alerta.tipo} onClose={() => setAlerta(null)} />}
+      {alerta && <Toast alerta={alerta} mensaje={alerta?.mensaje} tipo={alerta?.tipo} onClose={() => setAlerta(null)} />}
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Catálogo de Productos (Izquierda) */}
@@ -487,6 +487,7 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
       {/* Modal Ticket de Venta extraído en `Vista/Extras/Modales/ModalTicketVenta.jsx` */}
       <ModalTicketVenta
         ticketVenta={ticketVenta}
+        setTicketVenta={setTicketVenta}
         onClose={() => setTicketVenta(null)}
       />
     </div>

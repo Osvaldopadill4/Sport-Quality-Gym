@@ -1,5 +1,5 @@
-import React from 'react';
-import { Document, Page, PDFDownloadLink, StyleSheet, Text, View } from '@react-pdf/renderer';
+import React, { useState } from 'react';
+import { Document, Page, pdf, StyleSheet, Text, View } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: {
@@ -179,15 +179,28 @@ function Table({ columns, rows, footer }) {
     <View>
       <View style={styles.tableHeader} fixed>
         {columns.map(column => (
-          <Text
+          <View
             key={column.key}
-            style={[
-              styles.headerCell,
-              { width: column.width, textAlign: column.align || 'left' }
-            ]}
+            style={{
+              width: column.width,
+              paddingHorizontal: 3,
+              paddingVertical: 3,
+              justifyContent: 'center'
+            }}
           >
-            {column.label}
-          </Text>
+            <Text
+              style={[
+                styles.headerCell,
+                {
+                  textAlign: column.align || 'left',
+                  paddingHorizontal: 0,
+                  paddingVertical: 0
+                }
+              ]}
+            >
+              {column.label}
+            </Text>
+          </View>
         ))}
       </View>
       {rows.length ? rows.map((row, rowIndex) => (
@@ -197,16 +210,30 @@ function Table({ columns, rows, footer }) {
           wrap={false}
         >
           {columns.map(column => (
-            <Text
+            <View
               key={column.key}
-              style={[
-                styles.cell,
-                { width: column.width, textAlign: column.align || 'left' },
-                column.emphasize ? { fontWeight: 700, color: '#111827' } : {}
-              ]}
+              style={{
+                width: column.width,
+                paddingHorizontal: 3,
+                paddingVertical: 3,
+                justifyContent: 'center'
+              }}
             >
-              {text(row[column.key])}
-            </Text>
+              <Text
+                style={[
+                  styles.cell,
+                  {
+                    textAlign: column.align || 'left',
+                    paddingHorizontal: 0,
+                    paddingVertical: 0
+                  },
+                  column.fontSize ? { fontSize: column.fontSize } : {},
+                  column.emphasize ? { fontWeight: 700, color: '#111827' } : {}
+                ]}
+              >
+                {text(row[column.key])}
+              </Text>
+            </View>
           ))}
         </View>
       )) : (
@@ -216,12 +243,16 @@ function Table({ columns, rows, footer }) {
       )}
       {footer && (
         <View style={styles.tableFooter} wrap={false}>
-          <Text style={[styles.footerCell, { width: footer.labelWidth }]}>
-            {footer.label}
-          </Text>
-          <Text style={[styles.footerCell, { width: footer.valueWidth, textAlign: 'right' }]}>
-            {footer.value}
-          </Text>
+          <View style={{ width: footer.labelWidth, paddingHorizontal: 3 }}>
+            <Text style={[styles.footerCell, { paddingHorizontal: 0 }]}>
+              {footer.label}
+            </Text>
+          </View>
+          <View style={{ width: footer.valueWidth, paddingHorizontal: 3 }}>
+            <Text style={[styles.footerCell, { textAlign: 'right', paddingHorizontal: 0 }]}>
+              {footer.value}
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -255,13 +286,13 @@ export function ReportePDF({
   const mostrarCortes = modo === 'general' || modo === 'cortes';
 
   const ventaColumns = [
-    { key: 'folio', label: 'Folio', width: '9%' },
-    { key: 'fecha', label: 'Fecha', width: '12%' },
-    { key: 'cliente', label: 'Cliente', width: '15%' },
-    { key: 'tipo', label: 'Tipo', width: '9%' },
-    { key: 'concepto', label: 'Concepto / Artículos', width: '19%' },
-    { key: 'metodo', label: 'Método', width: '10%' },
-    { key: 'subtotal', label: 'Subtotal', width: '9%', align: 'right' },
+    { key: 'folio', label: 'Folio', width: '18%', fontSize: 6.5 },
+    { key: 'fecha', label: 'Fecha', width: '12%', fontSize: 7 },
+    { key: 'cliente', label: 'Cliente', width: '13%' },
+    { key: 'tipo', label: 'Tipo', width: '7%' },
+    { key: 'concepto', label: 'Concepto / Artículos', width: '18%' },
+    { key: 'metodo', label: 'Método', width: '7%' },
+    { key: 'subtotal', label: 'Subtotal', width: '8%', align: 'right' },
     { key: 'descuento', label: 'Descuento', width: '8%', align: 'right' },
     { key: 'total', label: 'Total', width: '9%', align: 'right', emphasize: true }
   ];
@@ -373,14 +404,39 @@ export function ReportePDF({
   );
 }
 
-export function DescargarReportePDF({ documento, nombreArchivo, className, children }) {
+export function DescargarReportePDF({ documento, nombreArchivo, className, title, children }) {
+  const [generando, setGenerando] = useState(false);
+
+  const handleDescargar = async () => {
+    if (generando) return;
+    try {
+      setGenerando(true);
+      const blob = await pdf(documento).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = nombreArchivo || 'Reporte.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error('Error generando PDF:', err);
+      alert('Error al generar el PDF: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setGenerando(false);
+    }
+  };
+
   return (
-    <PDFDownloadLink document={documento} fileName={nombreArchivo} className={className}>
-      {({ loading, error }) => (
-        <span>
-          {error ? 'Error al generar PDF' : loading ? 'Generando PDF...' : children}
-        </span>
-      )}
-    </PDFDownloadLink>
+    <button
+      type="button"
+      onClick={handleDescargar}
+      disabled={generando}
+      className={className}
+      title={title}
+    >
+      {generando ? 'Generando PDF...' : children}
+    </button>
   );
 }
