@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Key,
   Search,
@@ -17,6 +17,7 @@ import {
 import '../../CSS/Acceso.css';
 import Toast from '../Extras/Toast';
 import { AlertaFlashAcceso } from '../Extras/Modales/ModalesAcceso';
+import { ModalCamaraAcceso } from '../Extras/Modales/ModalCamaraAcceso';
 import { useAcceso } from '../../Reutilizable/useAcceso';
 
 export default function Acceso({ loggedUser }) {
@@ -45,6 +46,17 @@ export default function Acceso({ loggedUser }) {
     denegadosHoy
   } = useAcceso({ loggedUser });
 
+  const [mostrarCamara, setMostrarCamara] = useState(false);
+  const [cooldownRestante, setCooldownRestante] = useState(0);
+
+  useEffect(() => {
+    if (cooldownRestante <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownRestante((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownRestante]);
+
   return (
     <div className="acceso-module-wrapper">
       {alerta && (
@@ -61,6 +73,17 @@ export default function Acceso({ loggedUser }) {
         tiempoRestanteFlash={tiempoRestanteFlash}
         horaActual={horaActual}
         onClose={() => setAlertaFlash(null)}
+      />
+
+      {/* Modal de Cámara Web para Registrar Acceso por QR */}
+      <ModalCamaraAcceso
+        isOpen={mostrarCamara}
+        onClose={() => setMostrarCamara(false)}
+        onScan={(token) => {
+          procesarAcceso(token);
+        }}
+        cooldownRestante={cooldownRestante}
+        setCooldownRestante={setCooldownRestante}
       />
 
       {/* Encabezado y Estado de la Terminal */}
@@ -85,7 +108,7 @@ export default function Acceso({ loggedUser }) {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="status-radar-pill">
               <span className="status-radar-dot" />
-              <span className="text-xs font-bold text-emerald-400">Torniquete Principal En Línea</span>
+              <span className="text-xs font-bold text-emerald-400">Caja Principal En Línea</span>
             </div>
 
             <div className="status-clock-pill">
@@ -116,13 +139,19 @@ export default function Acceso({ loggedUser }) {
         <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-center">
           <div className="scanner-glow-bar" />
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
               <QrCode size={16} /> Lector Óptico / Entrada QR
             </span>
-            <span className="text-xs text-zinc-400 font-mono">
-              Auto-focus activo
-            </span>
+            <button
+              type="button"
+              onClick={() => setMostrarCamara(true)}
+              className="btn btn-sm bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold flex items-center gap-1.5 border-none shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+              title="Activar cámara web para escanear el QR con JWT de la app móvil"
+            >
+              <QrCode size={16} />
+              <span>{cooldownRestante > 0 ? `Enfriamiento (${cooldownRestante}s)` : 'Registrar acceso'}</span>
+            </button>
           </div>
 
           <p className="text-zinc-300 text-sm mb-6">
