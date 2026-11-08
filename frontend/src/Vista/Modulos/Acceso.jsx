@@ -70,6 +70,7 @@ export default function Acceso({ loggedUser }) {
       {/* Modal Flash de Torniquete extraído en `Vista/Extras/Modales/ModalesAcceso.jsx` */}
       <AlertaFlashAcceso
         alertaFlash={alertaFlash}
+        setAlertaFlash={setAlertaFlash}
         tiempoRestanteFlash={tiempoRestanteFlash}
         horaActual={horaActual}
         onClose={() => setAlertaFlash(null)}
@@ -80,6 +81,7 @@ export default function Acceso({ loggedUser }) {
         isOpen={mostrarCamara}
         onClose={() => setMostrarCamara(false)}
         onScan={(token) => {
+          setMostrarCamara(false);
           procesarAcceso(token);
         }}
         cooldownRestante={cooldownRestante}
@@ -96,7 +98,7 @@ export default function Acceso({ loggedUser }) {
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide flex items-center gap-3">
-                  Control de Acceso y Torniquetes
+                  Control de Acceso y Cajas
                 </h1>
                 <p className="text-sm text-zinc-400 mt-1">
                   Recepción automatizada con validación por token QR y destello visual.
@@ -169,10 +171,11 @@ export default function Acceso({ loggedUser }) {
               <input
                 ref={inputRef}
                 type="text"
+                maxLength={300}
                 className="scanner-main-input"
                 placeholder="Escanee QR o ingrese código..."
                 value={inputCodigo}
-                onChange={(e) => setInputCodigo(e.target.value)}
+                onChange={(e) => setInputCodigo(e.target.value.slice(0, 300))}
                 autoFocus
               />
               <button
@@ -253,10 +256,11 @@ export default function Acceso({ loggedUser }) {
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
+                maxLength={50}
                 placeholder="Buscar por socio, plan o UUID..."
                 className="busqueda-acceso-input"
                 value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
+                onChange={(e) => setBusqueda(e.target.value.slice(0, 50))}
               />
               {busqueda && (
                 <button

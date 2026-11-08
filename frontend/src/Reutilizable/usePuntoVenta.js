@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createVenta } from '../JS/venta';
 import { getProductos, updateProductos } from '../JS/producto';
 import { getClientes } from '../JS/cliente';
@@ -41,56 +41,106 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
   const [alerta, setAlerta] = useState(null);
   const [ticketVenta, setTicketVenta] = useState(null);
 
+  // Referencia para asegurar que una solicitud de membresía/pase solo se procese una sola vez en el carrito
+  const renovacionProcesadaRef = useRef(null);
+
   // Manejar renovación transferida desde el módulo de Membresías o Clientes
   useEffect(() => {
-    const datosRenov = renovacionPendiente || (() => {
+    let datosRenov = renovacionPendiente;
+    let esDesdeStorage = false;
+
+    if (!datosRenov) {
       try {
         const saved = localStorage.getItem('gymton_renovacion_pendiente');
-        return saved ? JSON.parse(saved) : null;
+        if (saved) {
+          datosRenov = JSON.parse(saved);
+          esDesdeStorage = true;
+        }
       } catch {
-        return null;
+        datosRenov = null;
       }
-    })();
+    }
+
+    if (!datosRenov) {
+      renovacionProcesadaRef.current = null;
+      return;
+    }
 
     if (datosRenov && (datosRenov.cliente_id || datosRenov.cliente_nombre)) {
       const idCli = Number(datosRenov.cliente_id) || null;
-      const socioEnCatalogo = socios.find(s => Number(s.id) === idCli);
-      const nombreSocioReal = (socioEnCatalogo && socioEnCatalogo.nombre)
-        ? socioEnCatalogo.nombre
-        : (datosRenov.cliente_nombre || 'Socio');
+      const memId = Number(datosRenov.membresia_id) || null;
+      const planId = Number(datosRenov.id_plan) || 1;
 
-      setClienteIdSeleccionado(idCli);
-      setClienteSeleccionado(nombreSocioReal);
+      // Clave identificadora única para prevenir duplicaciones por re-renders
+      const claveProceso = `${idCli}_${planId}_${memId}_${datosRenov.precio}_${datosRenov.es_nueva ? 'nueva' : 'renov'}`;
 
-      const durDias = Math.min(365, Number(datosRenov.duracion_dias) || 30);
-      const prefijo = datosRenov.es_cambio_plan ? 'Cambio de Plan' : (datosRenov.es_nueva ? 'Alta' : 'Renovación');
-      const itemRenov = {
-        id: `renovacion-${datosRenov.id_plan || 1}-${datosRenov.membresia_id || idCli}`,
-        nombre: `${prefijo}: Plan ${datosRenov.plan_nombre || 'Membresía'} (${durDias} días)`,
-        precio: Math.min(9999, Number(datosRenov.precio) || 350),
-        stock: 999,
-        categoria: 'Membresías',
-        cant: 1,
-        es_membresia: true,
-        id_plan: Number(datosRenov.id_plan) || 2,
-        plan_nombre: datosRenov.plan_nombre || 'Membresía',
-        cliente_id: idCli,
-        cliente_nombre: nombreSocioReal,
-        membresia_id: Number(datosRenov.membresia_id) || null,
-        duracion_dias: durDias
-      };
+      if (renovacionProcesadaRef.current !== claveProceso) {
+        renovacionProcesadaRef.current = claveProceso;
 
-      setCarrito(prev => {
-        const filtrados = prev.filter(i => !(i.es_membresia && Number(i.membresia_id) === Number(datosRenov.membresia_id)));
-        return [itemRenov, ...filtrados];
-      });
+        // Limpiar inmediatamente el almacenamiento persistente
+        if (esDesdeStorage || localStorage.getItem('gymton_renovacion_pendiente')) {
+          localStorage.removeItem('gymton_renovacion_pendiente');
+        }
+        // Notificar al componente padre (Dashboard) para limpiar renovacionPendiente
+        if (typeof onRenovacionCompletada === 'function') {
+          onRenovacionCompletada();
+        }
 
-      setAlerta({
-        mensaje: `${prefijo} de membresía cargada para ${nombreSocioReal}. Seleccione Cobrar Ticket para recibir el pago en Caja.`,
-        tipo: 'info'
-      });
+        const socioEnCatalogo = socios.find(s => Number(s.id) === idCli);
+        const nombreSocioReal = (socioEnCatalogo && socioEnCatalogo.nombre)
+          ? socioEnCatalogo.nombre
+          : (datosRenov.cliente_nombre || 'Socio');
+
+        setClienteIdSeleccionado(idCli);
+        setClienteSeleccionado(nombreSocioReal);
+
+        const durDias = Math.min(365, Number(datosRenov.duracion_dias) || 30);
+        const prefijo = datosRenov.es_cambio_plan ? 'Cambio de Plan' : (datosRenov.es_nueva ? 'Alta' : 'Renovación');
+        const itemRenov = {
+          // ID único con timestamp para garantizar que cada elemento sea individual y no se borren en lote
+          id: `renovacion-${planId}-${memId || idCli}-${Date.now()}`,
+          nombre: `${prefijo}: Plan ${datosRenov.plan_nombre || 'Membresía'} (${durDias} días)`,
+          precio: Math.min(9999, Number(datosRenov.precio) || 350),
+          stock: 999,
+          categoria: 'Membresías',
+          cant: 1,
+          es_membresia: true,
+          id_plan: planId,
+          plan_nombre: datosRenov.plan_nombre || 'Membresía',
+          cliente_id: idCli,
+          cliente_nombre: nombreSocioReal,
+          membresia_id: memId,
+          duracion_dias: durDias
+        };
+
+        setCarrito(prev => {
+          // Evitar membresías duplicadas para el mismo cliente o misma membresía
+          const filtrados = prev.filter(i => {
+            if (!i.es_membresia) return true;
+            if (memId && Number(i.membresia_id) === memId) return false;
+            if (idCli && Number(i.cliente_id) === idCli && Number(i.id_plan) === planId) return false;
+            return true;
+          });
+          return [itemRenov, ...filtrados];
+        });
+
+        setAlerta({
+          mensaje: `${prefijo} de membresía cargada para ${nombreSocioReal}. Seleccione Cobrar Ticket para recibir el pago en Caja.`,
+          tipo: 'info'
+        });
+      }
     }
-  }, [renovacionPendiente, socios]);
+  }, [renovacionPendiente, socios, onRenovacionCompletada]);
+
+  // Si los socios cargan posteriormente de manera asíncrona, sincronizar el nombre en la vista
+  useEffect(() => {
+    if (clienteIdSeleccionado && socios.length > 0) {
+      const socio = socios.find(s => Number(s.id) === Number(clienteIdSeleccionado));
+      if (socio && socio.nombre && (!clienteSeleccionado || clienteSeleccionado === 'Socio' || clienteSeleccionado === 'Público General')) {
+        setClienteSeleccionado(socio.nombre);
+      }
+    }
+  }, [socios, clienteIdSeleccionado, clienteSeleccionado]);
 
   useEffect(() => {
     getProductos().then(data => {

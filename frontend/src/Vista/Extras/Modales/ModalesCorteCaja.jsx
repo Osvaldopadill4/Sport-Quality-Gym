@@ -56,13 +56,14 @@ export function ModalAperturaTurno({
 
           <div>
             <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
-              Observaciones:
+              Observaciones (Máx. 200 car.):
             </label>
             <textarea
+              maxLength={200}
               className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-xs text-white focus:border-emerald-500 outline-none"
               rows={2}
               value={formApertura.observaciones}
-              onChange={(e) => setFormApertura({ ...formApertura, observaciones: e.target.value })}
+              onChange={(e) => setFormApertura({ ...formApertura, observaciones: e.target.value.slice(0, 200) })}
             />
           </div>
 
@@ -155,9 +156,14 @@ export function ModalCierreTurno({
                   <input
                     type="number"
                     min="0"
+                    max="9999"
+                    maxLength={4}
                     className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-1 text-white text-xs text-center font-bold mt-1 outline-none focus:border-emerald-500"
                     value={desgloseBilletes[item.key]}
-                    onChange={(e) => setDesgloseBilletes({ ...desgloseBilletes, [item.key]: parseInt(e.target.value, 10) || 0 })}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setDesgloseBilletes({ ...desgloseBilletes, [item.key]: parseInt(raw, 10) || 0 });
+                    }}
                   />
                 </div>
               ))}
@@ -166,17 +172,24 @@ export function ModalCierreTurno({
 
           <div>
             <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
-              Efectivo Total Real Contado en Caja ($ MXN):
+              Efectivo Total Real Contado en Caja ($ MXN) (máx. 999999):
             </label>
             <div className="relative">
               <DollarSign size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400" />
               <input
                 type="number"
                 step="0.01"
+                min="0"
+                max="999999"
                 required
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-xl py-2.5 pl-10 pr-4 text-white text-lg font-black focus:border-amber-400 outline-none"
                 value={formCierre.monto_real}
-                onChange={(e) => setFormCierre({ ...formCierre, monto_real: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || (Number(val) >= 0 && Number(val) <= 999999 && val.length <= 10)) {
+                    setFormCierre({ ...formCierre, monto_real: val === '' ? '' : parseFloat(val) || 0 });
+                  }
+                }}
               />
             </div>
           </div>
@@ -198,14 +211,15 @@ export function ModalCierreTurno({
 
           <div>
             <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
-              Notas de Cierre / Justificación de Diferencia:
+              Notas de Cierre / Justificación de Diferencia (Máx. 200 car.):
             </label>
             <textarea
+              maxLength={200}
               className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-xs text-white focus:border-amber-400 outline-none"
               rows={2}
               placeholder="Ej. Sin novedad en el turno, caja cuadrada al 100%..."
               value={formCierre.observaciones}
-              onChange={(e) => setFormCierre({ ...formCierre, observaciones: e.target.value })}
+              onChange={(e) => setFormCierre({ ...formCierre, observaciones: e.target.value.slice(0, 200) })}
             />
           </div>
 

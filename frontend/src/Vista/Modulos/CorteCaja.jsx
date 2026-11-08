@@ -189,6 +189,7 @@ export default function CorteCaja({ loggedUser }) {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
           <input
             type="text"
+            maxLength={50}
             placeholder="Buscar por ID, fecha o cajero..."
             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-1.5 pl-9 pr-3 text-xs text-white placeholder-zinc-500 outline-none focus:border-emerald-500 transition-all"
             value={busqueda}

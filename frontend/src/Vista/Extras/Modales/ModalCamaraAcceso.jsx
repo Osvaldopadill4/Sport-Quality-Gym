@@ -12,17 +12,26 @@ export function ModalCamaraAcceso({
   const [iniciando, setIniciando] = useState(true);
   const [errorCamara, setErrorCamara] = useState(null);
   const scannerRef = useRef(null);
+  const isScanningRef = useRef(false);
   const cooldownRef = useRef(cooldownRestante);
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
 
   useEffect(() => {
     cooldownRef.current = cooldownRestante;
   }, [cooldownRestante]);
 
   useEffect(() => {
+    onScanRef.current = onScan;
+    onCloseRef.current = onClose;
+  }, [onScan, onClose]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     setIniciando(true);
     setErrorCamara(null);
+    isScanningRef.current = false;
 
     const elementoId = 'lector-qr-webcam-container';
     let html5QrCode = null;
@@ -45,14 +54,19 @@ export function ModalCamaraAcceso({
           if (setCooldownRestante) {
             setCooldownRestante(10);
           }
-          if (onScan) {
-            onScan(decodedText);
+          // Cerrar la cámara inmediatamente para liberar recursos del navegador
+          if (onCloseRef.current) {
+            onCloseRef.current();
+          }
+          if (onScanRef.current) {
+            onScanRef.current(decodedText);
           }
         },
         () => {
           // Ignorar frames sin código QR detectado
         }
       ).then(() => {
+        isScanningRef.current = true;
         setIniciando(false);
       }).catch((err) => {
         console.error('Error al inicializar cámara web:', err);
@@ -66,19 +80,22 @@ export function ModalCamaraAcceso({
     }
 
     return () => {
-      if (scannerRef.current) {
-        try {
-          if (scannerRef.current.isScanning) {
-            scannerRef.current.stop().then(() => {
-              scannerRef.current.clear();
-            }).catch(() => {});
-          } else {
-            scannerRef.current.clear();
-          }
-        } catch {}
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
+      if (scanner) {
+        if (isScanningRef.current) {
+          isScanningRef.current = false;
+          scanner.stop().then(() => {
+            try { scanner.clear(); } catch {}
+          }).catch(() => {
+            try { scanner.clear(); } catch {}
+          });
+        } else {
+          try { scanner.clear(); } catch {}
+        }
       }
     };
-  }, [isOpen, onScan, setCooldownRestante]);
+  }, [isOpen, setCooldownRestante]);
 
   if (!isOpen) return null;
 

@@ -61,35 +61,52 @@ export function ModalFormProducto({
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Precio *</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Precio * (máx. 99999)</label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
+                  max="99999"
                   required
                   className="input input-bordered w-full"
                   placeholder="0.00"
                   value={formData.precio}
-                  onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || (Number(val) >= 0 && Number(val) <= 99999 && val.length <= 8)) {
+                      setFormData({ ...formData, precio: val });
+                    }
+                  }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Stock</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Stock (máx. 5 cifras)</label>
                 <input
                   type="number"
+                  min="0"
+                  max="99999"
                   className="input input-bordered w-full"
                   placeholder="0"
                   value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 5);
+                    setFormData({ ...formData, stock: raw });
+                  }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Mínimo</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Mínimo (máx. 4 cifras)</label>
                 <input
                   type="number"
+                  min="0"
+                  max="9999"
                   className="input input-bordered w-full"
                   placeholder="5"
                   value={formData.stock_minimo}
-                  onChange={(e) => setFormData({ ...formData, stock_minimo: e.target.value })}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setFormData({ ...formData, stock_minimo: raw });
+                  }}
                 />
               </div>
             </div>
@@ -208,10 +225,11 @@ export function ModalReabastecerStock({
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
+                      maxLength={50}
                       className="input input-bordered input-sm w-full pl-9 pr-8 text-sm"
                       placeholder="Escribe el nombre o categoría del producto..."
                       value={busquedaReabastecer}
-                      onChange={(e) => setBusquedaReabastecer(e.target.value)}
+                      onChange={(e) => setBusquedaReabastecer(e.target.value.slice(0, 50))}
                     />
                     {busquedaReabastecer && (
                       <button
@@ -266,19 +284,23 @@ export function ModalReabastecerStock({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Unidades Compradas *</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Unidades Compradas * (máx. 9999)</label>
                 <input
                   type="number"
                   min="1"
                   max="9999"
+                  maxLength={4}
                   required
                   className="input input-bordered w-full font-bold"
                   value={compraData.cantidad}
-                  onChange={(e) => setCompraData({ ...compraData, cantidad: e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setCompraData({ ...compraData, cantidad: raw === '' ? '' : Math.min(9999, Math.max(1, parseInt(raw, 10) || 1)) });
+                  }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-base-content mb-1">Costo Unitario Compra ($) *</label>
+                <label className="block text-sm font-medium text-base-content mb-1">Costo Unitario Compra ($) * (máx. 99999)</label>
                 <input
                   type="number"
                   min="0.01"
@@ -287,7 +309,12 @@ export function ModalReabastecerStock({
                   required
                   className="input input-bordered w-full font-bold"
                   value={compraData.costo}
-                  onChange={(e) => setCompraData({ ...compraData, costo: e.target.value === '' ? '' : parseFloat(e.target.value) })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || (Number(val) >= 0 && Number(val) <= 99999 && val.length <= 8)) {
+                      setCompraData({ ...compraData, costo: val === '' ? '' : parseFloat(val) });
+                    }
+                  }}
                 />
               </div>
             </div>

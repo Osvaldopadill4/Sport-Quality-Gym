@@ -327,6 +327,7 @@ alIniciarSesion(respuesta);
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    maxLength={100}
                     placeholder="usuario@gympos.com"
                     className="login-input"
                   />
@@ -341,6 +342,7 @@ alIniciarSesion(respuesta);
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    maxLength={50}
                     placeholder="••••••••••••"
                     className="login-input"
                   />

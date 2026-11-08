@@ -88,6 +88,7 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
             <input
               type="text"
               className="bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+              maxLength={50}
               placeholder="Buscar por socio o plan..."
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}

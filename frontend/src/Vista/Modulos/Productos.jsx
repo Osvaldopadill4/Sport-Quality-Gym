@@ -82,10 +82,11 @@ export default function Productos({ loggedUser }) {
             <Search size={20} className="productos-search-icon" />
             <input
               type="text"
+              maxLength={50}
               className="productos-search-input"
               placeholder="Buscar productos, suplementos, precio..."
               value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
+              onChange={e => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button

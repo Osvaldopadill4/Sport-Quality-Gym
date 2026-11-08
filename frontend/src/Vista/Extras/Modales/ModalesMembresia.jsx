@@ -74,10 +74,11 @@ export function ModalFormMembresia({
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     type="text"
+                    maxLength={50}
                     placeholder="Escribe para buscar socio por nombre, tel o ID..."
                     className="input input-bordered w-full pl-9 pr-8 bg-zinc-800 border-zinc-700 text-white text-xs placeholder:text-zinc-500"
                     value={busquedaClienteModal}
-                    onChange={(e) => setBusquedaClienteModal(e.target.value)}
+                    onChange={(e) => setBusquedaClienteModal(e.target.value.slice(0, 50))}
                     autoFocus
                   />
                   {busquedaClienteModal && (

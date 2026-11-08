@@ -58,10 +58,11 @@ export default function Proveedores({ loggedUser }) {
             </div>
             <input
               type="text"
+              maxLength={50}
               className="proveedor-search-input"
               placeholder="Buscar por empresa, contacto..."
               value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
+              onChange={e => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button

@@ -88,6 +88,7 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
                 type="text"
                 className="input input-bordered w-full pl-10 bg-zinc-800 border-zinc-700 text-sm"
                 placeholder="Buscar por nombre o categoría..."
+                maxLength={50}
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
@@ -218,6 +219,7 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
                     <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input
                       type="text"
+                      maxLength={50}
                       placeholder="Escribe el nombre o teléfono del socio..."
                       className="w-full bg-zinc-900 border border-zinc-700 rounded-lg py-1.5 pl-8 pr-7 text-xs text-white placeholder-zinc-500 outline-none focus:border-emerald-500"
                       value={busquedaSocioTicket}

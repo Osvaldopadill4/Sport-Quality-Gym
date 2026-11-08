@@ -92,10 +92,11 @@ export function ModalFormCliente({
               </div>
               <input
                 type="text"
+                maxLength={50}
                 className="input input-bordered w-full font-mono text-xs"
                 placeholder="GYM-QR-XXXX-XXXX"
                 value={formData.token_qr || ''}
-                onChange={(e) => setFormData({ ...formData, token_qr: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, token_qr: e.target.value.slice(0, 50) })}
               />
             </div>
 
@@ -350,10 +351,11 @@ export function ModalFormProveedor({
               </label>
               <input
                 type="email"
+                maxLength={50}
                 className="input input-bordered w-full"
                 placeholder="contacto@empresa.com"
                 value={formData.correo || ''}
-                onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, correo: e.target.value.slice(0, 50) })}
               />
             </div>
             <div>
@@ -451,15 +453,16 @@ export function ModalFormUsuario({
 
             <div>
               <label className="block text-sm font-medium text-base-content mb-1">
-                Correo Electrónico * (Debe contener @ y .com)
+                Correo Electrónico * (Debe contener @ y .com, máx. 50 car.)
               </label>
               <input
                 type="email"
                 required
+                maxLength={50}
                 className="input input-bordered w-full"
                 placeholder="ejemplo@gymton.com"
                 value={formData.correo || ''}
-                onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, correo: e.target.value.slice(0, 50) })}
               />
             </div>
 
@@ -479,15 +482,16 @@ export function ModalFormUsuario({
 
             <div>
               <label className="block text-sm font-medium text-base-content mb-1">
-                Contraseña {modalMode === 'create' ? '*' : '(Opcional)'}
+                Contraseña {modalMode === 'create' ? '*' : '(Opcional)'} (Máx. 30 car.)
               </label>
               <input
                 type="password"
                 required={modalMode === 'create'}
+                maxLength={30}
                 className="input input-bordered w-full"
                 placeholder="••••••••"
                 value={formData.contrasena || ''}
-                onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, contrasena: e.target.value.slice(0, 30) })}
               />
             </div>
 

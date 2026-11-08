@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getAcceso,
-  createAcceso,
-  generarQrCliente,
-  validarQrAccesoConProcedure,
-  validarQrAcceso
+  validarQrAccesoConProcedure
 } from '../JS/acceso';
 import { getClientes } from '../JS/cliente';
 import { getReporteAccesos, getReporteEstadoMembresias } from '../JS/reportes_api';
-import { sp_registrar_acceso } from './objetosSQL';
 
 export function useAcceso(paramUser) {
   const usuarioActivo = (paramUser && paramUser.loggedUser) || paramUser || (() => {
@@ -241,20 +237,33 @@ export function useAcceso(paramUser) {
     }
   };
 
-  // Procesar escaneo QR o entrada manual de socio
+  // Procesar escaneo QR o entrada manual de socio conectado directamente con MySQL
   const procesarAcceso = async (codigoParam) => {
     const rawCode = (codigoParam !== undefined ? codigoParam : inputCodigo).trim();
     if (!rawCode) return;
     setInputCodigo('');
 
     const ahora = new Date();
-    const fechaHoy = ahora.toISOString().split('T')[0];
     const horaStr = ahora.toLocaleTimeString();
-    const pareceJwt = rawCode.includes('.') || rawCode.startsWith('eyJ') || rawCode.length > 50;
 
-    // 1. VALIDACIÓN QR CON PROCEDURE ALMACENADO EN MYSQL (`sp_registrar_acceso`)
-    if (pareceJwt) {
-      const resp = await validarQrAccesoConProcedure(rawCode) || await validarQrAcceso(rawCode);
+    // 1. Validar directamente en el backend mediante el Stored Procedure `sp_registrar_acceso`
+    try {
+      let resp = await validarQrAccesoConProcedure(rawCode);
+
+      // Si no coincidió directamente con token o ID, intentar buscar por nombre de socio
+      if (!resp || (!resp.acceso && resp.mensaje?.includes('no encontrado'))) {
+        const socios = obtenerListaClientes();
+        const busq = rawCode.toLowerCase();
+        const encontrado = socios.find(
+          (c) =>
+            String(c.id) === rawCode ||
+            c.uuid?.toLowerCase() === busq ||
+            c.nombre?.toLowerCase().includes(busq)
+        );
+        if (encontrado) {
+          resp = await validarQrAccesoConProcedure(String(encontrado.id));
+        }
+      }
 
       if (resp) {
         if (resp.acceso) {
@@ -285,106 +294,33 @@ export function useAcceso(paramUser) {
           await cargarAccesos();
           return;
         } else {
-          // Acceso Denegado por procedimiento o token expirado
+          // Acceso Denegado por el stored procedure o vigencia terminada
           emitirSonido('red');
           setAlertaFlash({
             color: 'red',
             titulo: '¡ACCESO DENEGADO!',
-            subtitulo: resp.resultado === 'Rechazado' ? 'Membresía Inactiva o Vencida' : 'Token QR Inválido',
-            razon: resp.mensaje || 'Firma digital expirada o membresía sin vigencia.',
-            cliente: { nombre: resp.clienteNombre || 'Acceso No Autorizado', plan: 'Sin Vigencia', dias_restantes: 0 }
+            subtitulo: resp.resultado === 'Rechazado' ? 'Membresía Inactiva o Vencida' : 'Acceso no autorizado',
+            razon: resp.mensaje || 'Membresía sin vigencia o suspendida.',
+            cliente: { nombre: resp.clienteNombre || 'Acceso Denegado', plan: 'Sin Vigencia', dias_restantes: 0 }
           });
 
           await cargarAccesos();
           return;
         }
       }
+    } catch (err) {
+      console.warn('Error al validar acceso con backend:', err);
     }
 
-    // 2. VALIDACIÓN MANUAL / POR TECLADO
-    const socios = obtenerListaClientes();
-    const busq = rawCode.toLowerCase();
-    const clienteEncontrado = socios.find(
-      (c) =>
-        String(c.id) === rawCode ||
-        c.uuid?.toLowerCase() === busq ||
-        c.nombre?.toLowerCase().includes(busq)
-    );
-
-    if (!clienteEncontrado) {
-      emitirSonido('red');
-      setAlertaFlash({
-        color: 'red',
-        titulo: '¡ACCESO DENEGADO!',
-        subtitulo: 'Socio no encontrado',
-        razon: `El código "${rawCode}" no coincide con ningún registro activo.`,
-        cliente: { nombre: 'Desconocido', plan: 'Ninguno', dias_restantes: 0 }
-      });
-      return;
-    }
-
-    // Intentar ejecutar el procedimiento del servidor generando un QR temporal para el cliente
-    try {
-      const qrData = await generarQrCliente(clienteEncontrado.id);
-      if (qrData && qrData.token) {
-        const respProc = await validarQrAccesoConProcedure(qrData.token);
-        if (respProc && respProc.acceso) {
-          emitirSonido('green');
-          setAlertaFlash({
-            color: 'green',
-            titulo: '¡CORRECTO! ACCESO PERMITIDO',
-            subtitulo: 'Torniquete Automático Desbloqueado',
-            razon: `Validado en MySQL para ${clienteEncontrado.nombre}.`,
-            cliente: clienteEncontrado
-          });
-          await cargarAccesos();
-          return;
-        }
-      }
-    } catch {
-      // Continuar con fallback offline si no responde el backend
-    }
-
-    // Fallback Offline usando el procedimiento simulado `sp_registrar_acceso`
-    const spLocal = sp_registrar_acceso(clienteEncontrado.id, estadoMembresiasBD);
-    const esPermitido = spLocal.resultado === 'PERMITIDO';
-    const esInvitado = clienteEncontrado.es_invitado;
-    const porVencer = clienteEncontrado.dias_restantes <= 5 && clienteEncontrado.dias_restantes >= 0;
-
-    let color = esPermitido ? (esInvitado || porVencer ? 'yellow' : 'green') : 'red';
-    emitirSonido(color);
-
+    // Si no se encontró ningún cliente
+    emitirSonido('red');
     setAlertaFlash({
-      color,
-      titulo: color === 'green' ? '¡CORRECTO! ACCESO PERMITIDO' : color === 'yellow' ? '¡ATENCIÓN! ACCESO CON PRECAUCIÓN' : '¡ACCESO DENEGADO!',
-      subtitulo: color === 'green' ? 'Torniquete Desbloqueado' : color === 'yellow' ? `Restan ${clienteEncontrado.dias_restantes} días` : 'Membresía Vencida o Inactiva',
-      razon: color === 'red' ? 'Acudir a recepción a renovar membresía.' : 'Acceso registrado localmente.',
-      cliente: clienteEncontrado
+      color: 'red',
+      titulo: '¡ACCESO DENEGADO!',
+      subtitulo: 'Socio o Token no encontrado',
+      razon: `El código "${rawCode}" no coincide con ningún registro o token válido en la base de datos.`,
+      cliente: { nombre: 'Desconocido', plan: 'Ninguno', dias_restantes: 0 }
     });
-
-    const logLocal = {
-      id: Date.now(),
-      id_cliente: clienteEncontrado.id,
-      uuid: clienteEncontrado.uuid,
-      cliente_nombre: clienteEncontrado.nombre,
-      plan: clienteEncontrado.plan,
-      fecha: fechaHoy,
-      hora: horaStr,
-      resultado: esPermitido ? 'Permitido' : 'Rechazado',
-      color,
-      dias_restantes: clienteEncontrado.dias_restantes
-    };
-
-    const nuevosLogs = [logLocal, ...accesos];
-    setAccesos(nuevosLogs);
-    localStorage.setItem('gymton_accesos_log', JSON.stringify(nuevosLogs));
-
-    createAcceso({
-      id_cliente: clienteEncontrado.id,
-      fecha: fechaHoy,
-      hora: horaStr,
-      resultado: esPermitido ? 'CONCEDIDO' : 'DENEGADO'
-    }).catch(() => {});
   };
 
   // Filtrado de accesos para la tabla

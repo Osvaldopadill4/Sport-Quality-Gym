@@ -77,7 +77,8 @@ public class AccesoControlador {
      *    Recibe el token leído del QR, lo valida, y registra el acceso.
      */
     @PostMapping("/validar-qr")
-    public ResponseEntity<?> validarAcceso(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> validarAcceso(@RequestBody Map<String, String> body) { return validarAccesoConProcedure(body); }
+    public ResponseEntity<?> validarAccesoLegado(@RequestBody Map<String, String> body) {
         Map<String, Object> response = new HashMap<>();
         String qrTokenLeido = body.get("token");
 
@@ -89,6 +90,23 @@ public class AccesoControlador {
 
         // Validar el token JWT
         Integer clienteId = qrJwtService.validarQrToken(qrTokenLeido);
+        if (clienteId == null) {
+            try {
+                if (qrTokenLeido.matches("^\\d+$")) {
+                    clienteId = Integer.parseInt(qrTokenLeido);
+                } else {
+                    List<Cliente> clientes = clienteDao.getClientes();
+                    if (clientes != null) {
+                        for (Cliente c : clientes) {
+                            if (c.getToken_qr() != null && qrTokenLeido.equalsIgnoreCase(c.getToken_qr().trim())) {
+                                clienteId = c.getId();
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
 
         if (clienteId == null) {
             // Registrar intento fallido (token inválido o expirado)
@@ -139,6 +157,23 @@ public class AccesoControlador {
 
         // Validar el token JWT
         Integer clienteId = qrJwtService.validarQrToken(qrTokenLeido);
+        if (clienteId == null) {
+            try {
+                if (qrTokenLeido.matches("^\\d+$")) {
+                    clienteId = Integer.parseInt(qrTokenLeido);
+                } else {
+                    List<Cliente> clientes = clienteDao.getClientes();
+                    if (clientes != null) {
+                        for (Cliente c : clientes) {
+                            if (c.getToken_qr() != null && qrTokenLeido.equalsIgnoreCase(c.getToken_qr().trim())) {
+                                clienteId = c.getId();
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
 
         if (clienteId == null) {
             response.put("acceso", false);

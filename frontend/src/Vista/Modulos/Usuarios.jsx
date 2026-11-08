@@ -66,10 +66,11 @@ export default function Usuarios({ loggedUser }) {
             </div>
             <input
               type="text"
+              maxLength={50}
               className="usuarios-search-input"
               placeholder="Buscar usuarios por nombre, correo, rol..."
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button

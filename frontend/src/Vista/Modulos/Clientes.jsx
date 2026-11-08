@@ -77,10 +77,11 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
             </div>
             <input
               type="text"
+              maxLength={50}
               className="clientes-search-input"
               placeholder="Buscar por nombre, teléfono, token QR..."
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button

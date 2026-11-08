@@ -480,6 +480,7 @@ export default function Reportes({ loggedUser }) {
             <input
               type="text"
               className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+              maxLength={50}
               placeholder="Filtrar por folio, socio, proveedor o producto..."
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}

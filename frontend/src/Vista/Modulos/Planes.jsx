@@ -80,10 +80,11 @@ export default function Planes({ loggedUser }) {
             <Search size={20} className="planes-search-icon" />
             <input
               type="text"
+              maxLength={50}
               className="planes-search-input"
               placeholder="Buscar plan por nombre, precio, días..."
               value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
+              onChange={e => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button
