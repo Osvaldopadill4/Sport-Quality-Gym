@@ -18,6 +18,7 @@
 --
 -- Table structure for table `acceso`
 --
+USE gympos;
 
 DROP TABLE IF EXISTS `acceso`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -183,31 +184,56 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_detalle_compra` BEFORE INSERT ON `detalle_compra` FOR EACH ROW BEGIN
-    DECLARE v_producto_existe INT;
-    
-    -- Validar que el producto exista
-    SELECT COUNT(*)
-    INTO v_producto_existe
-    FROM producto
-    WHERE id = NEW.id_producto;
-    
-    IF v_producto_existe = 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'El producto no existe';
-    END IF;
-    
-    -- Validar cantidad positiva
-    IF NEW.cantidad <= 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'La cantidad debe ser mayor que cero';
-    END IF;
-    
-    -- Validar costo positivo
-    IF NEW.costo_unitario < 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'El costo unitario no puede ser negativo';
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_detalle_compra` BEFORE INSERT ON `detalle_compra` FOR EACH ROW BEGIN
+
+    DECLARE v_producto_existe INT;
+
+    
+
+    -- Validar que el producto exista
+
+    SELECT COUNT(*)
+
+    INTO v_producto_existe
+
+    FROM producto
+
+    WHERE id = NEW.id_producto;
+
+    
+
+    IF v_producto_existe = 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'El producto no existe';
+
+    END IF;
+
+    
+
+    -- Validar cantidad positiva
+
+    IF NEW.cantidad <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'La cantidad debe ser mayor que cero';
+
+    END IF;
+
+    
+
+    -- Validar costo positivo
+
+    IF NEW.costo_unitario < 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'El costo unitario no puede ser negativo';
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -223,10 +249,14 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_incrementar_stock_compra` AFTER INSERT ON `detalle_compra` FOR EACH ROW BEGIN
-    UPDATE producto
-    SET stock = CAST(stock AS UNSIGNED) + NEW.cantidad
-    WHERE id = NEW.id_producto;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_incrementar_stock_compra` AFTER INSERT ON `detalle_compra` FOR EACH ROW BEGIN
+
+    UPDATE producto
+
+    SET stock = CAST(stock AS UNSIGNED) + NEW.cantidad
+
+    WHERE id = NEW.id_producto;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -242,10 +272,14 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_ajustar_stock_compra_update` AFTER UPDATE ON `detalle_compra` FOR EACH ROW BEGIN
-    UPDATE producto
-    SET stock = CAST(stock AS UNSIGNED) - (OLD.cantidad - NEW.cantidad)
-    WHERE id = NEW.id_producto;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_ajustar_stock_compra_update` AFTER UPDATE ON `detalle_compra` FOR EACH ROW BEGIN
+
+    UPDATE producto
+
+    SET stock = CAST(stock AS UNSIGNED) - (OLD.cantidad - NEW.cantidad)
+
+    WHERE id = NEW.id_producto;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -261,10 +295,14 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_decrementar_stock_compra` AFTER DELETE ON `detalle_compra` FOR EACH ROW BEGIN
-    UPDATE producto
-    SET stock = CAST(stock AS UNSIGNED) - OLD.cantidad
-    WHERE id = OLD.id_producto;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_decrementar_stock_compra` AFTER DELETE ON `detalle_compra` FOR EACH ROW BEGIN
+
+    UPDATE producto
+
+    SET stock = CAST(stock AS UNSIGNED) - OLD.cantidad
+
+    WHERE id = OLD.id_producto;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -315,21 +353,36 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_stock_venta` BEFORE INSERT ON `detalle_venta` FOR EACH ROW BEGIN
-    DECLARE v_stock INT DEFAULT NULL;
-
-    IF NEW.id_producto IS NOT NULL THEN
-        SELECT CAST(stock AS UNSIGNED)
-        INTO v_stock
-        FROM producto
-        WHERE id = NEW.id_producto;
-
-        IF v_stock IS NULL OR NEW.cantidad <= 0
-           OR v_stock < NEW.cantidad THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Stock insuficiente o producto inexistente';
-        END IF;
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_stock_venta` BEFORE INSERT ON `detalle_venta` FOR EACH ROW BEGIN
+
+    DECLARE v_stock INT DEFAULT NULL;
+
+
+
+    IF NEW.id_producto IS NOT NULL THEN
+
+        SELECT CAST(stock AS UNSIGNED)
+
+        INTO v_stock
+
+        FROM producto
+
+        WHERE id = NEW.id_producto;
+
+
+
+        IF v_stock IS NULL OR NEW.cantidad <= 0
+
+           OR v_stock < NEW.cantidad THEN
+
+            SIGNAL SQLSTATE '45000'
+
+            SET MESSAGE_TEXT = 'Stock insuficiente o producto inexistente';
+
+        END IF;
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -345,12 +398,18 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_descontar_stock` AFTER INSERT ON `detalle_venta` FOR EACH ROW BEGIN
-    IF NEW.id_producto IS NOT NULL THEN
-        UPDATE producto
-        SET stock = CAST(stock AS UNSIGNED) - NEW.cantidad
-        WHERE id = NEW.id_producto;
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_descontar_stock` AFTER INSERT ON `detalle_venta` FOR EACH ROW BEGIN
+
+    IF NEW.id_producto IS NOT NULL THEN
+
+        UPDATE producto
+
+        SET stock = CAST(stock AS UNSIGNED) - NEW.cantidad
+
+        WHERE id = NEW.id_producto;
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -433,12 +492,18 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_restaurar_stock` AFTER DELETE ON `detalle_venta` FOR EACH ROW BEGIN
-    IF OLD.id_producto IS NOT NULL THEN
-        UPDATE producto
-        SET stock = CAST(stock AS UNSIGNED) + OLD.cantidad
-        WHERE id = OLD.id_producto;
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_restaurar_stock` AFTER DELETE ON `detalle_venta` FOR EACH ROW BEGIN
+
+    IF OLD.id_producto IS NOT NULL THEN
+
+        UPDATE producto
+
+        SET stock = CAST(stock AS UNSIGNED) + OLD.cantidad
+
+        WHERE id = OLD.id_producto;
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -486,54 +551,102 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_membresia` BEFORE INSERT ON `membresia` FOR EACH ROW BEGIN
-    DECLARE v_cliente_existe INT;
-    DECLARE v_plan_existe INT;
-    DECLARE v_membresia_duplicada INT;
-    
-    -- Validar que el cliente exista y esté activo
-    SELECT COUNT(*)
-    INTO v_cliente_existe
-    FROM cliente
-    WHERE id = NEW.id_cliente 
-    AND (estado = '1' OR estado = 1 OR LOWER(estado) = 'activo');
-    
-    IF v_cliente_existe = 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'El cliente no existe o está inactivo';
-    END IF;
-    
-    -- Validar que el plan exista y esté activo
-    SELECT COUNT(*)
-    INTO v_plan_existe
-    FROM plan
-    WHERE id = NEW.id_plan 
-    AND (estado = 'activo' OR estado = 'Activo');
-    
-    IF v_plan_existe = 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'El plan no existe o está inactivo';
-    END IF;
-    
-    -- Validar que la fecha de vencimiento no sea anterior al inicio
-    IF NEW.fecha_vencimiento < NEW.fecha_inicio THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'La fecha de vencimiento no puede ser anterior al inicio';
-    END IF;
-    
-    -- Validar que no haya una membresía activa duplicada para el mismo cliente
-    SELECT COUNT(*)
-    INTO v_membresia_duplicada
-    FROM membresia
-    WHERE id_cliente = NEW.id_cliente
-    AND id_plan = NEW.id_plan
-    AND estado = 'activa'
-    AND fecha_inicio = NEW.fecha_inicio;
-    
-    IF v_membresia_duplicada > 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Ya existe una membresía activa con el mismo plan y fecha de inicio';
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_membresia` BEFORE INSERT ON `membresia` FOR EACH ROW BEGIN
+
+    DECLARE v_cliente_existe INT;
+
+    DECLARE v_plan_existe INT;
+
+    DECLARE v_membresia_duplicada INT;
+
+    
+
+    -- Validar que el cliente exista y esté activo
+
+    SELECT COUNT(*)
+
+    INTO v_cliente_existe
+
+    FROM cliente
+
+    WHERE id = NEW.id_cliente 
+
+    AND (estado = '1' OR estado = 1 OR LOWER(estado) = 'activo');
+
+    
+
+    IF v_cliente_existe = 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'El cliente no existe o está inactivo';
+
+    END IF;
+
+    
+
+    -- Validar que el plan exista y esté activo
+
+    SELECT COUNT(*)
+
+    INTO v_plan_existe
+
+    FROM plan
+
+    WHERE id = NEW.id_plan 
+
+    AND (estado = 'activo' OR estado = 'Activo');
+
+    
+
+    IF v_plan_existe = 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'El plan no existe o está inactivo';
+
+    END IF;
+
+    
+
+    -- Validar que la fecha de vencimiento no sea anterior al inicio
+
+    IF NEW.fecha_vencimiento < NEW.fecha_inicio THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'La fecha de vencimiento no puede ser anterior al inicio';
+
+    END IF;
+
+    
+
+    -- Validar que no haya una membresía activa duplicada para el mismo cliente
+
+    SELECT COUNT(*)
+
+    INTO v_membresia_duplicada
+
+    FROM membresia
+
+    WHERE id_cliente = NEW.id_cliente
+
+    AND id_plan = NEW.id_plan
+
+    AND estado = 'activa'
+
+    AND fecha_inicio = NEW.fecha_inicio;
+
+    
+
+    IF v_membresia_duplicada > 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'Ya existe una membresía activa con el mismo plan y fecha de inicio';
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -603,18 +716,30 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_insert` AFTER INSERT ON `plan` FOR EACH ROW BEGIN
-    IF (NEW.categoria IS NOT NULL OR NEW.stock IS NOT NULL) THEN
-        INSERT INTO `producto` (`id`, `nombre`, `descripcion`, `precio`, `stock`, `stock_minimo`, `estado`, `categoria`)
-        VALUES (NEW.id, NEW.nombre, NEW.descripcion, NEW.precio, IFNULL(NEW.stock, '0'), 5, IFNULL(NEW.estado, 'Activo'), IFNULL(NEW.categoria, 'General'))
-        ON DUPLICATE KEY UPDATE
-            nombre = VALUES(nombre),
-            descripcion = VALUES(descripcion),
-            precio = VALUES(precio),
-            stock = VALUES(stock),
-            estado = VALUES(estado),
-            categoria = VALUES(categoria);
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_insert` AFTER INSERT ON `plan` FOR EACH ROW BEGIN
+
+    IF (NEW.categoria IS NOT NULL OR NEW.stock IS NOT NULL) THEN
+
+        INSERT INTO `producto` (`id`, `nombre`, `descripcion`, `precio`, `stock`, `stock_minimo`, `estado`, `categoria`)
+
+        VALUES (NEW.id, NEW.nombre, NEW.descripcion, NEW.precio, IFNULL(NEW.stock, '0'), 5, IFNULL(NEW.estado, 'Activo'), IFNULL(NEW.categoria, 'General'))
+
+        ON DUPLICATE KEY UPDATE
+
+            nombre = VALUES(nombre),
+
+            descripcion = VALUES(descripcion),
+
+            precio = VALUES(precio),
+
+            stock = VALUES(stock),
+
+            estado = VALUES(estado),
+
+            categoria = VALUES(categoria);
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -630,18 +755,30 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_update` AFTER UPDATE ON `plan` FOR EACH ROW BEGIN
-    IF (NEW.categoria IS NOT NULL OR NEW.stock IS NOT NULL) THEN
-        INSERT INTO `producto` (`id`, `nombre`, `descripcion`, `precio`, `stock`, `stock_minimo`, `estado`, `categoria`)
-        VALUES (NEW.id, NEW.nombre, NEW.descripcion, NEW.precio, IFNULL(NEW.stock, '0'), 5, IFNULL(NEW.estado, 'Activo'), IFNULL(NEW.categoria, 'General'))
-        ON DUPLICATE KEY UPDATE
-            nombre = VALUES(nombre),
-            descripcion = VALUES(descripcion),
-            precio = VALUES(precio),
-            stock = VALUES(stock),
-            estado = VALUES(estado),
-            categoria = VALUES(categoria);
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_update` AFTER UPDATE ON `plan` FOR EACH ROW BEGIN
+
+    IF (NEW.categoria IS NOT NULL OR NEW.stock IS NOT NULL) THEN
+
+        INSERT INTO `producto` (`id`, `nombre`, `descripcion`, `precio`, `stock`, `stock_minimo`, `estado`, `categoria`)
+
+        VALUES (NEW.id, NEW.nombre, NEW.descripcion, NEW.precio, IFNULL(NEW.stock, '0'), 5, IFNULL(NEW.estado, 'Activo'), IFNULL(NEW.categoria, 'General'))
+
+        ON DUPLICATE KEY UPDATE
+
+            nombre = VALUES(nombre),
+
+            descripcion = VALUES(descripcion),
+
+            precio = VALUES(precio),
+
+            stock = VALUES(stock),
+
+            estado = VALUES(estado),
+
+            categoria = VALUES(categoria);
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -657,10 +794,14 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_delete` AFTER DELETE ON `plan` FOR EACH ROW BEGIN
-    IF (OLD.categoria IS NOT NULL OR OLD.stock IS NOT NULL) THEN
-        DELETE FROM producto WHERE id = OLD.id;
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_sync_plan_a_producto_delete` AFTER DELETE ON `plan` FOR EACH ROW BEGIN
+
+    IF (OLD.categoria IS NOT NULL OR OLD.stock IS NOT NULL) THEN
+
+        DELETE FROM producto WHERE id = OLD.id;
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -828,17 +969,28 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_cliente_venta` BEFORE INSERT ON `venta` FOR EACH ROW BEGIN
-    IF NEW.id_cliente IS NOT NULL
-       AND NOT EXISTS (
-           SELECT 1
-           FROM cliente
-           WHERE id = NEW.id_cliente
-             AND (estado = '1' OR estado = 1 OR LOWER(estado) = 'activo')
-       ) THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'El cliente no existe o está inactivo';
-    END IF;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_validar_cliente_venta` BEFORE INSERT ON `venta` FOR EACH ROW BEGIN
+
+    IF NEW.id_cliente IS NOT NULL
+
+       AND NOT EXISTS (
+
+           SELECT 1
+
+           FROM cliente
+
+           WHERE id = NEW.id_cliente
+
+             AND (estado = '1' OR estado = 1 OR LOWER(estado) = 'activo')
+
+       ) THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'El cliente no existe o está inactivo';
+
+    END IF;
+
 END */;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -979,12 +1131,18 @@ DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_calcular_descuento`(`p_precio` DECIMAL(10,2), `p_porcentaje` DECIMAL(5,2)) RETURNS decimal(10,2)
     NO SQL
     DETERMINISTIC
-BEGIN
-    IF p_precio < 0 OR p_porcentaje < 0 OR p_porcentaje > 100 THEN
-        RETURN NULL;
-    END IF;
-
-    RETURN ROUND(p_precio * p_porcentaje / 100, 2);
+BEGIN
+
+    IF p_precio < 0 OR p_porcentaje < 0 OR p_porcentaje > 100 THEN
+
+        RETURN NULL;
+
+    END IF;
+
+
+
+    RETURN ROUND(p_precio * p_porcentaje / 100, 2);
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1004,8 +1162,10 @@ DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_calcular_subtotal_producto`(`p_precio` DECIMAL(10,2), `p_cantidad` INT) RETURNS decimal(10,2)
     NO SQL
     DETERMINISTIC
-BEGIN
-    RETURN p_precio * p_cantidad;
+BEGIN
+
+    RETURN p_precio * p_cantidad;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1024,15 +1184,24 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_calcular_total_venta`(`p_id_venta` INT) RETURNS decimal(10,2)
     READS SQL DATA
-BEGIN
-    DECLARE v_total DECIMAL(10,2);
-
-    SELECT COALESCE(SUM(subtotal), 0)
-    INTO v_total
-    FROM detalle_venta
-    WHERE id_venta = p_id_venta;
-
-    RETURN v_total;
+BEGIN
+
+    DECLARE v_total DECIMAL(10,2);
+
+
+
+    SELECT COALESCE(SUM(subtotal), 0)
+
+    INTO v_total
+
+    FROM detalle_venta
+
+    WHERE id_venta = p_id_venta;
+
+
+
+    RETURN v_total;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1051,8 +1220,10 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_dias_restantes_membresia`(`p_fecha_vencimiento` DATE) RETURNS int(11)
     NO SQL
-BEGIN
-    RETURN DATEDIFF(p_fecha_vencimiento, CURDATE());
+BEGIN
+
+    RETURN DATEDIFF(p_fecha_vencimiento, CURDATE());
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1071,16 +1242,26 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `fn_estado_membresia`(`p_fecha_inicio` DATE, `p_fecha_vencimiento` DATE) RETURNS varchar(20) CHARSET utf8mb4
     NO SQL
-BEGIN
-    IF CURDATE() < p_fecha_inicio THEN
-        RETURN 'Pendiente';
-    ELSEIF CURDATE() > p_fecha_vencimiento THEN
-        RETURN 'Vencida';
-    ELSEIF DATEDIFF(p_fecha_vencimiento, CURDATE()) <= 3 THEN
-        RETURN 'Por vencer';
-    ELSE
-        RETURN 'Activa';
-    END IF;
+BEGIN
+
+    IF CURDATE() < p_fecha_inicio THEN
+
+        RETURN 'Pendiente';
+
+    ELSEIF CURDATE() > p_fecha_vencimiento THEN
+
+        RETURN 'Vencida';
+
+    ELSEIF DATEDIFF(p_fecha_vencimiento, CURDATE()) <= 3 THEN
+
+        RETURN 'Por vencer';
+
+    ELSE
+
+        RETURN 'Activa';
+
+    END IF;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1098,13 +1279,20 @@ DELIMITER ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_generar_folio`(OUT `p_folio` VARCHAR(40))
-BEGIN
-    SET p_folio = CONCAT(
-        'V-',
-        DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'),
-        '-',
-        UPPER(SUBSTRING(REPLACE(UUID(), '-', ''), 1, 6))
-    );
+BEGIN
+
+    SET p_folio = CONCAT(
+
+        'V-',
+
+        DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'),
+
+        '-',
+
+        UPPER(SUBSTRING(REPLACE(UUID(), '-', ''), 1, 6))
+
+    );
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1122,29 +1310,52 @@ DELIMITER ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_acceso`(IN `p_id_cliente` INT)
-BEGIN
-    DECLARE v_activo INT DEFAULT 0;
-    DECLARE v_resultado VARCHAR(20);
-
-    SELECT COUNT(*)
-    INTO v_activo
-    FROM cliente c
-    INNER JOIN membresia m ON c.id = m.id_cliente
-    WHERE c.id = p_id_cliente
-      AND c.estado = 1
-      AND m.estado = 'activa'
-      AND CURDATE() BETWEEN m.fecha_inicio AND m.fecha_vencimiento;
-
-    IF v_activo > 0 THEN
-        SET v_resultado = 'Permitido';
-    ELSE
-        SET v_resultado = 'Rechazado';
-    END IF;
-
-    INSERT INTO acceso (id_cliente, fecha, hora, resultado)
-    VALUES (p_id_cliente, CURDATE(), CURTIME(), v_resultado);
-
-    SELECT v_resultado AS resultado_acceso;
+BEGIN
+
+    DECLARE v_activo INT DEFAULT 0;
+
+    DECLARE v_resultado VARCHAR(20);
+
+
+
+    SELECT COUNT(*)
+
+    INTO v_activo
+
+    FROM cliente c
+
+    INNER JOIN membresia m ON c.id = m.id_cliente
+
+    WHERE c.id = p_id_cliente
+
+      AND c.estado = 1
+
+      AND m.estado = 'activa'
+
+      AND CURDATE() BETWEEN m.fecha_inicio AND m.fecha_vencimiento;
+
+
+
+    IF v_activo > 0 THEN
+
+        SET v_resultado = 'Permitido';
+
+    ELSE
+
+        SET v_resultado = 'Rechazado';
+
+    END IF;
+
+
+
+    INSERT INTO acceso (id_cliente, fecha, hora, resultado)
+
+    VALUES (p_id_cliente, CURDATE(), CURTIME(), v_resultado);
+
+
+
+    SELECT v_resultado AS resultado_acceso;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1162,38 +1373,70 @@ DELIMITER ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_compra_inventario`(IN `p_id_usuario` INT, IN `p_id_proveedor` INT, IN `p_id_producto` INT, IN `p_cantidad` INT, IN `p_costo` DECIMAL(10,2))
-BEGIN
-    DECLARE v_id_compra INT;
-    DECLARE v_subtotal DECIMAL(10,2);
-
-    IF p_cantidad <= 0 OR p_costo < 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Cantidad o costo no válido';
-    END IF;
-
-    SET v_subtotal = p_cantidad * p_costo;
-
-    INSERT INTO compra (
-        id_usuario, id_proveedor, fecha, total, estado
-    )
-    VALUES (
-        p_id_usuario, p_id_proveedor, NOW(), v_subtotal, 'Registrada'
-    );
-
-    SET v_id_compra = LAST_INSERT_ID();
-
-    INSERT INTO detalle_compra (
-        id_compra, id_producto, cantidad, costo_unitario, subtotal
-    )
-    VALUES (
-        v_id_compra, p_id_producto, p_cantidad, p_costo, v_subtotal
-    );
-
-    UPDATE producto
-    SET stock = CAST(stock AS UNSIGNED) + p_cantidad
-    WHERE id = p_id_producto;
-
-    SELECT v_id_compra AS id_compra, v_subtotal AS total_compra;
+BEGIN
+
+    DECLARE v_id_compra INT;
+
+    DECLARE v_subtotal DECIMAL(10,2);
+
+
+
+    IF p_cantidad <= 0 OR p_costo < 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'Cantidad o costo no válido';
+
+    END IF;
+
+
+
+    SET v_subtotal = p_cantidad * p_costo;
+
+
+
+    INSERT INTO compra (
+
+        id_usuario, id_proveedor, fecha, total, estado
+
+    )
+
+    VALUES (
+
+        p_id_usuario, p_id_proveedor, NOW(), v_subtotal, 'Registrada'
+
+    );
+
+
+
+    SET v_id_compra = LAST_INSERT_ID();
+
+
+
+    INSERT INTO detalle_compra (
+
+        id_compra, id_producto, cantidad, costo_unitario, subtotal
+
+    )
+
+    VALUES (
+
+        v_id_compra, p_id_producto, p_cantidad, p_costo, v_subtotal
+
+    );
+
+
+
+    UPDATE producto
+
+    SET stock = CAST(stock AS UNSIGNED) + p_cantidad
+
+    WHERE id = p_id_producto;
+
+
+
+    SELECT v_id_compra AS id_compra, v_subtotal AS total_compra;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1211,45 +1454,84 @@ DELIMITER ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_registrar_venta`(IN `p_id_usuario` INT, IN `p_id_cliente` INT, IN `p_id_producto` INT, IN `p_cantidad` INT, IN `p_metodo_pago` VARCHAR(30))
-BEGIN
-    DECLARE v_precio DECIMAL(10,2);
-    DECLARE v_total DECIMAL(10,2);
-    DECLARE v_id_venta INT;
-    DECLARE v_folio VARCHAR(40);
-
-    IF p_cantidad <= 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'La cantidad debe ser mayor que cero';
-    END IF;
-
-    SELECT CAST(precio AS DECIMAL(10,2))
-    INTO v_precio
-    FROM producto
-    WHERE id = p_id_producto AND estado = 'activo';
-
-    SET v_total = v_precio * p_cantidad;
-
-    CALL sp_generar_folio(v_folio);
-
-    INSERT INTO venta (
-        id_usuario, id_cliente, fecha, total, metodo_pago, folio
-    )
-    VALUES (
-        p_id_usuario, p_id_cliente, NOW(), v_total, p_metodo_pago, v_folio
-    );
-
-    SET v_id_venta = LAST_INSERT_ID();
-
-    INSERT INTO detalle_venta (
-        id_venta, id_producto, id_plan,
-        cantidad, precio_unitario, subtotal
-    )
-    VALUES (
-        v_id_venta, p_id_producto, NULL,
-        p_cantidad, v_precio, v_total
-    );
-
-    SELECT v_id_venta AS id_venta, v_folio AS folio, v_total AS total;
+BEGIN
+
+    DECLARE v_precio DECIMAL(10,2);
+
+    DECLARE v_total DECIMAL(10,2);
+
+    DECLARE v_id_venta INT;
+
+    DECLARE v_folio VARCHAR(40);
+
+
+
+    IF p_cantidad <= 0 THEN
+
+        SIGNAL SQLSTATE '45000'
+
+        SET MESSAGE_TEXT = 'La cantidad debe ser mayor que cero';
+
+    END IF;
+
+
+
+    SELECT CAST(precio AS DECIMAL(10,2))
+
+    INTO v_precio
+
+    FROM producto
+
+    WHERE id = p_id_producto AND estado = 'activo';
+
+
+
+    SET v_total = v_precio * p_cantidad;
+
+
+
+    CALL sp_generar_folio(v_folio);
+
+
+
+    INSERT INTO venta (
+
+        id_usuario, id_cliente, fecha, total, metodo_pago, folio
+
+    )
+
+    VALUES (
+
+        p_id_usuario, p_id_cliente, NOW(), v_total, p_metodo_pago, v_folio
+
+    );
+
+
+
+    SET v_id_venta = LAST_INSERT_ID();
+
+
+
+    INSERT INTO detalle_venta (
+
+        id_venta, id_producto, id_plan,
+
+        cantidad, precio_unitario, subtotal
+
+    )
+
+    VALUES (
+
+        v_id_venta, p_id_producto, NULL,
+
+        p_cantidad, v_precio, v_total
+
+    );
+
+
+
+    SELECT v_id_venta AS id_venta, v_folio AS folio, v_total AS total;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1267,24 +1549,42 @@ DELIMITER ;
 /*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_renovar_membresia`(IN `p_id_membresia` INT)
-BEGIN
-    DECLARE v_duracion INT;
-    DECLARE v_fecha DATE;
-
-    SELECT p.duracion_dias, m.fecha_vencimiento
-    INTO v_duracion, v_fecha
-    FROM membresia m
-    INNER JOIN plan p ON m.id_plan = p.id
-    WHERE m.id = p_id_membresia;
-
-    UPDATE membresia
-    SET fecha_inicio = CURDATE(),
-        fecha_vencimiento = DATE_ADD(
-            GREATEST(COALESCE(v_fecha, CURDATE()), CURDATE()),
-            INTERVAL v_duracion DAY
-        ),
-        estado = 'activa'
-    WHERE id = p_id_membresia;
+BEGIN
+
+    DECLARE v_duracion INT;
+
+    DECLARE v_fecha DATE;
+
+
+
+    SELECT p.duracion_dias, m.fecha_vencimiento
+
+    INTO v_duracion, v_fecha
+
+    FROM membresia m
+
+    INNER JOIN plan p ON m.id_plan = p.id
+
+    WHERE m.id = p_id_membresia;
+
+
+
+    UPDATE membresia
+
+    SET fecha_inicio = CURDATE(),
+
+        fecha_vencimiento = DATE_ADD(
+
+            GREATEST(COALESCE(v_fecha, CURDATE()), CURDATE()),
+
+            INTERVAL v_duracion DAY
+
+        ),
+
+        estado = 'activa'
+
+    WHERE id = p_id_membresia;
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
