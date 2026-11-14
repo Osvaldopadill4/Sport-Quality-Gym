@@ -3,14 +3,12 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
   Power,
   X,
   Building2
 } from 'lucide-react';
 import '../../CSS/Proveedor.css';
 import Toast from '../Extras/Toast';
-import ConfirmModal from '../Extras/ConfirmModal';
 import { ModalFormProveedor } from '../Extras/Modales/ModalesCatalogos';
 import { useProveedores } from '../../Reutilizable/useCatalogos';
 
@@ -32,14 +30,8 @@ export default function Proveedores({ loggedUser }) {
     total,
     activos,
     inactivos,
-    esUsuarioId1,
     getRolName,
-    confirmModal,
-    setConfirmModal,
-    mostrarAlerta,
     handleToggleEstado,
-    pedirConfirmacionEliminar,
-    confirmarEliminar,
     openModal,
     handleSave
   } = useProveedores({ loggedUser });
@@ -125,7 +117,7 @@ export default function Proveedores({ loggedUser }) {
               </tr>
             ) : (
               proveedoresFiltrados.map(p => {
-                const esActivo = p.estado === 1 || p.estado === 'Activo';
+                const esActivo = p.estado === 1 || p.estado === 'Activo' || String(p.estado) === '1';
                 return (
                   <tr key={p.id}>
                     <td className="proveedor-td-user">
@@ -150,23 +142,10 @@ export default function Proveedores({ loggedUser }) {
                         </button>
                         <button
                           className={`proveedor-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
+                          title={esActivo ? 'Desactivar proveedor' : 'Activar proveedor'}
                           onClick={() => handleToggleEstado(p)}
                         >
                           <Power size={16} />
-                        </button>
-                        <button
-                          className={`proveedor-action-btn delete ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`}
-                          title={esUsuarioId1 ? 'Eliminar proveedor' : 'Restringido: Solo el Administrador Principal puede eliminar proveedores'}
-                          onClick={() => {
-                            if (!esUsuarioId1) {
-                              mostrarAlerta('Restricción: Únicamente el Administrador Principal tiene autorización para eliminar proveedores.', 'error');
-                              return;
-                            }
-                            pedirConfirmacionEliminar(p.id, p.nombre_empresa || p.nombre);
-                          }}
-                        >
-                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -197,17 +176,6 @@ export default function Proveedores({ loggedUser }) {
         formData={formData}
         setFormData={setFormData}
         handleSave={handleSave}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title="¿Eliminar Proveedor?"
-        message={`¿Estás seguro de que deseas eliminar a "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar Proveedor"
-        cancelText="Cancelar"
-        onConfirm={confirmarEliminar}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
-        tipo="danger"
       />
     </div>
   );

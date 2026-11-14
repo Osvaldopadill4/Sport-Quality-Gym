@@ -3,7 +3,6 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
   Power,
   X,
   Package,
@@ -43,16 +42,12 @@ export default function Productos({ loggedUser }) {
     productosFiltradosReabastecer,
     compraData,
     setCompraData,
-    confirmModal,
-    setConfirmModal,
     total,
     activos,
     inactivos,
     bajoStockCount,
     getRolName,
     handleToggleEstado,
-    pedirConfirmacionEliminar,
-    confirmarEliminar,
     openModal,
     openModalCompra,
     handleSave,
@@ -256,17 +251,10 @@ export default function Productos({ loggedUser }) {
                         </button>
                         <button
                           className={`productos-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
+                          title={esActivo ? 'Desactivar producto' : 'Activar producto'}
                           onClick={() => handleToggleEstado(p)}
                         >
                           <Power size={16} />
-                        </button>
-                        <button
-                          className="productos-action-btn delete"
-                          title="Eliminar producto"
-                          onClick={() => pedirConfirmacionEliminar(p.id, p.nombre)}
-                        >
-                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -346,17 +334,6 @@ export default function Productos({ loggedUser }) {
         tipo="success"
         onConfirm={confirmarReabastecimiento}
         onCancel={() => setConfirmRestockModal({ isOpen: false, data: null })}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title="¿Eliminar Producto?"
-        message={`¿Estás seguro de que deseas eliminar permanentemente el producto "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar Producto"
-        cancelText="Cancelar"
-        onConfirm={confirmarEliminar}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
-        tipo="danger"
       />
     </div>
   );

@@ -22,7 +22,10 @@ public class PlanDaoImp implements PlanDao {
     @Override
     public void eliminar(int id) {
         Plan plan = entityManager.find(Plan.class, id);
-        entityManager.remove(plan);
+        if (plan != null) {
+            plan.setEstado("Inactivo");
+            entityManager.merge(plan);
+        }
     }
     @Override
     public void registrar(Plan plan) {

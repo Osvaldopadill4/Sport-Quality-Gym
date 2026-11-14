@@ -131,10 +131,10 @@ export function useProductos(loggedUser) {
         }
       }
       const fallback = [
-        { id: 1, nombre: 'Proteína Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
+        { id: 1, nombre: 'ProteÃ­na Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
         { id: 2, nombre: 'Creatina Monohidratada', categoria: 'Suplementos', descripcion: 'Creapure 300g Micronizada', precio: 550, stock: 4, stock_minimo: 6, estado: 1 },
-        { id: 3, nombre: 'Bebida Energética Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
-        { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'Algodón reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
+        { id: 3, nombre: 'Bebida EnergÃ©tica Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
+        { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'AlgodÃ³n reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
         { id: 5, nombre: 'Shaker Mezclador 700ml', categoria: 'Accesorios', descripcion: 'Vaso con bola mezcladora de acero', precio: 140, stock: 2, stock_minimo: 5, estado: 0 },
         { id: 6, nombre: 'Creatina Julio', categoria: 'Snacks', descripcion: 'Te va a hacer un tinaco man', precio: 100, stock: 498, stock_minimo: 5, estado: 1 }
       ];
@@ -179,10 +179,10 @@ export function useProductos(loggedUser) {
     guardarLocalmente(nuevaLista);
     try {
       await updateProductos(p.id, prodActualizado);
-      mostrarAlerta(`Producto "${p.nombre}" dado de baja correctamente`, 'info');
+      mostrarAlerta(`Producto "${p.nombre}" desactivado correctamente`, 'info');
     } catch (e) {
       console.error(e);
-      mostrarAlerta('Dado de baja localmente', 'warning');
+      mostrarAlerta('Desactivado localmente', 'warning');
     }
   };
 
@@ -269,11 +269,11 @@ export function useProductos(loggedUser) {
       return;
     }
     if (formData.descripcion && formData.descripcion.trim().length > 100) {
-      mostrarAlerta('La descripción no puede exceder 100 caracteres', 'error');
+      mostrarAlerta('La descripciÃ³n no puede exceder 100 caracteres', 'error');
       return;
     }
     if (formData.precio === '' || isNaN(Number(formData.precio)) || Number(formData.precio) < 0) {
-      mostrarAlerta('Ingresa un precio válido mayor o igual a 0', 'error');
+      mostrarAlerta('Ingresa un precio vÃ¡lido mayor o igual a 0', 'error');
       return;
     }
     if (Number(formData.stock) < 0 || Number(formData.stock_minimo) < 0) {
@@ -300,7 +300,7 @@ export function useProductos(loggedUser) {
         try {
           await updateProductos(formData.id, payload);
         } catch (errPut) {
-          console.warn('PUT falló para producto, registrando:', errPut);
+          console.warn('PUT fallÃ³ para producto, registrando:', errPut);
           const { id, ...createData } = payload;
           const res = await createProductos(createData);
           if (res && res.id) payload.id = res.id;
@@ -317,7 +317,7 @@ export function useProductos(loggedUser) {
     }
   };
 
-  // Validación y confirmación previa para Reabastecer Stock
+  // ValidaciÃ³n y confirmaciÃ³n previa para Reabastecer Stock
   const handleRegistrarCompraInventario = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     const cant = Number(compraData.cantidad);
@@ -330,17 +330,17 @@ export function useProductos(loggedUser) {
       return;
     }
     if (isNaN(cant) || cant <= 0) {
-      mostrarAlerta('Ingresa una cantidad válida mayor a 0 unidades', 'error');
+      mostrarAlerta('Ingresa una cantidad vÃ¡lida mayor a 0 unidades', 'error');
       return;
     }
     if (isNaN(costo) || costo <= 0) {
-      mostrarAlerta('Ingresa un costo unitario de compra válido mayor a $0', 'error');
+      mostrarAlerta('Ingresa un costo unitario de compra vÃ¡lido mayor a $0', 'error');
       return;
     }
 
     const prod = productos.find((p) => Number(p.id) === idProd);
     if (!prod) {
-      mostrarAlerta('No se encontró el producto seleccionado', 'error');
+      mostrarAlerta('No se encontrÃ³ el producto seleccionado', 'error');
       return;
     }
 
@@ -351,7 +351,7 @@ export function useProductos(loggedUser) {
 
     const totalCompra = Number((cant * costo).toFixed(2));
 
-    // Abre el modal de confirmación antes de impactar el inventario y compras
+    // Abre el modal de confirmaciÃ³n antes de impactar el inventario y compras
     setConfirmRestockModal({
       isOpen: true,
       data: {
@@ -366,14 +366,14 @@ export function useProductos(loggedUser) {
     });
   };
 
-  // Ejecución de la compra tras confirmar en el modal
+  // EjecuciÃ³n de la compra tras confirmar en el modal
   const confirmarReabastecimiento = async () => {
     if (!confirmRestockModal.data) return;
     const { idProd, idProv, cant, costo, totalCompra, prodNombre, nombreProveedor } = confirmRestockModal.data;
     setConfirmRestockModal({ isOpen: false, data: null });
 
     try {
-      // Al insertar detalle_compra en MySQL, el trigger `trg_aumentar_stock_compra` suma automáticamente `cant` al stock en BD
+      // Al insertar detalle_compra en MySQL, el trigger `trg_aumentar_stock_compra` suma automÃ¡ticamente `cant` al stock en BD
       const compraGuardada = await createCompra({
         id_usuario: usuarioActivo?.id || 1,
         id_proveedor: idProv,

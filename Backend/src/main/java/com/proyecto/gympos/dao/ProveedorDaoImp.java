@@ -21,7 +21,10 @@ public class ProveedorDaoImp implements ProveedorDao {
     @Override
     public void eliminar(int id) {
         Proveedor proveedor = entityManager.find(Proveedor.class, id);
-        entityManager.remove(proveedor);
+        if (proveedor != null) {
+            proveedor.setEstado("0");
+            entityManager.merge(proveedor);
+        }
     }
     @Override
     public void registrar(Proveedor proveedor) {

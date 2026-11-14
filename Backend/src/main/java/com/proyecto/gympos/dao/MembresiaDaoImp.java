@@ -23,7 +23,10 @@ public class MembresiaDaoImp implements MembresiaDao {
     @Override
     public void eliminar(int id) {
         Membresia membresia = entityManager.find(Membresia.class, id);
-        entityManager.remove(membresia);
+        if (membresia != null) {
+            membresia.setEstado("inactiva");
+            entityManager.merge(membresia);
+        }
     }
     @Override
     public void registrar(Membresia membresia) {

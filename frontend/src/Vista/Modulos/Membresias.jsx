@@ -3,14 +3,12 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
   Power,
   RefreshCw,
   CreditCard
 } from 'lucide-react';
 import '../../CSS/Membresias.css';
 import Toast from '../Extras/Toast';
-import ConfirmModal from '../Extras/ConfirmModal';
 import { ModalFormMembresia, ModalRenovacionMembresia } from '../Extras/Modales/ModalesMembresia';
 import { useMembresias } from '../../Reutilizable/useMembresias';
 import { fn_dias_restantes, fn_estado_membresia } from '../../Reutilizable/objetosSQL';
@@ -45,16 +43,12 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
     setModoVerificacion,
     formData,
     setFormData,
-    confirmModal,
-    setConfirmModal,
     obtenerNombreCliente,
     obtenerNombrePlan,
     abrirModalRenovacion,
     handleMandarAPuntoVenta,
     handleVerificarPagoPrevioYRenovar,
     handleToggleEstado,
-    pedirConfirmacionEliminar,
-    confirmarEliminar,
     openModal,
     handleSave,
     membresiasFiltradas,
@@ -131,7 +125,7 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
         </button>
       </div>
 
-      {/* Tabla de Membresías con clases @apply de Tailwind */}
+      {/* Tabla de Membresías */}
       <div className="gym-table-card">
         <div className="gym-table-scroll">
           <table className="gym-table table-fixed min-w-[880px]">
@@ -156,7 +150,8 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
               ) : (
                 membresiasFiltradas.map(m => {
                   const dias = calcDias(m.fecha_vencimiento);
-                  const estado = calcEstado(m.fecha_inicio, m.fecha_vencimiento);
+                  const estado = calcEstado(m.fecha_inicio, m.fecha_vencimiento, m.estado);
+                  const esActiva = m.estado === 'activa' || m.estado === 'Activo' || m.estado === 1;
                   return (
                     <tr key={m.id} className="gym-table-tr">
                       <td className="gym-table-td font-bold text-white">
@@ -186,6 +181,8 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
                             ? 'bg-emerald-500/20 text-emerald-400'
                             : estado === 'Por vencer'
                             ? 'bg-amber-500/20 text-amber-300'
+                            : estado === 'Inactiva'
+                            ? 'bg-zinc-700 text-zinc-400'
                             : 'bg-red-500/20 text-red-400'
                         }`}>
                           {estado}
@@ -201,9 +198,9 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
                             <RefreshCw size={12} /> Renovar
                           </button>
                           <button
-                            className={`btn btn-xs btn-ghost p-1.5 ${m.estado === 'activa' ? 'text-emerald-400 hover:text-red-400' : 'text-zinc-500 hover:text-emerald-400'}`}
+                            className={`btn btn-xs btn-ghost p-1.5 ${esActiva ? 'text-emerald-400 hover:text-red-400' : 'text-zinc-500 hover:text-emerald-400'}`}
                             onClick={() => handleToggleEstado(m)}
-                            title={m.estado === 'activa' ? 'Desactivar' : 'Activar'}
+                            title={esActiva ? 'Desactivar membresía' : 'Activar membresía'}
                           >
                             <Power size={14} />
                           </button>
@@ -213,13 +210,6 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
                             title="Editar"
                           >
                             <Edit size={14} />
-                          </button>
-                          <button
-                            className="btn btn-xs btn-ghost p-1.5 text-red-400 hover:bg-red-500/10"
-                            onClick={() => pedirConfirmacionEliminar(m.id, obtenerNombreCliente(m))}
-                            title="Eliminar"
-                          >
-                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -259,17 +249,6 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
         setReferenciaPago={setReferenciaPago}
         handleMandarAPuntoVenta={handleMandarAPuntoVenta}
         handleVerificarPagoPrevioYRenovar={handleVerificarPagoPrevioYRenovar}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title="¿Eliminar Membresía?"
-        message={`¿Estás seguro de que deseas eliminar permanentemente la membresía de "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar Membresía"
-        cancelText="Cancelar"
-        onConfirm={confirmarEliminar}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
-        tipo="danger"
       />
     </div>
   );

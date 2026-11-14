@@ -1,5 +1,5 @@
 /**
- * Integración centralizada de los Objetos de Base de Datos de `gympos.sql`:
+ * IntegraciÃ³n centralizada de los Objetos de Base de Datos de `gympos.sql`:
  * - 3 Funciones SQL (`fn_dias_restantes`, `fn_membresia_activa`, `fn_total_gastado_cliente`) + auxiliares
  * - 5 Procedimientos Almacenados (`sp_registrar_acceso`, `sp_renovar_membresia`, `sp_ventas_por_fecha`, `sp_corte_caja_diario`, `sp_productos_mas_vendidos`) + folio
  * - 4 Triggers (`trg_actualizar_stock_venta`, `trg_aumentar_stock_compra`, `trg_evitar_stock_negativo`, `trg_estado_membresia`)
@@ -11,7 +11,7 @@
 // ============================================================================
 
 /**
- * Función SQL `fn_dias_restantes(p_fecha_vencimiento DATE)`
+ * FunciÃ³n SQL `fn_dias_restantes(p_fecha_vencimiento DATE)`
  * Equivalente a: RETURN DATEDIFF(p_fecha_vencimiento, CURDATE());
  */
 export const fn_dias_restantes = (fechaVencimiento) => {
@@ -25,11 +25,11 @@ export const fn_dias_restantes = (fechaVencimiento) => {
 };
 
 /**
- * Función SQL `fn_membresia_activa(p_id_cliente INT)`
+ * FunciÃ³n SQL `fn_membresia_activa(p_id_cliente INT)`
  * Equivalente a:
  * SELECT COUNT(*) FROM membresia
  * WHERE id_cliente = p_id_cliente AND estado = 'activa' AND fecha_vencimiento >= CURDATE()
- * Retorna 1 si está activa, 0 si no.
+ * Retorna 1 si estÃ¡ activa, 0 si no.
  */
 export const fn_membresia_activa = (idCliente, listaMembresias = []) => {
   if (!idCliente || !Array.isArray(listaMembresias)) return 0;
@@ -44,7 +44,7 @@ export const fn_membresia_activa = (idCliente, listaMembresias = []) => {
 };
 
 /**
- * Función SQL `fn_total_gastado_cliente(p_id_cliente INT)`
+ * FunciÃ³n SQL `fn_total_gastado_cliente(p_id_cliente INT)`
  * Equivalente a:
  * SELECT IFNULL(SUM(total), 0) FROM venta
  * WHERE id_cliente = p_id_cliente AND estado = 'Completada'
@@ -66,9 +66,15 @@ export const fn_total_gastado_cliente = (idCliente, listaVentas = []) => {
 };
 
 /**
- * Función auxiliar de estado visual de membresía ('Pendiente' | 'Vencida' | 'Por vencer' | 'Activa')
+ * FunciÃ³n auxiliar de estado visual de membresÃ­a ('Pendiente' | 'Vencida' | 'Por vencer' | 'Activa')
  */
-export const fn_estado_membresia = (fechaInicio, fechaVencimiento) => {
+export const fn_estado_membresia = (fechaInicio, fechaVencimiento, estadoBd) => {
+  if (estadoBd) {
+    const est = String(estadoBd).trim().toLowerCase();
+    if (est === 'inactiva' || est === 'inactivo' || est === 'desactivada' || est === 'desactivado' || est === '0') {
+      return 'Inactiva';
+    }
+  }
   const dias = fn_dias_restantes(fechaVencimiento);
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -103,7 +109,7 @@ export const trg_estado_membresia = (fechaVencimiento) =>
 
 /**
  * Trigger SQL `trg_evitar_stock_negativo` / `trg_validar_stock_venta` (BEFORE INSERT ON detalle_venta)
- * Valida si hay stock suficiente. Acepta tanto el objeto producto como el valor numérico directo.
+ * Valida si hay stock suficiente. Acepta tanto el objeto producto como el valor numÃ©rico directo.
  */
 export const trg_evitar_stock_negativo = (stockOProd, cantidadRestar = 0) => {
   const stockNum = typeof stockOProd === 'object' && stockOProd !== null
@@ -126,7 +132,7 @@ export const trg_validar_stock = (stockOProd, cantidadRestar = 1) =>
 
 /**
  * Trigger SQL `trg_actualizar_stock_venta` (AFTER INSERT ON detalle_venta)
- * Descuenta stock localmente para actualización inmediata en UI.
+ * Descuenta stock localmente para actualizaciÃ³n inmediata en UI.
  */
 export const trg_actualizar_stock_venta = (productos = [], carrito = []) => {
   return productos.map((p) => {
@@ -189,7 +195,7 @@ export const sp_registrar_acceso = (idCliente, listaMembresias = []) => {
 
 /**
  * Procedimiento SQL `sp_renovar_membresia(IN p_id_cliente INT, IN p_id_plan INT)`
- * Calcula la nueva vigencia según `duracion_dias` del plan respetando el tope de 500 días.
+ * Calcula la nueva vigencia segÃºn `duracion_dias` del plan respetando el tope de 500 dÃ­as.
  */
 export const sp_renovar_membresia = (arg1, arg2, arg3, arg4) => {
   let idCliente = null;
@@ -230,7 +236,7 @@ export const sp_renovar_membresia = (arg1, arg2, arg3, arg4) => {
       exito: false,
       permitido: false,
       diasAcumulados: diasActuales + duracion,
-      mensaje: `Restricción: No se pueden acumular más de 500 días de vigencia (acumularía ${diasActuales + duracion} días).`
+      mensaje: `RestricciÃ³n: No se pueden acumular mÃ¡s de 500 dÃ­as de vigencia (acumularÃ­a ${diasActuales + duracion} dÃ­as).`
     };
   }
 
@@ -414,7 +420,7 @@ export const vw_estado_membresias = (membresias = [], clientes = [], planes = []
       precio_plan: Number(pl?.precio || m.precio || 350),
       duracion_dias: Number(pl?.duracion_dias || m.duracion_dias || 30),
       dias_restantes,
-      estado_calculado: fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento)
+      estado_calculado: fn_estado_membresia(m.fecha_inicio, m.fecha_vencimiento, m.estado)
     };
   });
 };

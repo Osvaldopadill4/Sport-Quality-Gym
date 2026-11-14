@@ -3,7 +3,6 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
   Power,
   X,
   Calendar,
@@ -15,7 +14,6 @@ import {
 } from 'lucide-react';
 import '../../CSS/Planes.css';
 import Toast from '../Extras/Toast';
-import ConfirmModal from '../Extras/ConfirmModal';
 import { ModalFormPlan } from '../Extras/Modales/ModalesCatalogos';
 import { usePlanes } from '../../Reutilizable/useCatalogos';
 
@@ -59,11 +57,7 @@ export default function Planes({ loggedUser }) {
     activos,
     inactivos,
     getRolName,
-    confirmModal,
-    setConfirmModal,
     handleToggleEstado,
-    pedirConfirmacionEliminar,
-    confirmarEliminar,
     openModal,
     handleSave
   } = usePlanes({ loggedUser });
@@ -179,16 +173,9 @@ export default function Planes({ loggedUser }) {
                           className={`p-1 rounded hover:bg-zinc-800 transition-colors ${
                             esActivo ? 'text-emerald-400 hover:text-red-400' : 'text-zinc-500 hover:text-emerald-400'
                           }`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
+                          title={esActivo ? 'Desactivar plan' : 'Activar plan'}
                         >
                           <Power size={14} />
-                        </button>
-                        <button
-                          onClick={() => pedirConfirmacionEliminar(p.id, p.nombre)}
-                          className="p-1 text-zinc-400 hover:text-red-400 rounded hover:bg-zinc-800 transition-colors"
-                          title="Eliminar plan"
-                        >
-                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -240,17 +227,6 @@ export default function Planes({ loggedUser }) {
         formData={formData}
         setFormData={setFormData}
         handleSave={handleSave}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title="¿Eliminar Plan?"
-        message={`¿Estás seguro de que deseas eliminar permanentemente el plan "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar Plan"
-        cancelText="Cancelar"
-        onConfirm={confirmarEliminar}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
-        tipo="danger"
       />
     </div>
   );

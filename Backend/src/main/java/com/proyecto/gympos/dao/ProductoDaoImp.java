@@ -21,7 +21,10 @@ public class ProductoDaoImp implements ProductoDao{
     @Override
     public void eliminar(int id) {
         Producto producto = entityManager.find(Producto.class, id);
-        entityManager.remove(producto);
+        if (producto != null) {
+            producto.setEstado("0");
+            entityManager.merge(producto);
+        }
     }
     @Override
     public void registrar(Producto producto) {

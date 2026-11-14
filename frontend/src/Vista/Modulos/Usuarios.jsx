@@ -3,13 +3,11 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
   Power,
   X
 } from 'lucide-react';
 import '../../CSS/Usuarios.css';
 import Toast from '../Extras/Toast';
-import ConfirmModal from '../Extras/ConfirmModal';
 import { ModalFormUsuario } from '../Extras/Modales/ModalesCatalogos';
 import { useUsuarios, esEstadoActivo as checkActivo } from '../../Reutilizable/useCatalogos';
 
@@ -35,12 +33,8 @@ export default function Usuarios({ loggedUser }) {
     inactivos,
     esUsuarioId1,
     getRolName,
-    confirmModal,
-    setConfirmModal,
     mostrarAlerta,
     handleToggleEstado,
-    pedirConfirmacionEliminar,
-    confirmarEliminar,
     openModal,
     handleSave,
     esEstadoActivo: esActivoFn
@@ -187,7 +181,7 @@ export default function Usuarios({ loggedUser }) {
 
                         <button
                           className={`usuarios-action-btn ${esActivo ? 'power-off' : 'power-on'} ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`}
-                          title={!esUsuarioId1 ? 'Restringido: Solo el Administrador Principal puede modificar estado' : (esActivo ? 'Dar de baja' : 'Poner en activo')}
+                          title={!esUsuarioId1 ? 'Restringido: Solo el Administrador Principal puede modificar estado' : (esActivo ? 'Desactivar usuario' : 'Activar usuario')}
                           onClick={() => {
                             if (!esUsuarioId1) {
                               mostrarAlerta('Restricción: Únicamente el Administrador Principal tiene autorización para modificar el estado de usuarios.', 'error');
@@ -197,20 +191,6 @@ export default function Usuarios({ loggedUser }) {
                           }}
                         >
                           <Power size={16} />
-                        </button>
-
-                        <button
-                          className={`usuarios-action-btn delete ${!esUsuarioId1 ? 'opacity-30 cursor-not-allowed hover:bg-transparent' : ''}`}
-                          title={esUsuarioId1 ? 'Eliminar usuario' : 'Restringido: Solo el Administrador Principal puede eliminar usuarios'}
-                          onClick={() => {
-                            if (!esUsuarioId1) {
-                              mostrarAlerta('Restricción: Únicamente el Administrador Principal tiene autorización para eliminar registros de usuarios.', 'error');
-                              return;
-                            }
-                            pedirConfirmacionEliminar(u.id, `${u.nombre} ${u.apellido || ''}`.trim());
-                          }}
-                        >
-                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -241,17 +221,6 @@ export default function Usuarios({ loggedUser }) {
         formData={formData}
         setFormData={setFormData}
         handleSave={handleSave}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title="¿Eliminar Usuario?"
-        message={`¿Estás seguro de que deseas eliminar permanentemente a "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar Usuario"
-        cancelText="Cancelar"
-        onConfirm={confirmarEliminar}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
-        tipo="danger"
       />
     </div>
   );

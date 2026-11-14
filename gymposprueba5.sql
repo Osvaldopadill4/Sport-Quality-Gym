@@ -18,7 +18,8 @@
 --
 -- Table structure for table `acceso`
 --
-USE gympos;
+CREATE DATABASE IF NOT EXISTS `gympos`;
+USE `gympos`;
 
 DROP TABLE IF EXISTS `acceso`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

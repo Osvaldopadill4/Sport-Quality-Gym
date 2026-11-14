@@ -3,7 +3,6 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2,
   Power,
   X,
   Eye,
@@ -45,13 +44,9 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
     total,
     activos,
     inactivos,
-    confirmModal,
-    setConfirmModal,
     paseInvitadoModal,
     setPaseInvitadoModal,
     handleToggleEstado,
-    pedirConfirmacionEliminar,
-    confirmarEliminar,
     openModal,
     handleSave,
     esEstadoActivo: esActivoFn,
@@ -245,18 +240,10 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
 
                         <button
                           className={`clientes-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
+                          title={esActivo ? 'Desactivar cliente' : 'Activar cliente'}
                           onClick={() => handleToggleEstado(c)}
                         >
                           <Power size={16} />
-                        </button>
-
-                        <button
-                          className="clientes-action-btn delete"
-                          title="Eliminar cliente"
-                          onClick={() => pedirConfirmacionEliminar(c.id, c.nombre)}
-                        >
-                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -288,17 +275,6 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
         setFormData={setFormData}
         handleSave={handleSave}
         generarUUID={generarUUID}
-      />
-
-            <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        title="¿Eliminar Cliente?"
-        message={`¿Estás seguro de que deseas eliminar permanentemente al cliente "${confirmModal.nombre}" del sistema? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar Cliente"
-        cancelText="Cancelar"
-        onConfirm={confirmarEliminar}
-        onCancel={() => setConfirmModal({ isOpen: false, id: null, nombre: '' })}
-        tipo="danger"
       />
 
       <ConfirmModal

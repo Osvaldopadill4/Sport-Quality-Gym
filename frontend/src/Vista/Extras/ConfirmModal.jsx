@@ -1,11 +1,11 @@
 import React from 'react';
-import { AlertTriangle, Trash2, X, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 
 export default function ConfirmModal({
   isOpen,
-  title = '¿Eliminar Registro?',
-  message = '¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.',
-  confirmText = 'Eliminar',
+  title = '¿Confirmar Acción?',
+  message = '¿Estás seguro de que deseas realizar esta acción?',
+  confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   onConfirm,
   onCancel,
@@ -37,8 +37,6 @@ export default function ConfirmModal({
         }`}>
           {tipo === 'success' ? (
             <CheckCircle2 size={26} />
-          ) : tipo === 'danger' ? (
-            <Trash2 size={26} />
           ) : (
             <AlertTriangle size={26} />
           )}
