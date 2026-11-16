@@ -1,5 +1,7 @@
-const API_URL = 'http://localhost:8080/api/membresia';
-const API_URL_ALT = 'http://127.0.0.1:8080/api/membresia';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('membresia');
+const API_URL_ALT = 'http://localhost:8080/api/membresia';
 
 const guardarMetaMembresia = (membresia) => {
     if (!membresia) return;

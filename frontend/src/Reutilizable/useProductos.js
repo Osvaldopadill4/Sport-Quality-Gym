@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getProductos, createProductos, updateProductos, deleteProductos } from '../JS/producto';
 import { createCompra } from '../JS/compra';
+import { createDetalleCompra } from '../JS/detalle_compra';
 import { getProveedores } from '../JS/proveedor';
 import { esInventarioBajo, trg_aumentar_stock_compra } from './objetosSQL';
 
@@ -39,36 +40,104 @@ export function useProductos(loggedUser) {
 
   const [proveedores, setProveedores] = useState([]);
   const [showModalCompra, setShowModalCompra] = useState(false);
+  const [ticketCompra, setTicketCompra] = useState(null);
+
+  // Estados para Proveedor con Buscador en Tiempo Real
+  const [busquedaProveedor, setBusquedaProveedor] = useState('');
+  const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
+
+  // Estados para Selección Multi-Producto y Carrito de Reabastecimiento
+  const [itemsReabastecer, setItemsReabastecer] = useState([]);
   const [busquedaReabastecer, setBusquedaReabastecer] = useState('');
-  const [productosFiltradosReabastecer, setProductosFiltradosReabastecer] = useState([]);
-  const [compraData, setCompraData] = useState({
-    id_producto: '',
-    id_proveedor: 1,
-    cantidad: 10,
-    costo: 50
-  });
+  const [productoSeleccionadoCompra, setProductoSeleccionadoCompra] = useState(null);
+  const [cantidadInput, setCantidadInput] = useState(10);
+  const [costoInput, setCostoInput] = useState(50);
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null, nombre: '' });
   const [confirmRestockModal, setConfirmRestockModal] = useState({ isOpen: false, data: null });
 
-  useEffect(() => {
-    if (!showModalCompra || compraData.id_producto) {
-      setProductosFiltradosReabastecer([]);
+  // Filtrado de proveedores en tiempo real
+  const proveedoresFiltrados = useMemo(() => {
+    if (!busquedaProveedor) return proveedores.slice(0, 8);
+    const q = busquedaProveedor.toLowerCase().trim();
+    return proveedores.filter(pr =>
+      (pr.nombre_empresa && pr.nombre_empresa.toLowerCase().includes(q)) ||
+      (pr.nombre && pr.nombre.toLowerCase().includes(q)) ||
+      (pr.telefono && String(pr.telefono).includes(q))
+    ).slice(0, 8);
+  }, [proveedores, busquedaProveedor]);
+
+  // Filtrado de productos en tiempo real para reabastecimiento
+  const productosFiltradosReabastecer = useMemo(() => {
+    if (productoSeleccionadoCompra) return [];
+    const q = busquedaReabastecer.toLowerCase().trim();
+    if (!q) return productos.slice(0, 6);
+    return productos.filter(p =>
+      p.nombre?.toLowerCase().includes(q) ||
+      p.categoria?.toLowerCase().includes(q) ||
+      String(p.id).includes(q)
+    ).slice(0, 6);
+  }, [productos, busquedaReabastecer, productoSeleccionadoCompra]);
+
+  // Agregar producto a la lista de reabastecimiento
+  const agregarItemReabastecer = () => {
+    if (!productoSeleccionadoCompra) {
+      mostrarAlerta('Selecciona un producto para agregar a la orden', 'error');
       return;
     }
-    const q = busquedaReabastecer.toLowerCase().trim();
-    const filtrados = !q
-      ? productos.slice(0, 5)
-      : productos
-          .filter(
-            (p) =>
-              p.nombre?.toLowerCase().includes(q) ||
-              p.categoria?.toLowerCase().includes(q) ||
-              String(p.id).includes(q)
-          )
-          .slice(0, 5);
-    setProductosFiltradosReabastecer(filtrados);
-  }, [busquedaReabastecer, productos, showModalCompra, compraData.id_producto]);
+    const cant = Number(cantidadInput);
+    const cost = Number(costoInput);
+    if (isNaN(cant) || cant <= 0) {
+      mostrarAlerta('Ingresa una cantidad mayor a 0', 'error');
+      return;
+    }
+    if (isNaN(cost) || cost <= 0) {
+      mostrarAlerta('Ingresa un costo unitario válido mayor a $0', 'error');
+      return;
+    }
+
+    setItemsReabastecer(prev => {
+      const idx = prev.findIndex(it => Number(it.id_producto) === Number(productoSeleccionadoCompra.id));
+      const subtotal = Number((cant * cost).toFixed(2));
+      if (idx >= 0) {
+        const copia = [...prev];
+        copia[idx] = {
+          ...copia[idx],
+          cantidad: cant,
+          costo_unitario: cost,
+          subtotal: subtotal
+        };
+        return copia;
+      }
+      return [
+        ...prev,
+        {
+          id_producto: productoSeleccionadoCompra.id,
+          nombre: productoSeleccionadoCompra.nombre,
+          categoria: productoSeleccionadoCompra.categoria || 'General',
+          stock_actual: productoSeleccionadoCompra.stock || 0,
+          cantidad: cant,
+          costo_unitario: cost,
+          subtotal: subtotal
+        }
+      ];
+    });
+
+    setProductoSeleccionadoCompra(null);
+    setBusquedaReabastecer('');
+    setCantidadInput(10);
+    setCostoInput(50);
+  };
+
+  // Quitar producto de la lista
+  const eliminarItemReabastecer = (idProd) => {
+    setItemsReabastecer(prev => prev.filter(it => Number(it.id_producto) !== Number(idProd)));
+  };
+
+  // Total acumulado de la orden de compra
+  const totalReabastecer = useMemo(() => {
+    return Number(itemsReabastecer.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0).toFixed(2));
+  }, [itemsReabastecer]);
 
   const mostrarAlerta = (mensaje, tipo = 'success') => {
     setAlerta({ mensaje, tipo });
@@ -245,14 +314,29 @@ export function useProductos(loggedUser) {
   };
 
   const openModalCompra = (prod = null) => {
-    const provDefault = proveedores.length > 0 ? proveedores[0].id : 1;
+    setBusquedaProveedor('');
+    setProveedorSeleccionado(proveedores.length > 0 ? proveedores[0] : null);
     setBusquedaReabastecer('');
-    setCompraData({
-      id_producto: prod ? prod.id : '',
-      id_proveedor: provDefault,
-      cantidad: 10,
-      costo: prod ? Math.max(1, Math.round(Number(prod.precio) * 0.6)) : 50
-    });
+    setProductoSeleccionadoCompra(null);
+    setCantidadInput(10);
+    setCostoInput(50);
+
+    if (prod) {
+      const costoSugerido = Math.max(1, Math.round(Number(prod.precio) * 0.6)) || 50;
+      setItemsReabastecer([
+        {
+          id_producto: prod.id,
+          nombre: prod.nombre,
+          categoria: prod.categoria || 'General',
+          stock_actual: prod.stock || 0,
+          cantidad: 10,
+          costo_unitario: costoSugerido,
+          subtotal: 10 * costoSugerido
+        }
+      ]);
+    } else {
+      setItemsReabastecer([]);
+    }
     setShowModalCompra(true);
   };
 
@@ -269,11 +353,11 @@ export function useProductos(loggedUser) {
       return;
     }
     if (formData.descripcion && formData.descripcion.trim().length > 100) {
-      mostrarAlerta('La descripciÃ³n no puede exceder 100 caracteres', 'error');
+      mostrarAlerta('La descripción no puede exceder 100 caracteres', 'error');
       return;
     }
     if (formData.precio === '' || isNaN(Number(formData.precio)) || Number(formData.precio) < 0) {
-      mostrarAlerta('Ingresa un precio vÃ¡lido mayor o igual a 0', 'error');
+      mostrarAlerta('Ingresa un precio válido mayor o igual a 0', 'error');
       return;
     }
     if (Number(formData.stock) < 0 || Number(formData.stock_minimo) < 0) {
@@ -300,7 +384,7 @@ export function useProductos(loggedUser) {
         try {
           await updateProductos(formData.id, payload);
         } catch (errPut) {
-          console.warn('PUT fallÃ³ para producto, registrando:', errPut);
+          console.warn('PUT falló para producto, registrando:', errPut);
           const { id, ...createData } = payload;
           const res = await createProductos(createData);
           if (res && res.id) payload.id = res.id;
@@ -317,87 +401,96 @@ export function useProductos(loggedUser) {
     }
   };
 
-  // ValidaciÃ³n y confirmaciÃ³n previa para Reabastecer Stock
+  // Validación previa antes de confirmar el reabastecimiento multi-producto
   const handleRegistrarCompraInventario = (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    const cant = Number(compraData.cantidad);
-    const costo = Number(compraData.costo);
-    const idProd = Number(compraData.id_producto);
-    const idProv = Number(compraData.id_proveedor) || 1;
 
-    if (!idProd) {
-      mostrarAlerta('Por favor selecciona un producto a reabastecer', 'error');
+    if (!proveedorSeleccionado) {
+      mostrarAlerta('Selecciona un proveedor para la orden de compra', 'error');
       return;
     }
-    if (isNaN(cant) || cant <= 0) {
-      mostrarAlerta('Ingresa una cantidad vÃ¡lida mayor a 0 unidades', 'error');
-      return;
-    }
-    if (isNaN(costo) || costo <= 0) {
-      mostrarAlerta('Ingresa un costo unitario de compra vÃ¡lido mayor a $0', 'error');
+    if (itemsReabastecer.length === 0) {
+      mostrarAlerta('Agrega al menos un producto a la lista de reabastecimiento', 'error');
       return;
     }
 
-    const prod = productos.find((p) => Number(p.id) === idProd);
-    if (!prod) {
-      mostrarAlerta('No se encontrÃ³ el producto seleccionado', 'error');
-      return;
-    }
+    const nombreProv = proveedorSeleccionado.nombre_empresa || proveedorSeleccionado.nombre || 'Proveedor Comercial';
+    const totalPzas = itemsReabastecer.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
 
-    const provObj = proveedores.find((pr) => Number(pr.id) === idProv);
-    const nombreProveedor = provObj
-      ? `${provObj.nombre_empresa || provObj.nombre}${provObj.nombre && provObj.nombre_empresa ? ` (${provObj.nombre})` : ''}`
-      : 'Proveedor Comercial';
-
-    const totalCompra = Number((cant * costo).toFixed(2));
-
-    // Abre el modal de confirmaciÃ³n antes de impactar el inventario y compras
     setConfirmRestockModal({
       isOpen: true,
       data: {
-        idProd,
-        idProv,
-        cant,
-        costo,
-        totalCompra,
-        prodNombre: prod.nombre,
-        nombreProveedor
+        proveedor: proveedorSeleccionado,
+        nombreProveedor: nombreProv,
+        items: itemsReabastecer,
+        totalArticulos: totalPzas,
+        totalCompra: totalReabastecer
       }
     });
   };
 
-  // EjecuciÃ³n de la compra tras confirmar en el modal
+  // Ejecución de la orden de reabastecimiento: 1 sola compra global + detalles + ticket
   const confirmarReabastecimiento = async () => {
     if (!confirmRestockModal.data) return;
-    const { idProd, idProv, cant, costo, totalCompra, prodNombre, nombreProveedor } = confirmRestockModal.data;
+    const { proveedor, nombreProveedor, items, totalCompra } = confirmRestockModal.data;
     setConfirmRestockModal({ isOpen: false, data: null });
 
     try {
-      // Al insertar detalle_compra en MySQL, el trigger `trg_aumentar_stock_compra` suma automÃ¡ticamente `cant` al stock en BD
+      const fechaActual = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+      // 1. Registra 1 sola compra en el Backend para agrupar todos los productos
       const compraGuardada = await createCompra({
         id_usuario: usuarioActivo?.id || 1,
-        id_proveedor: idProv,
+        id_proveedor: proveedor.id || 1,
         proveedor_nombre: nombreProveedor,
-        id_producto: idProd,
-        producto_nombre: prodNombre,
-        cantidad: cant,
-        costo_unitario: costo,
+        fecha: fechaActual,
         total: totalCompra,
         estado: 'Completada'
       });
 
-      const listaActualizada = trg_aumentar_stock_compra(productos, idProd, cant);
-      if (!compraGuardada || compraGuardada.id > 1000000000) {
-        const prodActualizado = listaActualizada.find((p) => Number(p.id) === idProd);
+      const idCompraGenerada = compraGuardada?.id || Date.now();
+
+      // 2. Inserta cada producto en `detalle_compra` y suma el stock correspondiente
+      let listaActualizada = [...productos];
+      for (const item of items) {
+        await createDetalleCompra({
+          id_compra: idCompraGenerada,
+          id_producto: item.id_producto,
+          cantidad: item.cantidad,
+          costo_unitario: item.costo_unitario,
+          subtotal: item.subtotal
+        }).catch(() => {});
+
+        listaActualizada = trg_aumentar_stock_compra(listaActualizada, item.id_producto, item.cantidad);
+        const prodActualizado = listaActualizada.find(p => Number(p.id) === Number(item.id_producto));
         if (prodActualizado) {
-          await updateProductos(idProd, prodActualizado).catch(() => {});
+          await updateProductos(item.id_producto, prodActualizado).catch(() => {});
         }
       }
 
       guardarLocalmente(listaActualizada);
       setShowModalCompra(false);
+
+      // 3. Genera y abre el Ticket Oficial de Entrada / Reabastecimiento
+      setTicketCompra({
+        id: idCompraGenerada,
+        folio: `COM-${String(idCompraGenerada).padStart(4, '0')}`,
+        fecha: new Date().toLocaleString(),
+        proveedor: nombreProveedor,
+        usuario: usuarioActivo ? `${usuarioActivo.nombre} ${usuarioActivo.apellido || ''}`.trim() : 'Encargado de Almacén',
+        detalles: items.map(it => ({
+          id_producto: it.id_producto,
+          articulo: it.nombre,
+          cantidad: it.cantidad,
+          costo_unitario: it.costo_unitario,
+          subtotal: it.subtotal
+        })),
+        total: totalCompra,
+        estado: 'Completada'
+      });
+
       mostrarAlerta(
-        `Compra registrada: +${cant} uds. de "${prodNombre}" ($${costo.toFixed(2)} c/u) con ${nombreProveedor}`,
+        `¡Reabastecimiento exitoso! Se ingresaron ${items.length} producto(s) con ${nombreProveedor}`,
         'success'
       );
       cargarDatos();
@@ -444,11 +537,27 @@ export function useProductos(loggedUser) {
     proveedores,
     showModalCompra,
     setShowModalCompra,
+    ticketCompra,
+    setTicketCompra,
+    busquedaProveedor,
+    setBusquedaProveedor,
+    proveedorSeleccionado,
+    setProveedorSeleccionado,
+    proveedoresFiltrados,
+    itemsReabastecer,
+    setItemsReabastecer,
     busquedaReabastecer,
     setBusquedaReabastecer,
+    productoSeleccionadoCompra,
+    setProductoSeleccionadoCompra,
+    cantidadInput,
+    setCantidadInput,
+    costoInput,
+    setCostoInput,
+    agregarItemReabastecer,
+    eliminarItemReabastecer,
+    totalReabastecer,
     productosFiltradosReabastecer,
-    compraData,
-    setCompraData,
     confirmModal,
     setConfirmModal,
     total,

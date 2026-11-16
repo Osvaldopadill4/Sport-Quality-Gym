@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   LayoutDashboard,
-  Banknote, Calculator, Key, Package, Dumbbell, 
+  Banknote, Calculator, Key, Package, 
   CreditCard, ClipboardList, Users, Truck, UserCog, 
   BarChart3, LogOut, X, ShieldCheck, UserCheck 
 } from 'lucide-react';
@@ -44,11 +44,14 @@ export default function Sidebar({ isOpen, setIsOpen, activeModule, setActiveModu
       className={`fixed inset-y-0 left-0 z-30 w-64 bg-black border-r border-zinc-800 text-gray-300 transform transition-transform duration-300 ease-in-out flex flex-col
       ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-0`}
     >
-      <div className="flex items-center justify-between h-16 px-6 bg-black border-b border-zinc-800">
-        <span className="text-2xl font-black tracking-wider text-green-500 flex items-center gap-2">
-          <Dumbbell className="w-8 h-8 text-green-500" />
-          GYM<span className="text-white">POS</span>
-        </span>
+      <div className="flex items-center justify-between h-16 px-5 bg-black border-b border-zinc-800">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <img src="/logo-gym.png" alt="Gym Sport" className="w-9 h-9 object-contain shrink-0" />
+          <div className="flex flex-col leading-tight truncate">
+            <span className="text-sm font-black tracking-wider text-white">GYM SPORT</span>
+            <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Quality Center</span>
+          </div>
+        </div>
         <button onClick={() => setIsOpen(false)} className="lg:hidden text-gray-400 hover:text-green-500">
           <X className="w-6 h-6" />
         </button>

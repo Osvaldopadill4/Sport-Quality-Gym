@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:8080/api/plan';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('plan');
 
 export const getPlanes = async () => {
     try {

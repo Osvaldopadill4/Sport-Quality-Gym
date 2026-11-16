@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:8080/api/acceso';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('acceso');
 
 // Obtener historial completo de accesos desde la base de datos MySQL
 export const getAcceso = async () => {

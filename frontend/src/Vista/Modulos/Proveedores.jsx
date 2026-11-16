@@ -95,76 +95,67 @@ export default function Proveedores({ loggedUser }) {
         </button>
       </div>
 
-      {/* Tabla de Proveedores */}
-      <div className="proveedor-table-container">
-        <table className="proveedor-table">
-          <thead>
-            <tr>
-              <th>Empresa</th>
-              <th>Contacto</th>
-              <th>Correo</th>
-              <th>Teléfono</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Opciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {proveedoresFiltrados.length === 0 ? (
+      {/* Tabla de Proveedores con Tema Negro Unificado */}
+      <div className="gym-table-card">
+        <div className="gym-table-scroll">
+          <table className="gym-table table-fixed min-w-[800px]">
+            <thead className="gym-table-thead">
               <tr>
-                <td colSpan="6" className="text-center py-8 text-gray-400 italic">
-                  {busqueda ? `No se encontraron proveedores con el término "${busqueda}"` : 'No hay proveedores registrados'}
-                </td>
+                <th className="gym-table-th w-[24%]">Empresa</th>
+                <th className="gym-table-th w-[20%]">Contacto</th>
+                <th className="gym-table-th w-[22%]">Correo</th>
+                <th className="gym-table-th w-[16%]">Teléfono</th>
+                <th className="gym-table-th w-[10%]">Estado</th>
+                <th className="gym-table-th w-[8%] text-right">Opciones</th>
               </tr>
-            ) : (
-              proveedoresFiltrados.map(p => {
-                const esActivo = p.estado === 1 || p.estado === 'Activo' || String(p.estado) === '1';
-                return (
-                  <tr key={p.id}>
-                    <td className="proveedor-td-user">
-                      <span className="proveedor-td-name font-bold flex items-center gap-2">
-                        <Building2 size={16} className="text-primary" /> {p.nombre_empresa}
-                      </span>
-                    </td>
-                    <td className="proveedor-td-text">{p.nombre || 'N/A'}</td>
-                    <td className="proveedor-td-text">{p.correo || 'N/A'}</td>
-                    <td className="proveedor-td-text">{p.telefono || 'N/A'}</td>
-                    <td>
-                      {esActivo ? (
-                        <span className="proveedor-badge activo">Activo</span>
-                      ) : (
-                        <span className="proveedor-badge inactivo">Inactivo</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="proveedor-table-actions">
-                        <button className="proveedor-action-btn edit" title="Editar datos" onClick={() => openModal('edit', p)}>
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          className={`proveedor-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Desactivar proveedor' : 'Activar proveedor'}
-                          onClick={() => handleToggleEstado(p)}
-                        >
-                          <Power size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-
-        <div className="proveedor-pagination">
-          <span className="proveedor-pagination-text">
-            Mostrando {proveedoresFiltrados.length} de {total} proveedores
-            {busqueda && ` (filtrado por "${busqueda}")`}
-          </span>
-          <div className="proveedor-pagination-buttons">
-            <button className="proveedor-page-btn prev">Anterior</button>
-            <button className="proveedor-page-btn next">Siguiente</button>
-          </div>
+            </thead>
+            <tbody className="gym-table-tbody">
+              {proveedoresFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-8 text-gray-400 italic">
+                    {busqueda ? `No se encontraron proveedores con el término "${busqueda}"` : 'No hay proveedores registrados'}
+                  </td>
+                </tr>
+              ) : (
+                proveedoresFiltrados.map(p => {
+                  const esActivo = p.estado === 1 || p.estado === 'Activo' || String(p.estado) === '1';
+                  return (
+                    <tr key={p.id} className="gym-table-tr">
+                      <td className="gym-table-td font-bold text-white">
+                        <span className="flex items-center gap-2">
+                          <Building2 size={16} className="text-emerald-400" /> {p.nombre_empresa}
+                        </span>
+                      </td>
+                      <td className="gym-table-td text-gray-300">{p.nombre || 'N/A'}</td>
+                      <td className="gym-table-td text-gray-400 font-mono text-xs">{p.correo || 'N/A'}</td>
+                      <td className="gym-table-td text-gray-300 font-mono text-xs">{p.telefono || 'N/A'}</td>
+                      <td className="gym-table-td">
+                        {esActivo ? (
+                          <span className="proveedor-badge activo">Activo</span>
+                        ) : (
+                          <span className="proveedor-badge inactivo">Inactivo</span>
+                        )}
+                      </td>
+                      <td className="gym-table-td text-right">
+                        <div className="proveedor-table-actions justify-end">
+                          <button className="proveedor-action-btn edit" title="Editar datos" onClick={() => openModal('edit', p)}>
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            className={`proveedor-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
+                            title={esActivo ? 'Desactivar proveedor' : 'Activar proveedor'}
+                            onClick={() => handleToggleEstado(p)}
+                          >
+                            <Power size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

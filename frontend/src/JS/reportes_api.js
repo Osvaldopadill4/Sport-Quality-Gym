@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:8080/api/reporte';
+import { getApiUrl } from '../config/apiConfig';
+
+const BASE_URL = getApiUrl('reporte');
 
 /**
  * Consulta la vista SQL `vw_detalle_ventas` vía Backend Spring Boot.

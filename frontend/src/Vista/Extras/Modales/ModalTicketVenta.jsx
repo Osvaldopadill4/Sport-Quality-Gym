@@ -13,8 +13,11 @@ export default function ModalTicketVenta({ ticketVenta, setTicketVenta, onClose 
     <dialog className="modal modal-open">
       <div className="modal-box bg-white text-zinc-900 max-w-sm p-6 rounded-2xl shadow-2xl font-mono">
         <div className="text-center pb-4 border-b border-dashed border-zinc-400">
-          <h2 className="text-xl font-black tracking-wider">⚡ GYMTON FITNESS</h2>
-          <p className="text-xs text-zinc-600">Comprobante Oficial de Compra</p>
+          <div className="flex justify-center mb-1">
+            <img src="/logo-gym.png" alt="Logo Gym" className="w-16 h-16 object-contain" />
+          </div>
+          <h2 className="text-base font-black tracking-wider text-black uppercase">GYM SPORT QUALITY CENTER</h2>
+          <p className="text-[11px] text-zinc-600 font-bold uppercase">Comprobante Oficial de Venta</p>
           <div className="text-xs font-bold bg-zinc-200 py-1 px-2 rounded mt-2 inline-block">
             Folio: {ticketVenta.folio}
           </div>

@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:8080/api/corte_caja';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('corte_caja');
 
 const getMetaCortes = () => {
     try {
@@ -147,11 +149,14 @@ export const cerrarCorteCaja = async (id, datosCierre) => {
         corteActual = JSON.parse(localStorage.getItem('gymton_corte_activo'));
     } catch {}
 
-    const montoInicial = 500;
+    const montoInicial = Number(datosCierre.monto_inicial || 500);
     const totalVentas = Number(datosCierre.total_ventas || 0);
-    const montoCalculado = montoInicial + totalVentas;
+    const totalEfectivo = Number(datosCierre.efectivo ?? datosCierre.ventas_efectivo ?? totalVentas);
+    const totalGastos = Number(datosCierre.total_gastos || 0);
+    // Fórmula oficial: Monto inicial + ventas en efectivo - compras/gastos = Monto esperado
+    const montoCalculado = Number((montoInicial + totalEfectivo - totalGastos).toFixed(2));
     const montoReal = Number(datosCierre.monto_real || 0);
-    const diferencia = montoReal - montoCalculado;
+    const diferencia = Number((montoReal - montoCalculado).toFixed(2));
 
     const idUsr = (datosCierre.id_usuario && Number(datosCierre.id_usuario) > 0) ? Number(datosCierre.id_usuario) : (corteActual?.id_usuario ? Number(corteActual.id_usuario) : 1);
     const payloadCierreBackend = {

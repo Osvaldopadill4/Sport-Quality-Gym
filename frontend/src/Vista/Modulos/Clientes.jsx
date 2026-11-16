@@ -144,115 +144,116 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
         </div>
       </div>
 
-      {/* Tabla de Clientes */}
-      <div className="clientes-table-container">
-        <table className="clientes-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Teléfono</th>
-              <th>Contraseña (Móvil)</th>
-              <th>Token QR / UUID</th>
-              <th>Contacto Emergencia</th>
-              <th>Tel. Emergencia</th>
-              <th>Fecha Registro</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Opciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientesFiltrados.length === 0 ? (
+      {/* Tabla de Clientes con Tema Negro Unificado */}
+      <div className="gym-table-card">
+        <div className="gym-table-scroll">
+          <table className="gym-table table-fixed min-w-[950px]">
+            <thead className="gym-table-thead">
               <tr>
-                <td colSpan="9" className="table-empty-row">
-                  {busqueda
-                    ? `No se encontraron clientes con el término "${busqueda}"`
-                    : 'No hay clientes registrados'}
-                </td>
+                <th className="gym-table-th w-[18%]">Cliente</th>
+                <th className="gym-table-th w-[12%]">Teléfono</th>
+                <th className="gym-table-th w-[13%]">Contraseña (Móvil)</th>
+                <th className="gym-table-th w-[14%]">Token QR / UUID</th>
+                <th className="gym-table-th w-[14%]">Contacto Emerg.</th>
+                <th className="gym-table-th w-[11%]">Tel. Emerg.</th>
+                <th className="gym-table-th w-[10%]">Estado</th>
+                <th className="gym-table-th w-[8%] text-right">Opciones</th>
               </tr>
-            ) : (
-              clientesFiltrados.map((c) => {
-                const esActivo = esActivoFn(c.estado);
-                const passwordVisible = mostrarPasswords[c.id];
-                return (
-                  <tr key={c.id}>
-                    <td className="clientes-td-user">
-                      <span className="clientes-td-name">{c.nombre}</span>
-                    </td>
+            </thead>
+            <tbody className="gym-table-tbody">
+              {clientesFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="text-center py-8 text-gray-400 italic">
+                    {busqueda
+                      ? `No se encontraron clientes con el término "${busqueda}"`
+                      : 'No hay clientes registrados'}
+                  </td>
+                </tr>
+              ) : (
+                clientesFiltrados.map((c) => {
+                  const esActivo = esActivoFn(c.estado);
+                  const passwordVisible = mostrarPasswords[c.id];
+                  return (
+                    <tr key={c.id} className="gym-table-tr">
+                      <td className="gym-table-td font-bold text-white">
+                        <span>{c.nombre}</span>
+                      </td>
 
-                    <td className="clientes-td-text">{c.telefono || 'N/A'}</td>
+                      <td className="gym-table-td text-gray-300 font-mono text-xs">{c.telefono || 'N/A'}</td>
 
-                    <td className="clientes-td-text">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs px-2 py-1 bg-zinc-800 text-zinc-200 rounded border border-zinc-700">
-                          {passwordVisible ? (c.contrasena || 'Sin asignar') : '••••••••'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => togglePasswordVisible(c.id)}
-                          className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
-                          title={passwordVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
-                        >
-                          {passwordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                      </div>
-                    </td>
-
-                    <td className="clientes-td-text">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/30 flex items-center gap-1">
-                          <QrCode size={13} />
-                          <span>{c.token_qr ? (c.token_qr.length > 15 ? c.token_qr.slice(0, 15) + '...' : c.token_qr) : 'Sin Token'}</span>
-                        </span>
-                        {c.token_qr && (
+                      <td className="gym-table-td">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs px-2 py-0.5 bg-zinc-800 text-zinc-200 rounded border border-zinc-700">
+                            {passwordVisible ? (c.contrasena || 'Sin asignar') : '••••••••'}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => copiarAlPortapapeles(c.token_qr, c.id)}
+                            onClick={() => togglePasswordVisible(c.id)}
                             className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
-                            title="Copiar Token QR"
+                            title={passwordVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
                           >
-                            {copiadoToken === c.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                            {passwordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
                           </button>
+                        </div>
+                      </td>
+
+                      <td className="gym-table-td">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/30 flex items-center gap-1">
+                            <QrCode size={13} />
+                            <span>{c.token_qr ? (c.token_qr.length > 12 ? c.token_qr.slice(0, 12) + '...' : c.token_qr) : 'Sin Token'}</span>
+                          </span>
+                          {c.token_qr && (
+                            <button
+                              type="button"
+                              onClick={() => copiarAlPortapapeles(c.token_qr, c.id)}
+                              className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
+                              title="Copiar Token QR"
+                            >
+                              {copiadoToken === c.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="gym-table-td text-gray-400 text-xs">{c.contacto_emergencia || 'N/A'}</td>
+                      <td className="gym-table-td text-gray-400 font-mono text-xs">{c.telefono_emergencia || 'N/A'}</td>
+
+                      <td className="gym-table-td">
+                        {esActivo ? (
+                          <span className="clientes-badge activo">Activo</span>
+                        ) : (
+                          <span className="clientes-badge inactivo">Inactivo</span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="clientes-td-text">{c.contacto_emergencia || 'N/A'}</td>
-                    <td className="clientes-td-text">{c.telefono_emergencia || 'N/A'}</td>
-                    <td className="clientes-td-text">{c.fecha_registro || 'N/A'}</td>
+                      <td className="gym-table-td text-right">
+                        <div className="clientes-table-actions justify-end">
+                          <button
+                            className="clientes-action-btn edit"
+                            title="Editar datos del cliente"
+                            onClick={() => openModal('edit', c)}
+                          >
+                            <Edit size={16} />
+                          </button>
 
-                    <td>
-                      {esActivo ? (
-                        <span className="clientes-badge activo">Activo</span>
-                      ) : (
-                        <span className="clientes-badge inactivo">Inactivo</span>
-                      )}
-                    </td>
-
-                    <td>
-                      <div className="clientes-table-actions">
-                        <button
-                          className="clientes-action-btn edit"
-                          title="Editar datos del cliente"
-                          onClick={() => openModal('edit', c)}
-                        >
-                          <Edit size={16} />
-                        </button>
-
-                        <button
-                          className={`clientes-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Desactivar cliente' : 'Activar cliente'}
-                          onClick={() => handleToggleEstado(c)}
-                        >
-                          <Power size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                          <button
+                            className={`clientes-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
+                            title={esActivo ? 'Desactivar cliente' : 'Activar cliente'}
+                            onClick={() => handleToggleEstado(c)}
+                          >
+                            <Power size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
         <div className="clientes-pagination">
           <span className="clientes-pagination-text">
@@ -264,7 +265,6 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
             <button className="clientes-page-btn next">Siguiente</button>
           </div>
         </div>
-      </div>
 
       {/* Modal extraído en `Vista/Extras/Modales/ModalesCatalogos.jsx` */}
       <ModalFormCliente

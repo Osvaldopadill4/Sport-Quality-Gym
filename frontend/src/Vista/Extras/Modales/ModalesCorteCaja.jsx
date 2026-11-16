@@ -97,8 +97,6 @@ export function ModalCierreTurno({
   dineroEsperadoEnCaja,
   formCierre,
   setFormCierre,
-  desgloseBilletes,
-  setDesgloseBilletes,
   handleCerrarTurno
 }) {
   if (!showModalCierre || !corteActivo) return null;
@@ -121,52 +119,22 @@ export function ModalCierreTurno({
         </div>
 
         <div className="p-6 space-y-5">
-          <div className="grid grid-cols-3 gap-3 bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-center">
             <div>
-              <span className="text-[11px] text-zinc-400 uppercase font-bold block">Fondo Inicial</span>
-              <span className="text-base font-extrabold text-white">${fondoActual.toFixed(2)}</span>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Fondo Inicial</span>
+              <span className="text-sm sm:text-base font-extrabold text-white">${fondoActual.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-[11px] text-zinc-400 uppercase font-bold block">Ventas Efectivo</span>
-              <span className="text-base font-extrabold text-emerald-400">+${metricasVentas.totalEfectivo.toFixed(2)}</span>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Ventas Efectivo</span>
+              <span className="text-sm sm:text-base font-extrabold text-emerald-400">+${Number(metricasVentas.totalEfectivo || 0).toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-[11px] text-zinc-400 uppercase font-bold block">Monto Esperado</span>
-              <span className="text-base font-black text-amber-300">${dineroEsperadoEnCaja.toFixed(2)}</span>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Compras / Gastos</span>
+              <span className="text-sm sm:text-base font-extrabold text-red-400">-${Number(metricasVentas.totalGastos || 0).toFixed(2)}</span>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase text-zinc-300 mb-2 flex items-center justify-between">
-              <span>Conteo Físico de Billetes (Arqueo Opcional):</span>
-              <span className="text-emerald-400 font-mono font-bold">${Number(formCierre.monto_real || 0).toFixed(2)}</span>
-            </label>
-            <div className="grid grid-cols-4 gap-2 text-xs">
-              {[
-                { label: '$1,000', key: 'b1000' },
-                { label: '$500', key: 'b500' },
-                { label: '$200', key: 'b200' },
-                { label: '$100', key: 'b100' },
-                { label: '$50', key: 'b50' },
-                { label: '$20', key: 'b20' },
-                { label: 'Monedas', key: 'monedas' }
-              ].map((item) => (
-                <div key={item.key} className="bg-zinc-950 p-2 rounded-xl border border-zinc-800">
-                  <span className="text-[10px] text-zinc-400 font-bold block">{item.label}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="9999"
-                    maxLength={4}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-1 text-white text-xs text-center font-bold mt-1 outline-none focus:border-emerald-500"
-                    value={desgloseBilletes[item.key]}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      setDesgloseBilletes({ ...desgloseBilletes, [item.key]: parseInt(raw, 10) || 0 });
-                    }}
-                  />
-                </div>
-              ))}
+            <div>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Monto Esperado</span>
+              <span className="text-sm sm:text-base font-black text-amber-300">${dineroEsperadoEnCaja.toFixed(2)}</span>
             </div>
           </div>
 
@@ -252,8 +220,11 @@ export function ModalTicketCorte({ ticketCorte, setTicketCorte }) {
     <dialog className="modal modal-open">
       <div className="modal-box bg-white text-zinc-900 max-w-sm p-6 rounded-2xl shadow-2xl font-mono">
         <div className="text-center pb-4 border-b border-dashed border-zinc-400">
-          <h2 className="text-xl font-black tracking-wider">⚡ GYMTON FITNESS</h2>
-          <p className="text-xs text-zinc-600 font-semibold uppercase">Comprobante Oficial de Corte Z</p>
+          <div className="flex justify-center mb-1">
+            <img src="/logo-gym.png" alt="Logo" className="w-14 h-14 object-contain" />
+          </div>
+          <h2 className="text-base font-black tracking-wider">GYM SPORT QUALITY CENTER</h2>
+          <p className="text-[10px] text-zinc-600 font-semibold uppercase">Comprobante Oficial de Corte Z</p>
           <div className="text-xs font-bold bg-zinc-200 py-1 px-3 rounded mt-2 inline-block">
             Turno #{ticketCorte.id}
           </div>
@@ -273,6 +244,10 @@ export function ModalTicketCorte({ ticketCorte, setTicketCorte }) {
           <div className="flex justify-between">
             <span>Ventas Efectivo:</span>
             <strong className="text-emerald-700">+${Number(ticketCorte.ventas_efectivo || 0).toFixed(2)}</strong>
+          </div>
+          <div className="flex justify-between">
+            <span>Compras / Gastos:</span>
+            <strong className="text-red-700">-${Number(ticketCorte.total_gastos || 0).toFixed(2)}</strong>
           </div>
           <div className="flex justify-between">
             <span>Ventas Tarjeta:</span>
