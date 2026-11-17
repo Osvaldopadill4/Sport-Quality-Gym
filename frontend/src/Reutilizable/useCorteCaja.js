@@ -49,16 +49,6 @@ export function useCorteCaja({ loggedUser }) {
     observaciones: ''
   });
 
-  const [desgloseBilletes, setDesgloseBilletes] = useState({
-    b1000: 0,
-    b500: 0,
-    b200: 0,
-    b100: 0,
-    b50: 0,
-    b20: 0,
-    monedas: 0
-  });
-
   const obtenerNombreCajero = useCallback((c) => {
     if (!c) return nombreCajeroActivo;
     if (c.cajero_nombre && !String(c.cajero_nombre).startsWith('Usuario #')) {
@@ -184,21 +174,6 @@ export function useCorteCaja({ loggedUser }) {
     cargarDatos();
   }, [cargarDatos]);
 
-  useEffect(() => {
-    const totalArqueo =
-      (Number(desgloseBilletes.b1000) * 1000) +
-      (Number(desgloseBilletes.b500) * 500) +
-      (Number(desgloseBilletes.b200) * 200) +
-      (Number(desgloseBilletes.b100) * 100) +
-      (Number(desgloseBilletes.b50) * 50) +
-      (Number(desgloseBilletes.b20) * 20) +
-      (Number(desgloseBilletes.monedas) * 1);
-
-    if (totalArqueo > 0) {
-      setFormCierre(prev => ({ ...prev, monto_real: totalArqueo }));
-    }
-  }, [desgloseBilletes]);
-
   const handleAbrirTurno = async (e) => {
     if (e) e.preventDefault();
     try {
@@ -221,22 +196,13 @@ export function useCorteCaja({ loggedUser }) {
   };
 
   const handlePrepararCierre = () => {
-    const { totalEfectivo } = obtenerVentasTurno();
+    const { totalEfectivo, totalGastos } = obtenerVentasTurno();
     const fondoInicial = Number(corteActivo?.monto_inicial) || 500;
-    const esperado = fondoInicial + totalEfectivo;
+    const esperado = Number((fondoInicial + totalEfectivo - totalGastos).toFixed(2));
 
     setFormCierre({
       monto_real: esperado,
       observaciones: ''
-    });
-    setDesgloseBilletes({
-      b1000: 0,
-      b500: 0,
-      b200: 0,
-      b100: 0,
-      b50: 0,
-      b20: 0,
-      monedas: 0
     });
     setShowModalCierre(true);
   };
@@ -245,13 +211,12 @@ export function useCorteCaja({ loggedUser }) {
     if (!corteActivo) return;
 
     try {
-      const { totalVentas, totalEfectivo, totalTarjeta } = obtenerVentasTurno();
+      const { totalVentas, totalEfectivo, totalTarjeta, totalGastos } = obtenerVentasTurno();
       const fondoInicial = Number(corteActivo.monto_inicial) || 500;
-      const montoCalculado = fondoInicial + totalEfectivo;
+      const montoCalculado = Number((fondoInicial + totalEfectivo - totalGastos).toFixed(2));
       const montoReal = Number(formCierre.monto_real) || 0;
-      const diferencia = montoReal - montoCalculado;
+      const diferencia = Number((montoReal - montoCalculado).toFixed(2));
 
-      const { totalGastos } = obtenerVentasTurno();
       const payload = {
         id_usuario: usuarioActivo?.id || corteActivo.id_usuario || 1,
         cajero_nombre: nombreCajeroActivo,
@@ -278,6 +243,7 @@ export function useCorteCaja({ loggedUser }) {
           total_ventas: totalVentas,
           ventas_efectivo: totalEfectivo,
           ventas_tarjeta: totalTarjeta,
+          total_gastos: totalGastos,
           monto_calculado: montoCalculado,
           monto_real: montoReal,
           diferencia: diferencia,
@@ -307,7 +273,7 @@ export function useCorteCaja({ loggedUser }) {
 
   const metricasVentas = obtenerVentasTurno();
   const fondoActual = Number(corteActivo?.monto_inicial) || 500;
-  const dineroEsperadoEnCaja = fondoActual + metricasVentas.totalEfectivo;
+  const dineroEsperadoEnCaja = Number((fondoActual + metricasVentas.totalEfectivo - metricasVentas.totalGastos).toFixed(2));
 
   return {
     cortes,
@@ -332,8 +298,6 @@ export function useCorteCaja({ loggedUser }) {
     setFormApertura,
     formCierre,
     setFormCierre,
-    desgloseBilletes,
-    setDesgloseBilletes,
     metricasVentas,
     fondoActual,
     dineroEsperadoEnCaja,

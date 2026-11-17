@@ -1142,6 +1142,7 @@ export function useUsuarios({ loggedUser }) {
 
   return {
     usuarioActivo,
+    usuarios,
     usuariosFiltrados,
     filtro,
     setFiltro,

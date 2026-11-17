@@ -1,6 +1,7 @@
 import { createDetalleCompra, getDetalleCompras } from './detalle_compra';
+import { getApiUrl } from '../config/apiConfig';
 
-const API_URL = 'http://localhost:8080/api/compra';
+const API_URL = getApiUrl('compra');
 
 const getMetaCompras = () => {
     try {

@@ -1,6 +1,7 @@
 import { createDetalleVenta, getDetalleVentas } from './detalle_venta';
+import { getApiUrl } from '../config/apiConfig';
 
-const API_URL = 'http://localhost:8080/api/venta';
+const API_URL = getApiUrl('venta');
 
 const getMetaVentas = () => {
     try {

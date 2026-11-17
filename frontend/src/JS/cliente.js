@@ -1,5 +1,7 @@
-const API_URL = 'http://localhost:8080/api/cliente';
-const API_URL_ALT = 'http://127.0.0.1:8080/api/cliente';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('cliente');
+const API_URL_ALT = 'http://localhost:8080/api/cliente';
 
 const fetchWithFallback = async (path = '', options = {}) => {
   try {

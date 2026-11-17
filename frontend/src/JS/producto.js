@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:8080/api/producto';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('producto');
 
 export const getProductos = async () => {
     try {

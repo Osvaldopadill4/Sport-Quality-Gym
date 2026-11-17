@@ -14,6 +14,7 @@ import '../../CSS/Productos.css';
 import Toast from '../Extras/Toast';
 import ConfirmModal from '../Extras/ConfirmModal';
 import { ModalFormProducto, ModalReabastecerStock } from '../Extras/Modales/ModalesProducto';
+import ModalTicketCompra from '../Extras/Modales/ModalTicketCompra';
 import { useProductos } from '../../Reutilizable/useProductos';
 import { esInventarioBajo as checkInventarioBajo } from '../../Reutilizable/objetosSQL';
 
@@ -37,11 +38,26 @@ export default function Productos({ loggedUser }) {
     proveedores,
     showModalCompra,
     setShowModalCompra,
+    ticketCompra,
+    setTicketCompra,
+    busquedaProveedor,
+    setBusquedaProveedor,
+    proveedorSeleccionado,
+    setProveedorSeleccionado,
+    proveedoresFiltrados,
+    itemsReabastecer,
     busquedaReabastecer,
     setBusquedaReabastecer,
+    productoSeleccionadoCompra,
+    setProductoSeleccionadoCompra,
+    cantidadInput,
+    setCantidadInput,
+    costoInput,
+    setCostoInput,
+    agregarItemReabastecer,
+    eliminarItemReabastecer,
+    totalReabastecer,
     productosFiltradosReabastecer,
-    compraData,
-    setCompraData,
     total,
     activos,
     inactivos,
@@ -176,103 +192,95 @@ export default function Productos({ loggedUser }) {
         </div>
       </div>
 
-      {/* Tabla de Productos */}
-      <div className="productos-table-container">
-        <table className="productos-table">
-          <thead>
-            <tr>
-              <th style={{ width: '22%' }}>Producto</th>
-              <th style={{ width: '13%' }}>Categoría</th>
-              <th style={{ width: '23%' }}>Descripción</th>
-              <th style={{ width: '13%' }}>Precio (MXN)</th>
-              <th style={{ width: '13%' }}>Stock Disponible</th>
-              <th style={{ width: '8%' }}>Estado</th>
-              <th style={{ width: '8%', textAlign: 'right' }}>Opciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productosFiltrados.length === 0 ? (
+      {/* Tabla de Productos con Tema Negro Unificado */}
+      <div className="gym-table-card">
+        <div className="gym-table-scroll">
+          <table className="gym-table table-fixed min-w-[880px]">
+            <thead className="gym-table-thead">
               <tr>
-                <td colSpan="7" className="text-center py-8 text-gray-400 italic">
-                  {busqueda ? `No se encontraron productos con el término "${busqueda}"` : 'No hay productos que coincidan con el filtro seleccionado'}
-                </td>
+                <th className="gym-table-th w-[22%]">Producto</th>
+                <th className="gym-table-th w-[13%]">Categoría</th>
+                <th className="gym-table-th w-[23%]">Descripción</th>
+                <th className="gym-table-th w-[13%]">Precio (MXN)</th>
+                <th className="gym-table-th w-[13%]">Stock Disponible</th>
+                <th className="gym-table-th w-[8%]">Estado</th>
+                <th className="gym-table-th w-[8%] text-right">Opciones</th>
               </tr>
-            ) : (
-              productosFiltrados.map(p => {
-                const esActivo = esEstadoActivo(p.estado);
-                const stockBajo = esBajo(p);
-                return (
-                  <tr key={p.id}>
-                    <td className="productos-td-name font-bold">
-                      <span className="flex items-center gap-2">
-                        <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-emerald-500'} />
-                        {p.nombre}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="productos-cat-pill">
-                        {p.categoria || 'General'}
-                      </span>
-                    </td>
-                    <td className="text-gray-500 text-sm">{p.descripcion || 'Sin descripción'}</td>
-                    <td className="font-bold text-emerald-600">${Number(p.precio).toFixed(1)} MXN</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center justify-center font-bold text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
-                          stockBajo
-                            ? 'bg-red-500/10 text-red-600 border border-red-500/30'
-                            : 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30'
-                        }`}>
-                          {stockBajo && <AlertTriangle size={12} className="mr-1 text-red-500" />}
-                          {p.stock}
+            </thead>
+            <tbody className="gym-table-tbody">
+              {productosFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-8 text-gray-400 italic">
+                    {busqueda ? `No se encontraron productos con el término "${busqueda}"` : 'No hay productos que coincidan con el filtro seleccionado'}
+                  </td>
+                </tr>
+              ) : (
+                productosFiltrados.map(p => {
+                  const esActivo = esEstadoActivo(p.estado);
+                  const stockBajo = esBajo(p);
+                  return (
+                    <tr key={p.id} className="gym-table-tr">
+                      <td className="gym-table-td font-bold text-white">
+                        <span className="flex items-center gap-2">
+                          <Package size={16} className={stockBajo ? 'text-amber-400' : 'text-emerald-500'} />
+                          {p.nombre}
                         </span>
-                        {stockBajo && (
-                          <button
-                            className="p-1 rounded-md text-amber-500 hover:bg-amber-100 transition-colors"
-                            title="Reabastecer stock de este producto"
-                            onClick={() => openModalCompra(p)}
-                          >
-                            <ArrowDownCircle size={16} />
-                          </button>
+                      </td>
+                      <td className="gym-table-td">
+                        <span className="productos-cat-pill">
+                          {p.categoria || 'General'}
+                        </span>
+                      </td>
+                      <td className="gym-table-td text-gray-400 text-sm">{p.descripcion || 'Sin descripción'}</td>
+                      <td className="gym-table-td font-bold text-emerald-400">${Number(p.precio).toFixed(1)} MXN</td>
+                      <td className="gym-table-td">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center justify-center font-bold text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
+                            stockBajo
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          }`}>
+                            {stockBajo && <AlertTriangle size={12} className="mr-1 text-red-400" />}
+                            {p.stock} uds.
+                          </span>
+                          {stockBajo && (
+                            <button
+                              className="p-1 rounded-md text-amber-400 hover:bg-zinc-800 transition-colors"
+                              title="Reabastecer stock de este producto"
+                              onClick={() => openModalCompra(p)}
+                            >
+                              <ArrowDownCircle size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="gym-table-td">
+                        {esActivo ? (
+                          <span className="productos-badge activo">Activo</span>
+                        ) : (
+                          <span className="productos-badge inactivo">Inactivo</span>
                         )}
-                      </div>
-                    </td>
-                    <td>
-                      {esActivo ? (
-                        <span className="productos-badge activo">Activo</span>
-                      ) : (
-                        <span className="productos-badge inactivo">Inactivo</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="productos-table-actions">
-                        <button className="productos-action-btn edit" title="Editar producto" onClick={() => openModal('edit', p)}>
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          className={`productos-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Desactivar producto' : 'Activar producto'}
-                          onClick={() => handleToggleEstado(p)}
-                        >
-                          <Power size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-
-        <div className="productos-pagination">
-          <span className="productos-pagination-text">
-            Mostrando {productosFiltrados.length} de {total} productos
-          </span>
-          <div className="productos-pagination-buttons">
-            <button className="productos-page-btn prev">Anterior</button>
-            <button className="productos-page-btn next">Siguiente</button>
-          </div>
+                      </td>
+                      <td className="gym-table-td text-right">
+                        <div className="productos-table-actions justify-end">
+                          <button className="productos-action-btn edit" title="Editar producto" onClick={() => openModal('edit', p)}>
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            className={`productos-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
+                            title={esActivo ? 'Desactivar producto' : 'Activar producto'}
+                            onClick={() => handleToggleEstado(p)}
+                          >
+                            <Power size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -289,48 +297,59 @@ export default function Productos({ loggedUser }) {
       <ModalReabastecerStock
         showModalCompra={showModalCompra}
         setShowModalCompra={setShowModalCompra}
-        compraData={compraData}
-        setCompraData={setCompraData}
+        handleRegistrarCompraInventario={handleRegistrarCompraInventario}
         proveedores={proveedores}
         productos={productos}
+        busquedaProveedor={busquedaProveedor}
+        setBusquedaProveedor={setBusquedaProveedor}
+        proveedorSeleccionado={proveedorSeleccionado}
+        setProveedorSeleccionado={setProveedorSeleccionado}
+        proveedoresFiltrados={proveedoresFiltrados}
+        itemsReabastecer={itemsReabastecer}
+        agregarItemReabastecer={agregarItemReabastecer}
+        eliminarItemReabastecer={eliminarItemReabastecer}
+        totalReabastecer={totalReabastecer}
         busquedaReabastecer={busquedaReabastecer}
         setBusquedaReabastecer={setBusquedaReabastecer}
+        productoSeleccionadoCompra={productoSeleccionadoCompra}
+        setProductoSeleccionadoCompra={setProductoSeleccionadoCompra}
         productosFiltradosReabastecer={productosFiltradosReabastecer}
-        handleRegistrarCompraInventario={handleRegistrarCompraInventario}
-        esInventarioBajo={esBajo}
+        cantidadInput={cantidadInput}
+        setCantidadInput={setCantidadInput}
+        costoInput={costoInput}
+        setCostoInput={setCostoInput}
+      />
+
+      <ModalTicketCompra
+        ticketCompra={ticketCompra}
+        setTicketCompra={setTicketCompra}
       />
 
       <ConfirmModal
         isOpen={confirmRestockModal.isOpen}
-        title="¿Estás seguro de reabastecer?"
+        title="¿Confirmar Orden de Reabastecimiento?"
         message={
           confirmRestockModal.data ? (
             <div className="space-y-2 text-left">
               <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
-                <span className="text-zinc-400">Producto:</span>
-                <span className="font-bold text-white">{confirmRestockModal.data.prodNombre}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
                 <span className="text-zinc-400">Proveedor:</span>
-                <span className="font-medium text-emerald-400">{confirmRestockModal.data.nombreProveedor}</span>
+                <span className="font-bold text-white">{confirmRestockModal.data.nombreProveedor}</span>
               </div>
               <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
-                <span className="text-zinc-400">Unidades a ingresar:</span>
-                <span className="font-bold text-emerald-400">+{confirmRestockModal.data.cant} uds.</span>
-              </div>
-              <div className="flex justify-between items-center text-sm py-1 border-b border-zinc-800">
-                <span className="text-zinc-400">Costo unitario:</span>
-                <span className="font-mono text-zinc-300">${confirmRestockModal.data.costo.toFixed(2)}</span>
+                <span className="text-zinc-400">Artículos a reabastecer:</span>
+                <span className="font-bold text-emerald-400">
+                  {confirmRestockModal.data.items?.length || 0} productos ({confirmRestockModal.data.totalArticulos || 0} uds.)
+                </span>
               </div>
               <div className="flex justify-between items-center text-base py-1">
                 <span className="font-bold text-white">Inversión total:</span>
-                <span className="text-2xl font-black text-emerald-400">${confirmRestockModal.data.totalCompra.toFixed(2)}</span>
+                <span className="text-2xl font-black text-emerald-400">${confirmRestockModal.data.totalCompra?.toFixed(2)} MXN</span>
               </div>
             </div>
           ) : null
         }
-        confirmText="Confirmar Reabastecimiento"
-        cancelText="Volver"
+        confirmText="Confirmar y Emitir Ticket"
+        cancelText="Volver a la Orden"
         tipo="success"
         onConfirm={confirmarReabastecimiento}
         onCancel={() => setConfirmRestockModal({ isOpen: false, data: null })}

@@ -37,8 +37,6 @@ export default function CorteCaja({ loggedUser }) {
     setFormApertura,
     formCierre,
     setFormCierre,
-    desgloseBilletes,
-    setDesgloseBilletes,
     metricasVentas,
     fondoActual,
     dineroEsperadoEnCaja,
@@ -121,7 +119,7 @@ export default function CorteCaja({ loggedUser }) {
 
       {/* Tarjeta de Resumen en Tiempo Real del Turno Actual */}
       {corteActivo && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
           <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-md">
             <span className="text-xs text-zinc-400 block font-medium">Fondo Inicial en Caja</span>
             <div className="flex items-baseline gap-1 mt-1">
@@ -133,9 +131,17 @@ export default function CorteCaja({ loggedUser }) {
           <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-md">
             <span className="text-xs text-emerald-400 block font-medium">Ventas en Efectivo</span>
             <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-2xl font-black text-emerald-400">${metricasVentas.totalEfectivo.toFixed(2)}</span>
+              <span className="text-2xl font-black text-emerald-400">+${metricasVentas.totalEfectivo.toFixed(2)}</span>
             </div>
             <span className="text-[11px] text-zinc-500 mt-1 block">Cobrado en mostrador</span>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-md">
+            <span className="text-xs text-red-400 block font-medium">Compras / Gastos Turno</span>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-2xl font-black text-red-400">-${metricasVentas.totalGastos.toFixed(2)}</span>
+            </div>
+            <span className="text-[11px] text-zinc-500 mt-1 block">Egresos pagados de caja</span>
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-md">
@@ -147,11 +153,11 @@ export default function CorteCaja({ loggedUser }) {
           </div>
 
           <div className="bg-gradient-to-br from-emerald-950/40 to-zinc-900 border border-emerald-500/30 p-4 rounded-2xl shadow-md">
-            <span className="text-xs text-emerald-300 block font-bold">Total Esperado en Efectivo</span>
+            <span className="text-xs text-emerald-300 block font-bold">Total Esperado en Caja</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-black text-emerald-300">${dineroEsperadoEnCaja.toFixed(2)}</span>
             </div>
-            <span className="text-[11px] text-emerald-400/70 mt-1 block">Fondo Inicial + Efectivo</span>
+            <span className="text-[11px] text-emerald-400/70 mt-1 block font-semibold">Inicial + Efectivo - Gastos</span>
           </div>
         </div>
       )}
@@ -329,8 +335,6 @@ export default function CorteCaja({ loggedUser }) {
         dineroEsperadoEnCaja={dineroEsperadoEnCaja}
         formCierre={formCierre}
         setFormCierre={setFormCierre}
-        desgloseBilletes={desgloseBilletes}
-        setDesgloseBilletes={setDesgloseBilletes}
         handleCerrarTurno={handleCerrarTurno}
       />
 
