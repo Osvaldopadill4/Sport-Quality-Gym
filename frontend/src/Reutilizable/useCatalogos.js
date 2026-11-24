@@ -77,7 +77,7 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
         localStorage.setItem('gymton_clientes', JSON.stringify(lista));
         setCargandoBD(false);
         if (forzarToast) {
-          mostrarAlerta(`Sincronizado con MySQL: ${lista.length} cliente(s) cargado(s)`, 'success');
+          mostrarAlerta(`Información actualizada: ${lista.length} socio(s) disponible(s)`, 'success');
         }
         return;
       }
@@ -293,7 +293,7 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
           cliente: { id: nuevoClienteId, nombre: payload.nombre.trim() },
           plan: plan1Dia
         });
-        mostrarAlerta(`Socio "${payload.nombre.trim()}" registrado exitosamente en la base de datos`, 'success');
+        mostrarAlerta(`Socio "${payload.nombre.trim()}" registrado exitosamente en el club`, 'success');
         await cargarDatos();
       } else {
         await updateCliente(formData.id, payload);

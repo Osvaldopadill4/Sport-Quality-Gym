@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import '../../CSS/ReportesPrint.css';
 import { useReportes } from '../../Reutilizable/useReportes';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
+import { getFechaMexico } from '../../Reutilizable/timeUtils';
+import Paginacion from '../Extras/Paginacion';
 import { DescargarReportePDF, ReportePDF } from '../Extras/Reportes/ReportePDF';
 
 export default function Reportes({ loggedUser }) {
@@ -26,7 +29,7 @@ export default function Reportes({ loggedUser }) {
     setTabActiva,
     subFiltroVentas,
     setSubFiltroVentas,
-    cortes,
+    cortesFiltrados,
     busqueda,
     setBusqueda,
     fechaInicio,
@@ -42,7 +45,12 @@ export default function Reportes({ loggedUser }) {
     resolverNombreClienteVenta,
     resolverDatosCompra,
     resolverCajeroCorte,
+    resolverDesgloseCorte,
   } = useReportes({ loggedUser });
+
+  const paginacionVentas = usePaginacion(ventasFiltradas, 10);
+  const paginacionCompras = usePaginacion(comprasFiltradas, 10);
+  const paginacionCortes = usePaginacion(cortesFiltrados, 10);
 
   const datosReportePDF = {
     loggedUser,
@@ -77,16 +85,20 @@ export default function Reportes({ loggedUser }) {
         total: `$${datos.totalInv.toFixed(2)}`
       };
     }),
-    cortes: cortes.map(corte => {
+    cortes: cortesFiltrados.map(corte => {
       const diferencia = Number(corte.diferencia) || 0;
+      const desglose = resolverDesgloseCorte(corte);
       return {
         id: corte.id,
-        folio: `#${corte.id}`,
+        folio: corte.fecha_cierre ? 'Concluido' : 'En curso',
         cajero: resolverCajeroCorte(corte),
         apertura: corte.fecha_apertura || '—',
         cierre: corte.fecha_cierre || 'En curso',
         fondo: `$${Number(corte.monto_inicial || 500).toFixed(2)}`,
-        ventas: `$${Number(corte.total_ventas ?? corte.ventas_totales ?? 0).toFixed(2)}`,
+        efectivo: `$${desglose.totalEfectivo.toFixed(2)}`,
+        tarjeta: `$${desglose.totalTarjeta.toFixed(2)}`,
+        gastos: `-$${desglose.totalGastos.toFixed(2)}`,
+        ventas: `$${Number(corte.total_ventas ?? corte.ventas_totales ?? desglose.totalVentas ?? 0).toFixed(2)}`,
         fisico: `$${Number(corte.monto_real ?? corte.dinero_real ?? 0).toFixed(2)}`,
         diferencia: diferencia === 0
           ? '$0.00'
@@ -95,7 +107,7 @@ export default function Reportes({ loggedUser }) {
     })
   };
   const crearDocumentoPDF = modo => <ReportePDF {...datosReportePDF} modo={modo} />;
-  const nombreArchivoPDF = modo => `gymton-reporte-${modo}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  const nombreArchivoPDF = modo => `gymton-reporte-${modo}-${getFechaMexico()}.pdf`;
 
   return (
     <div className="reportes-wrapper p-6 bg-zinc-950 min-h-screen text-gray-200">
@@ -411,7 +423,7 @@ export default function Reportes({ loggedUser }) {
                 : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
             }`}
           >
-            <Calculator size={14} /> Auditoría de Cortes ({cortes.length})
+            <Calculator size={14} /> Auditoría de Cortes ({cortesFiltrados.length})
           </button>
         </div>
 
@@ -492,214 +504,266 @@ export default function Reportes({ loggedUser }) {
       {/* Contenido de la Tabla Seleccionada */}
       <div className="gym-table-card">
         {tabActiva === 'ventas' && (
-          <div className="overflow-x-auto max-h-[60vh]">
-            <table className="table table-zebra w-full min-w-[820px] text-xs">
-              <thead className="bg-zinc-800 text-zinc-400 uppercase font-black sticky top-0 z-10 border-b border-zinc-700">
-                <tr>
-                  <th className="py-3 px-4">Folio Ticket</th>
-                  <th className="py-3 px-3">Fecha y Hora</th>
-                  <th className="py-3 px-3">Cliente / Socio</th>
-                  <th className="py-3 px-3">Línea / Tipo</th>
-                  <th className="py-3 px-3">Concepto / Detalle</th>
-                  <th className="py-3 px-3 text-center">Método</th>
-                  <th className="py-3 px-3 text-right">Subtotal</th>
-                  <th className="py-3 px-3 text-right">Descuento</th>
-                  <th className="py-3 px-4 text-right">Total Cobrado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {ventasFiltradas.length > 0 ? (
-                  ventasFiltradas.map((v, i) => {
-                    const info = clasificarVenta(v);
-                    const nombreSocio = resolverNombreClienteVenta(v);
-                    return (
-                      <tr key={v.id || v.folio || i} className="gym-table-tr">
-                        <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
-                          {v.folio || `FOL-${v.id}`}
-                        </td>
-                        <td className="py-3 px-3 text-zinc-400 whitespace-nowrap">
-                          {v.fecha || 'N/A'}
-                        </td>
-                        <td className="py-3 px-3 font-semibold text-white whitespace-nowrap">
-                          {nombreSocio}
-                        </td>
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          {info.esMembresia ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                              <CreditCard size={11} /> {info.esMixta ? 'Membresía + Tienda' : 'Venta Membresía'}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              <ShoppingBag size={11} /> Venta Producto
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-zinc-300 max-w-[220px] truncate" title={info.conceptoResumen}>
-                          {info.conceptoResumen}
-                        </td>
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${
-                            (v.metodo_pago || '').toLowerCase() === 'efectivo'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          }`}>
-                            {(v.metodo_pago || '').toLowerCase() === 'efectivo' ? <Banknote size={11} /> : <CreditCard size={11} />}
-                            {v.metodo_pago || 'Efectivo'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-right text-zinc-400">
-                          ${Number(v.subtotal || v.total || 0).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-3 text-right text-amber-400">
-                          -${Number(v.descuento || 0).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-black text-white text-sm">
-                          ${Number(v.total || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+          <>
+            <div className="overflow-x-auto max-h-[60vh]">
+              <table className="table table-zebra w-full min-w-[820px] text-xs">
+                <thead className="bg-zinc-800 text-zinc-400 uppercase font-black sticky top-0 z-10 border-b border-zinc-700">
                   <tr>
-                    <td colSpan="9" className="text-center py-10 text-zinc-500 italic">
-                      No se encontraron registros de ventas para el filtro seleccionado.
-                    </td>
+                    <th className="py-3 px-4">Folio Ticket</th>
+                    <th className="py-3 px-3">Fecha y Hora</th>
+                    <th className="py-3 px-3">Cliente / Socio</th>
+                    <th className="py-3 px-3">Línea / Tipo</th>
+                    <th className="py-3 px-3">Concepto / Detalle</th>
+                    <th className="py-3 px-3 text-center">Método</th>
+                    <th className="py-3 px-3 text-right">Subtotal</th>
+                    <th className="py-3 px-3 text-right">Descuento</th>
+                    <th className="py-3 px-4 text-right">Total Cobrado</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {paginacionVentas.datosPaginados.length > 0 ? (
+                    paginacionVentas.datosPaginados.map((v, i) => {
+                      const info = clasificarVenta(v);
+                      const nombreSocio = resolverNombreClienteVenta(v);
+                      return (
+                        <tr key={v.id || v.folio || i} className="gym-table-tr">
+                          <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                            {v.folio || `FOL-${v.id}`}
+                          </td>
+                          <td className="py-3 px-3 text-zinc-400 whitespace-nowrap">
+                            {v.fecha || 'N/A'}
+                          </td>
+                          <td className="py-3 px-3 font-semibold text-white whitespace-nowrap">
+                            {nombreSocio}
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            {info.esMembresia ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                <CreditCard size={11} /> {info.esMixta ? 'Membresía + Tienda' : 'Venta Membresía'}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                <ShoppingBag size={11} /> Venta Producto
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-zinc-300 max-w-[220px] truncate" title={info.conceptoResumen}>
+                            {info.conceptoResumen}
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${
+                              (v.metodo_pago || '').toLowerCase() === 'efectivo'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            }`}>
+                              {(v.metodo_pago || '').toLowerCase() === 'efectivo' ? <Banknote size={11} /> : <CreditCard size={11} />}
+                              {v.metodo_pago || 'Efectivo'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right text-zinc-400">
+                            ${Number(v.subtotal || v.total || 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right text-amber-400">
+                            -${Number(v.descuento || 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-black text-white text-sm">
+                            ${Number(v.total || 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="9" className="text-center py-10 text-zinc-500 italic">
+                        No se encontraron registros de ventas para el filtro seleccionado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Paginacion
+              paginaActual={paginacionVentas.paginaActual}
+              totalPaginas={paginacionVentas.totalPaginas}
+              totalRegistros={paginacionVentas.totalRegistros}
+              indiceInicio={paginacionVentas.indiceInicio}
+              indiceFin={paginacionVentas.indiceFin}
+              itemsPorPagina={paginacionVentas.itemsPorPagina}
+              onPageChange={paginacionVentas.setPaginaActual}
+              onItemsPerPageChange={paginacionVentas.setItemsPorPagina}
+              etiqueta="ventas"
+            />
+          </>
         )}
 
         {tabActiva === 'compras' && (
-          <div className="overflow-x-auto max-h-[60vh]">
-            <table className="table table-zebra w-full min-w-[780px] text-xs">
-              <thead className="bg-zinc-800 text-zinc-400 uppercase font-black sticky top-0 z-10 border-b border-zinc-700">
-                <tr>
-                  <th className="py-3 px-4">Orden</th>
-                  <th className="py-3 px-3">Fecha Adquisición</th>
-                  <th className="py-3 px-3">Proveedor</th>
-                  <th className="py-3 px-3">Artículo / Suplemento</th>
-                  <th className="py-3 px-3 text-center">Unidades</th>
-                  <th className="py-3 px-3 text-right">Costo Unitario</th>
-                  <th className="py-3 px-4 text-right">Inversión Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {comprasFiltradas.length > 0 ? (
-                  comprasFiltradas.map((c, i) => {
-                    const info = resolverDatosCompra(c);
-                    return (
-                      <tr key={c.id || i} className="gym-table-tr">
-                        <td className="py-3 px-4 font-mono font-bold text-amber-400">
-                          COM-{String(c.id).padStart(4, '0')}
-                        </td>
-                        <td className="py-3 px-3 text-zinc-400 whitespace-nowrap">
-                          {c.fecha || 'Registrada'}
-                        </td>
-                        <td className="py-3 px-3 text-zinc-300 font-semibold whitespace-nowrap">
-                          {info.provNombre}
-                        </td>
-                        <td className="py-3 px-3 font-bold text-white whitespace-nowrap">
-                          {info.prodNombre}
-                        </td>
-                        <td className="py-3 px-3 text-center font-mono font-bold text-emerald-400">
-                          +{info.cant} uds.
-                        </td>
-                        <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                          ${info.costoUnit.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-black text-amber-400 text-sm">
-                          ${info.totalInv.toFixed(2)}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+          <>
+            <div className="overflow-x-auto max-h-[60vh]">
+              <table className="table table-zebra w-full min-w-[780px] text-xs">
+                <thead className="bg-zinc-800 text-zinc-400 uppercase font-black sticky top-0 z-10 border-b border-zinc-700">
                   <tr>
-                    <td colSpan="7" className="text-center py-10 text-zinc-500 italic">
-                      No se encontraron compras o reabastecimientos registrados en este periodo.
-                    </td>
+                    <th className="py-3 px-4">Orden</th>
+                    <th className="py-3 px-3">Fecha Adquisición</th>
+                    <th className="py-3 px-3">Proveedor</th>
+                    <th className="py-3 px-3">Artículo / Suplemento</th>
+                    <th className="py-3 px-3 text-center">Unidades</th>
+                    <th className="py-3 px-3 text-right">Costo Unitario</th>
+                    <th className="py-3 px-4 text-right">Inversión Total</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {paginacionCompras.datosPaginados.length > 0 ? (
+                    paginacionCompras.datosPaginados.map((c, i) => {
+                      const info = resolverDatosCompra(c);
+                      return (
+                        <tr key={c.id || i} className="gym-table-tr">
+                          <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                            COM-{String(c.id).padStart(4, '0')}
+                          </td>
+                          <td className="py-3 px-3 text-zinc-400 whitespace-nowrap">
+                            {c.fecha || 'Registrada'}
+                          </td>
+                          <td className="py-3 px-3 text-zinc-300 font-semibold whitespace-nowrap">
+                            {info.provNombre}
+                          </td>
+                          <td className="py-3 px-3 font-bold text-white whitespace-nowrap">
+                            {info.prodNombre}
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono font-bold text-emerald-400">
+                            +{info.cant} uds.
+                          </td>
+                          <td className="py-3 px-3 text-right text-zinc-300 font-mono">
+                            ${info.costoUnit.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-black text-amber-400 text-sm">
+                            ${info.totalInv.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="text-center py-10 text-zinc-500 italic">
+                        No se encontraron compras o reabastecimientos registrados en este periodo.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Paginacion
+              paginaActual={paginacionCompras.paginaActual}
+              totalPaginas={paginacionCompras.totalPaginas}
+              totalRegistros={paginacionCompras.totalRegistros}
+              indiceInicio={paginacionCompras.indiceInicio}
+              indiceFin={paginacionCompras.indiceFin}
+              itemsPorPagina={paginacionCompras.itemsPorPagina}
+              onPageChange={paginacionCompras.setPaginaActual}
+              onItemsPerPageChange={paginacionCompras.setItemsPorPagina}
+              etiqueta="compras"
+            />
+          </>
         )}
 
         {tabActiva === 'cortes' && (
-          <div className="overflow-x-auto max-h-[60vh]">
-            <table className="table table-zebra w-full min-w-[780px] text-xs">
-              <thead className="bg-zinc-800 text-zinc-400 uppercase font-black sticky top-0 z-10 border-b border-zinc-700">
-                <tr>
-                  <th className="py-3 px-4">Folio Corte</th>
-                  <th className="py-3 px-3">Cajero en Turno</th>
-                  <th className="py-3 px-3">Fecha / Hora</th>
-                  <th className="py-3 px-3 text-center">Fondo Inicial</th>
-                  <th className="py-3 px-3 text-right">Ventas Sistema</th>
-                  <th className="py-3 px-3 text-right">Efectivo Físico</th>
-                  <th className="py-3 px-3 text-right">Diferencia</th>
-                  <th className="py-3 px-4 text-center">Estado Auditoría</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {cortes.length > 0 ? (
-                  cortes.map((cc, i) => {
-                    const dif = Number(cc.diferencia) || 0;
-                    const ventasSist = Number(cc.total_ventas ?? cc.ventas_totales ?? 0);
-                    const efecReal = Number(cc.monto_real ?? cc.dinero_real ?? 0);
-                    return (
-                      <tr key={cc.id || i} className="gym-table-tr">
-                        <td className="py-3 px-4 font-mono font-bold text-blue-400">
-                          CORTE-#{cc.id}
-                        </td>
-                        <td className="py-3 px-3 font-semibold text-white whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1.5">
-                            <User size={12} className="text-emerald-400" />
-                            {resolverCajeroCorte(cc)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-zinc-400 whitespace-nowrap">
-                          {cc.fecha_cierre || cc.fecha_apertura || cc.fecha || 'En Curso'}
-                        </td>
-                        <td className="py-3 px-3 text-center font-bold text-zinc-300">
-                          ${Number(cc.monto_inicial || 500).toFixed(2)}
-                        </td>
-                        <td className="py-3 px-3 text-right font-bold text-white">
-                          ${ventasSist.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-3 text-right font-bold text-emerald-400">
-                          ${efecReal.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono font-bold">
-                          <span className={dif === 0 ? 'text-emerald-400' : dif > 0 ? 'text-blue-400' : 'text-red-400'}>
-                            {dif >= 0 ? `+$${dif.toFixed(2)}` : `-$${Math.abs(dif).toFixed(2)}`}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold uppercase text-[10px] ${
-                            cc.estado === 'cuadrada' || dif === 0
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : dif > 0
-                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                              : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                          }`}>
-                            {cc.estado || (dif === 0 ? 'Cuadrada' : dif > 0 ? 'Sobrante' : 'Faltante')}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
+          <>
+            <div className="overflow-x-auto max-h-[60vh]">
+              <table className="table table-zebra w-full min-w-[1060px] text-xs">
+                <thead className="bg-zinc-800 text-zinc-400 uppercase font-black sticky top-0 z-10 border-b border-zinc-700">
                   <tr>
-                    <td colSpan="8" className="text-center py-10 text-zinc-500 italic">
-                      No se han cerrado cortes de caja en el sistema todavía.
-                    </td>
+                    <th className="py-3 px-4">Folio Corte</th>
+                    <th className="py-3 px-3">Cajero en Turno</th>
+                    <th className="py-3 px-3">Fecha / Hora</th>
+                    <th className="py-3 px-3 text-right">Fondo Inicial</th>
+                    <th className="py-3 px-3 text-right">Efectivo</th>
+                    <th className="py-3 px-3 text-right">Tarjeta</th>
+                    <th className="py-3 px-3 text-right">Gastos</th>
+                    <th className="py-3 px-3 text-right">Ventas Sistema</th>
+                    <th className="py-3 px-3 text-right">Efectivo Físico</th>
+                    <th className="py-3 px-3 text-right">Diferencia</th>
+                    <th className="py-3 px-4 text-center">Estado Auditoría</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {paginacionCortes.datosPaginados.length > 0 ? (
+                    paginacionCortes.datosPaginados.map((cc, i) => {
+                      const dif = Number(cc.diferencia) || 0;
+                      const desglose = resolverDesgloseCorte(cc);
+                      const ventasSist = Number(cc.total_ventas ?? cc.ventas_totales ?? desglose.totalVentas ?? 0);
+                      const efecReal = Number(cc.monto_real ?? cc.dinero_real ?? 0);
+                      return (
+                        <tr key={cc.id || i} className="gym-table-tr">
+                          <td className="py-3 px-4 font-mono font-bold text-blue-400 whitespace-nowrap">
+                            {cc.fecha_cierre ? 'Turno Concluido' : 'Turno en Curso'}
+                          </td>
+                          <td className="py-3 px-3 font-semibold text-white whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1.5">
+                              <User size={12} className="text-emerald-400" />
+                              {resolverCajeroCorte(cc)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-zinc-400 whitespace-nowrap font-mono">
+                            {cc.fecha_cierre || cc.fecha_apertura || cc.fecha || 'En Curso'}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-zinc-300 font-mono whitespace-nowrap">
+                            ${Number(cc.monto_inicial || 500).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-emerald-400 font-mono whitespace-nowrap">
+                            ${desglose.totalEfectivo.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-blue-400 font-mono whitespace-nowrap">
+                            ${desglose.totalTarjeta.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-red-400 font-mono whitespace-nowrap">
+                            -${desglose.totalGastos.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-white font-mono whitespace-nowrap">
+                            ${ventasSist.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-emerald-300 font-mono whitespace-nowrap">
+                            ${efecReal.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap">
+                            <span className={dif === 0 ? 'text-emerald-400' : dif > 0 ? 'text-blue-400' : 'text-red-400'}>
+                              {dif >= 0 ? `+$${dif.toFixed(2)}` : `-$${Math.abs(dif).toFixed(2)}`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold uppercase text-[10px] ${
+                              cc.estado === 'cuadrada' || dif === 0
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : dif > 0
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            }`}>
+                              {cc.estado || (dif === 0 ? 'Cuadrada' : dif > 0 ? 'Sobrante' : 'Faltante')}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="11" className="text-center py-10 text-zinc-500 italic">
+                        No se han cerrado cortes de caja en el sistema todavía.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Paginacion
+              paginaActual={paginacionCortes.paginaActual}
+              totalPaginas={paginacionCortes.totalPaginas}
+              totalRegistros={paginacionCortes.totalRegistros}
+              indiceInicio={paginacionCortes.indiceInicio}
+              indiceFin={paginacionCortes.indiceFin}
+              itemsPorPagina={paginacionCortes.itemsPorPagina}
+              onPageChange={paginacionCortes.setPaginaActual}
+              onItemsPerPageChange={paginacionCortes.setItemsPorPagina}
+              etiqueta="cortes"
+            />
+          </>
         )}
       
       </div>
@@ -772,7 +836,7 @@ export default function Reportes({ loggedUser }) {
             <table className="ticket-print-table">
               <thead>
                 <tr>
-                  <th># Compra</th>
+                  <th>Folio de Orden</th>
                   <th>Fecha</th>
                   <th>Proveedor</th>
                   <th>Artículos / Insumos</th>
@@ -785,7 +849,7 @@ export default function Reportes({ loggedUser }) {
                     const datos = resolverDatosCompra(c);
                     return (
                       <tr key={c.id}>
-                        <td>#{c.id}</td>
+                        <td>{c.folio || `COM-${String(c.id).padStart(4, '0')}`}</td>
                         <td>{(c.fecha || '').slice(0, 10)}</td>
                         <td>{datos.proveedor}</td>
                         <td>{datos.articulos}</td>
@@ -819,28 +883,35 @@ export default function Reportes({ loggedUser }) {
             <table className="ticket-print-table">
               <thead>
                 <tr>
-                  <th># Corte</th>
+                  <th>Turno / Arqueo</th>
                   <th>Cajero</th>
                   <th>Apertura</th>
                   <th>Cierre</th>
                   <th style={{ textAlign: 'right' }}>Fondo</th>
+                  <th style={{ textAlign: 'right' }}>Efectivo</th>
+                  <th style={{ textAlign: 'right' }}>Tarjeta</th>
+                  <th style={{ textAlign: 'right' }}>Gastos</th>
                   <th style={{ textAlign: 'right' }}>Ventas</th>
                   <th style={{ textAlign: 'right' }}>Físico</th>
                   <th style={{ textAlign: 'right' }}>Diferencia</th>
                 </tr>
               </thead>
               <tbody>
-                {cortes.length > 0 ? (
-                  cortes.map(cc => {
+                {cortesFiltrados.length > 0 ? (
+                  cortesFiltrados.map(cc => {
                     const dif = Number(cc.diferencia || 0);
+                    const desglose = resolverDesgloseCorte(cc);
                     return (
                       <tr key={cc.id}>
-                        <td>#{cc.id}</td>
+                        <td>{cc.fecha_cierre ? 'Turno Concluido' : 'Turno en Curso'}</td>
                         <td>{resolverCajeroCorte(cc)}</td>
                         <td>{(cc.fecha_apertura || '').slice(0, 16)}</td>
                         <td>{(cc.fecha_cierre || 'En Curso').slice(0, 16)}</td>
                         <td style={{ textAlign: 'right' }}>${Number(cc.monto_inicial || 500).toFixed(2)}</td>
-                        <td style={{ textAlign: 'right' }}>${Number(cc.total_ventas || 0).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${desglose.totalEfectivo.toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${desglose.totalTarjeta.toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>-${desglose.totalGastos.toFixed(2)}</td>
+                        <td style={{ textAlign: 'right' }}>${Number(cc.total_ventas || desglose.totalVentas || 0).toFixed(2)}</td>
                         <td style={{ textAlign: 'right' }}>${Number(cc.monto_real || 0).toFixed(2)}</td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                           {dif === 0 ? '$0.00' : dif > 0 ? `+${dif.toFixed(2)}` : `-${Math.abs(dif).toFixed(2)}`}
@@ -850,7 +921,7 @@ export default function Reportes({ loggedUser }) {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '16px', color: '#6b7280' }}>
+                    <td colSpan="11" style={{ textAlign: 'center', padding: '16px', color: '#6b7280' }}>
                       No se encontraron registros de cortes de caja.
                     </td>
                   </tr>
@@ -858,8 +929,8 @@ export default function Reportes({ loggedUser }) {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan="7">TOTAL TURNOS AUDITADOS</td>
-                  <td style={{ textAlign: 'right' }}>{cortes.length} cortes</td>
+                  <td colSpan="10">TOTAL TURNOS AUDITADOS</td>
+                  <td style={{ textAlign: 'right' }}>{cortesFiltrados.length} cortes</td>
                 </tr>
               </tfoot>
             </table>

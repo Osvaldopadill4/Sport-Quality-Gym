@@ -15,8 +15,10 @@ import {
 import '../../CSS/Clientes.css';
 import Toast from '../Extras/Toast';
 import ConfirmModal from '../Extras/ConfirmModal';
+import Paginacion from '../Extras/Paginacion';
 import { ModalFormCliente } from '../Extras/Modales/ModalesCatalogos';
 import { useClientes, esEstadoActivo as checkActivo } from '../../Reutilizable/useCatalogos';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 
 export const esEstadoActivo = checkActivo;
 
@@ -52,6 +54,8 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
     esEstadoActivo: esActivoFn,
     generarUUID
   } = useClientes({ loggedUser, onIrAPuntoVenta });
+
+  const paginacion = usePaginacion(clientesFiltrados, 10);
 
   return (
     <div className="clientes-wrapper">
@@ -161,7 +165,7 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
               </tr>
             </thead>
             <tbody className="gym-table-tbody">
-              {clientesFiltrados.length === 0 ? (
+              {paginacion.datosPaginados.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="text-center py-8 text-gray-400 italic">
                     {busqueda
@@ -170,7 +174,7 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
                   </td>
                 </tr>
               ) : (
-                clientesFiltrados.map((c) => {
+                paginacion.datosPaginados.map((c) => {
                   const esActivo = esActivoFn(c.estado);
                   const passwordVisible = mostrarPasswords[c.id];
                   return (
@@ -253,18 +257,18 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="clientes"
+        />
       </div>
-
-        <div className="clientes-pagination">
-          <span className="clientes-pagination-text">
-            Mostrando {clientesFiltrados.length} de {total} clientes
-            {busqueda && ` (filtrado por "${busqueda}")`}
-          </span>
-          <div className="clientes-pagination-buttons">
-            <button className="clientes-page-btn prev">Anterior</button>
-            <button className="clientes-page-btn next">Siguiente</button>
-          </div>
-        </div>
 
       {/* Modal extraído en `Vista/Extras/Modales/ModalesCatalogos.jsx` */}
       <ModalFormCliente
@@ -283,7 +287,7 @@ export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
         message={
           <div className="space-y-3 text-left pt-1">
             <p className="text-sm text-zinc-300">
-              El socio <strong className="text-emerald-400">{paseInvitadoModal?.cliente?.nombre}</strong> ha sido registrado en la base de datos.
+              El socio <strong className="text-emerald-400">{paseInvitadoModal?.cliente?.nombre}</strong> ha sido registrado exitosamente en el sistema.
             </p>
             <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1.5">
               <div className="flex justify-between items-center">

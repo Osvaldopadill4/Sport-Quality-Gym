@@ -9,8 +9,10 @@ import {
 } from 'lucide-react';
 import '../../CSS/Proveedor.css';
 import Toast from '../Extras/Toast';
+import Paginacion from '../Extras/Paginacion';
 import { ModalFormProveedor } from '../Extras/Modales/ModalesCatalogos';
 import { useProveedores } from '../../Reutilizable/useCatalogos';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 
 export default function Proveedores({ loggedUser }) {
   const {
@@ -35,6 +37,8 @@ export default function Proveedores({ loggedUser }) {
     openModal,
     handleSave
   } = useProveedores({ loggedUser });
+
+  const paginacion = usePaginacion(proveedoresFiltrados, 10);
 
   return (
     <div className="proveedor-wrapper">
@@ -110,14 +114,14 @@ export default function Proveedores({ loggedUser }) {
               </tr>
             </thead>
             <tbody className="gym-table-tbody">
-              {proveedoresFiltrados.length === 0 ? (
+              {paginacion.datosPaginados.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center py-8 text-gray-400 italic">
                     {busqueda ? `No se encontraron proveedores con el término "${busqueda}"` : 'No hay proveedores registrados'}
                   </td>
                 </tr>
               ) : (
-                proveedoresFiltrados.map(p => {
+                paginacion.datosPaginados.map(p => {
                   const esActivo = p.estado === 1 || p.estado === 'Activo' || String(p.estado) === '1';
                   return (
                     <tr key={p.id} className="gym-table-tr">
@@ -157,6 +161,17 @@ export default function Proveedores({ loggedUser }) {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="proveedores"
+        />
       </div>
 
       {/* Modal extraído en `Vista/Extras/Modales/ModalesCatalogos.jsx` */}

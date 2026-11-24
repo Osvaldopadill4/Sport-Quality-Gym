@@ -13,9 +13,11 @@ import {
 import '../../CSS/Productos.css';
 import Toast from '../Extras/Toast';
 import ConfirmModal from '../Extras/ConfirmModal';
+import Paginacion from '../Extras/Paginacion';
 import { ModalFormProducto, ModalReabastecerStock } from '../Extras/Modales/ModalesProducto';
 import ModalTicketCompra from '../Extras/Modales/ModalTicketCompra';
 import { useProductos } from '../../Reutilizable/useProductos';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 import { esInventarioBajo as checkInventarioBajo } from '../../Reutilizable/objetosSQL';
 
 export const esInventarioBajo = checkInventarioBajo;
@@ -75,6 +77,8 @@ export default function Productos({ loggedUser }) {
     esEstadoActivo,
     esInventarioBajo: esBajo
   } = useProductos({ loggedUser });
+
+  const paginacion = usePaginacion(productosFiltrados, 10);
 
   return (
     <div className="productos-wrapper">
@@ -208,14 +212,14 @@ export default function Productos({ loggedUser }) {
               </tr>
             </thead>
             <tbody className="gym-table-tbody">
-              {productosFiltrados.length === 0 ? (
+              {paginacion.datosPaginados.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="text-center py-8 text-gray-400 italic">
                     {busqueda ? `No se encontraron productos con el término "${busqueda}"` : 'No hay productos que coincidan con el filtro seleccionado'}
                   </td>
                 </tr>
               ) : (
-                productosFiltrados.map(p => {
+                paginacion.datosPaginados.map(p => {
                   const esActivo = esEstadoActivo(p.estado);
                   const stockBajo = esBajo(p);
                   return (
@@ -282,6 +286,17 @@ export default function Productos({ loggedUser }) {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="productos"
+        />
       </div>
 
       {/* Modales extraídos en `Vista/Extras/Modales/ModalesProducto.jsx` */}

@@ -278,7 +278,7 @@ export function ReportePDF({
   compras,
   cortes
 }) {
-  const fechaEmision = new Date().toLocaleString('es-MX');
+  const fechaEmision = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
   const periodo = `${fechaInicio || 'Inicio'} al ${fechaFin || 'Hoy'}`;
   const emisor = [loggedUser?.nombre, loggedUser?.apellido].filter(Boolean).join(' ') || 'Administrador';
   const mostrarVentas = modo === 'general' || modo === 'ventas';
@@ -306,14 +306,17 @@ export function ReportePDF({
     { key: 'total', label: 'Inversión', width: '13%', align: 'right', emphasize: true }
   ];
   const corteColumns = [
-    { key: 'folio', label: 'Corte', width: '8%' },
-    { key: 'cajero', label: 'Cajero', width: '15%' },
-    { key: 'apertura', label: 'Apertura', width: '14%' },
-    { key: 'cierre', label: 'Cierre', width: '14%' },
-    { key: 'fondo', label: 'Fondo', width: '10%', align: 'right' },
-    { key: 'ventas', label: 'Ventas', width: '12%', align: 'right' },
-    { key: 'fisico', label: 'Efectivo físico', width: '13%', align: 'right' },
-    { key: 'diferencia', label: 'Diferencia', width: '14%', align: 'right', emphasize: true }
+    { key: 'folio', label: 'Turno', width: '9%', fontSize: 6.5 },
+    { key: 'cajero', label: 'Cajero', width: '13%', fontSize: 7 },
+    { key: 'apertura', label: 'Apertura', width: '11%', fontSize: 6.5 },
+    { key: 'cierre', label: 'Cierre', width: '11%', fontSize: 6.5 },
+    { key: 'fondo', label: 'Fondo', width: '7%', align: 'right', fontSize: 7 },
+    { key: 'efectivo', label: 'Efectivo', width: '8%', align: 'right', fontSize: 7 },
+    { key: 'tarjeta', label: 'Tarjeta', width: '8%', align: 'right', fontSize: 7 },
+    { key: 'gastos', label: 'Gastos', width: '8%', align: 'right', fontSize: 7 },
+    { key: 'ventas', label: 'Ventas', width: '8%', align: 'right', fontSize: 7 },
+    { key: 'fisico', label: 'Físico', width: '9%', align: 'right', fontSize: 7 },
+    { key: 'diferencia', label: 'Diferencia', width: '8%', align: 'right', fontSize: 7, emphasize: true }
   ];
 
   return (

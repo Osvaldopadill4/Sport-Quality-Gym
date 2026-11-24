@@ -7,6 +7,8 @@
  */
 
 // ============================================================================
+import { getFechaMexico, getHoraMexico } from './timeUtils';
+
 // 1. FUNCIONES DE BASE DE DATOS (`fn_*`)
 // ============================================================================
 
@@ -179,8 +181,8 @@ export const sp_generar_folio = () => {
  */
 export const sp_registrar_acceso = (idCliente, listaMembresias = []) => {
   const ahora = new Date();
-  const fecha = ahora.toISOString().split('T')[0];
-  const hora = ahora.toTimeString().slice(0, 8);
+  const fecha = getFechaMexico(ahora);
+  const hora = getHoraMexico(ahora);
   const activo = fn_membresia_activa(idCliente, listaMembresias);
 
   return {
@@ -225,7 +227,7 @@ export const sp_renovar_membresia = (arg1, arg2, arg3, arg4) => {
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const hoyStr = hoy.toISOString().split('T')[0];
+  const hoyStr = getFechaMexico(hoy);
 
   const diasActuales = membresiaActual?.fecha_vencimiento
     ? Math.max(0, fn_dias_restantes(membresiaActual.fecha_vencimiento))
@@ -244,7 +246,7 @@ export const sp_renovar_membresia = (arg1, arg2, arg3, arg4) => {
   vencActual.setHours(0, 0, 0, 0);
   const baseFecha = vencActual > hoy ? vencActual : hoy;
   const nuevaFecha = new Date(baseFecha.getTime() + duracion * 24 * 60 * 60 * 1000);
-  const nuevaVencimiento = nuevaFecha.toISOString().split('T')[0];
+  const nuevaVencimiento = getFechaMexico(nuevaFecha);
 
   return {
     exito: true,
@@ -319,7 +321,7 @@ export const sp_corte_caja_diario = (arg1, arg2) => {
     listaVentas = Array.isArray(arg2) ? arg2 : [];
   }
 
-  const target = (fechaStr || new Date().toISOString().split('T')[0]).slice(0, 10);
+  const target = (fechaStr || getFechaMexico()).slice(0, 10);
   let total_ventas = 0;
   let ingresos_totales = 0;
   let totalEfectivo = 0;
@@ -414,9 +416,9 @@ export const vw_estado_membresias = (membresias = [], clientes = [], planes = []
     return {
       ...m,
       id_cliente: m.id_cliente,
-      cliente: cli?.nombre || m.cliente_nombre || `Socio #${m.id_cliente}`,
+      cliente: cli?.nombre || m.cliente_nombre || 'Socio Registrado',
       telefono: cli?.telefono || '',
-      plan: pl?.nombre || m.plan_nombre || `Plan #${m.id_plan}`,
+      plan: pl?.nombre || m.plan_nombre || 'Plan Estándar',
       precio_plan: Number(pl?.precio || m.precio || 350),
       duracion_dias: Number(pl?.duracion_dias || m.duracion_dias || 30),
       dias_restantes,
@@ -436,7 +438,7 @@ export const vw_historial_accesos = (accesos = [], clientes = []) => {
     const cli = mapaClientes.get(Number(a.id_cliente));
     return {
       ...a,
-      nombre: cli?.nombre || a.cliente_nombre || `Socio #${a.id_cliente}`
+      nombre: cli?.nombre || a.cliente_nombre || 'Socio Registrado'
     };
   });
 };

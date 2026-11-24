@@ -5,6 +5,7 @@ import {
 } from '../JS/acceso';
 import { getClientes } from '../JS/cliente';
 import { getReporteAccesos, getReporteEstadoMembresias } from '../JS/reportes_api';
+import { getFechaMexico, getHoraMexico } from './timeUtils';
 
 export function useAcceso(paramUser) {
   const usuarioActivo = (paramUser && paramUser.loggedUser) || paramUser || (() => {
@@ -112,9 +113,9 @@ export function useAcceso(paramUser) {
             id: row.id_acceso || row.id || Date.now() + Math.random(),
             id_cliente: row.id_cliente,
             uuid: socio?.uuid || `SOCIO-${row.id_cliente}`,
-            cliente_nombre: row.cliente || socio?.nombre || `Socio #${row.id_cliente}`,
+            cliente_nombre: row.cliente || socio?.nombre || 'Socio Registrado',
             plan: socio?.plan || 'Membresía General',
-            fecha: row.fecha || new Date().toISOString().split('T')[0],
+            fecha: row.fecha || getFechaMexico(),
             hora: row.hora || '00:00:00',
             resultado: esConcedido ? 'Permitido' : (row.resultado || 'Rechazado'),
             color,
@@ -137,7 +138,7 @@ export function useAcceso(paramUser) {
             id: row.id || Date.now() + Math.random(),
             id_cliente: row.id_cliente,
             uuid: socio?.uuid || `SOCIO-${row.id_cliente}`,
-            cliente_nombre: socio?.nombre || `Socio #${row.id_cliente}`,
+            cliente_nombre: socio?.nombre || 'Socio Registrado',
             plan: socio?.plan || 'Membresía General',
             fecha: row.fecha,
             hora: row.hora,
@@ -244,7 +245,7 @@ export function useAcceso(paramUser) {
     setInputCodigo('');
 
     const ahora = new Date();
-    const horaStr = ahora.toLocaleTimeString();
+    const horaStr = getHoraMexico(ahora);
 
     // 1. Validar directamente en el backend mediante el Stored Procedure `sp_registrar_acceso`
     try {
@@ -287,7 +288,7 @@ export function useAcceso(paramUser) {
             subtitulo: colorFlash === 'yellow'
               ? (esInvitado ? 'Pase de Invitado (1 Día)' : `Le quedan ${socio.dias_restantes} días`)
               : 'Torniquete Automático Desbloqueado',
-            razon: `Validado por procedimiento MySQL. Hora: ${resp.horaEntrada || horaStr}`,
+            razon: `Acceso autorizado en torniquete. Hora: ${resp.horaEntrada || horaStr}`,
             cliente: socio
           });
 
@@ -318,7 +319,7 @@ export function useAcceso(paramUser) {
       color: 'red',
       titulo: '¡ACCESO DENEGADO!',
       subtitulo: 'Socio o Token no encontrado',
-      razon: `El código "${rawCode}" no coincide con ningún registro o token válido en la base de datos.`,
+      razon: `El código "${rawCode}" no coincide con ninguna credencial o token registrado en el sistema.`,
       cliente: { nombre: 'Desconocido', plan: 'Ninguno', dias_restantes: 0 }
     });
   };
