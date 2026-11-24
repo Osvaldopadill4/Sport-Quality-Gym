@@ -4,6 +4,7 @@ import com.proyecto.gympos.dao.EjercicioDao;
 import com.proyecto.gympos.dao.RutinaDao;
 import com.proyecto.gympos.modelos.Ejercicio;
 import com.proyecto.gympos.modelos.Rutina;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +42,7 @@ public class rutinaControlador {
 
     // Registrar rutina para un cliente específico (con límite de 7 activas)
     @RequestMapping(value = "api/rutina/cliente/{idCliente}", method = RequestMethod.POST)
+    @Transactional
     public ResponseEntity<?> registrarRutinaCliente(@PathVariable int idCliente, @RequestBody Rutina rutina) {
         int activas = rutinaDao.contarRutinasActivasPorCliente(idCliente);
         if (activas >= MAX_RUTINAS_ACTIVAS) {
@@ -78,6 +80,7 @@ public class rutinaControlador {
 
     // Editar rutina y sus ejercicios
     @RequestMapping(value = "api/rutina/{id}", method = RequestMethod.PUT)
+    @Transactional
     public ResponseEntity<?> editarRutina(@PathVariable int id, @RequestBody Rutina rutina) {
         Rutina existente = rutinaDao.getRutinaPorId(id);
         if (existente == null) {
@@ -108,6 +111,7 @@ public class rutinaControlador {
 
     // Eliminar rutina (Borrado lógico: estado = '0')
     @RequestMapping(value = "api/rutina/{id}", method = RequestMethod.DELETE)
+    @Transactional
     public ResponseEntity<?> eliminar(@PathVariable int id) {
         rutinaDao.eliminar(id);
         ejercicioDao.eliminarPorRutina(id);
@@ -143,6 +147,7 @@ public class rutinaControlador {
 
     // Guardar plan semanal del cliente
     @RequestMapping(value = "api/rutina/plan-semanal/{idCliente}", method = RequestMethod.POST)
+    @Transactional
     public ResponseEntity<?> guardarPlanSemanal(@PathVariable int idCliente, @RequestBody Map<String, List<String>> plan) {
         List<Rutina> rutinas = rutinaDao.getRutinasPorCliente(idCliente);
 
