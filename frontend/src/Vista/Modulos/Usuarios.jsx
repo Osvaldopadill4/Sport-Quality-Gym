@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import '../../CSS/Usuarios.css';
 import Toast from '../Extras/Toast';
+import Paginacion from '../Extras/Paginacion';
 import { ModalFormUsuario } from '../Extras/Modales/ModalesCatalogos';
 import { useUsuarios, esEstadoActivo as checkActivo } from '../../Reutilizable/useCatalogos';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 
 export const esEstadoActivo = checkActivo;
 
@@ -48,6 +50,8 @@ export default function Usuarios({ loggedUser }) {
     handleSave,
     esEstadoActivo: esActivoFn
   } = useUsuarios({ loggedUser });
+
+  const paginacion = usePaginacion(usuariosFiltrados, 10);
 
   // Cálculo de distribución de roles
   const totalAdmins = (usuarios.length > 0 ? usuarios : usuariosFiltrados).filter(
@@ -230,7 +234,7 @@ export default function Usuarios({ loggedUser }) {
               </tr>
             </thead>
             <tbody className="gym-table-tbody">
-              {usuariosFiltrados.length === 0 ? (
+              {paginacion.datosPaginados.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center py-10 text-gray-400 italic">
                     {busqueda
@@ -239,7 +243,7 @@ export default function Usuarios({ loggedUser }) {
                   </td>
                 </tr>
               ) : (
-                usuariosFiltrados.map((u) => {
+                paginacion.datosPaginados.map((u) => {
                   const esActivo = esActivoFn(u.estado);
                   const esAdmin = Number(u.id_rol) === 1;
                   const iniciales = `${(u.nombre || '')[0] || ''}${(u.apellido || '')[0] || ''}`.toUpperCase();
@@ -262,7 +266,6 @@ export default function Usuarios({ loggedUser }) {
                             <div className="font-bold text-white text-sm truncate">
                               {u.nombre} {u.apellido}
                             </div>
-                            <div className="text-[11px] text-gray-500 font-mono">ID #{u.id}</div>
                           </div>
                         </div>
                       </td>
@@ -376,23 +379,17 @@ export default function Usuarios({ loggedUser }) {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Paginación / Resumen inferior */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 text-xs text-gray-400">
-        <div>
-          Mostrando <strong className="text-gray-200">{usuariosFiltrados.length}</strong> de{' '}
-          <strong className="text-gray-200">{total}</strong> usuarios registrados
-          {busqueda && ` (filtrado por "${busqueda}")`}
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors text-gray-300 disabled:opacity-40" disabled>
-            Anterior
-          </button>
-          <button className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-colors text-gray-300 disabled:opacity-40" disabled>
-            Siguiente
-          </button>
-        </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="usuarios"
+        />
       </div>
 
       {/* Modal Formulario Usuario */}

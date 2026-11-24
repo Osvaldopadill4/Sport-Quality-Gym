@@ -32,7 +32,7 @@ export default function ModalTicketCompra({ ticketCompra, setTicketCompra, onClo
         <div className="py-3 text-xs space-y-1 border-b border-dashed border-zinc-400">
           <div className="flex justify-between">
             <span className="text-zinc-600">Fecha y Hora:</span>
-            <strong>{ticketCompra.fecha || new Date().toLocaleString()}</strong>
+            <strong>{ticketCompra.fecha || new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong>
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-600">Recibió en Almacén:</span>

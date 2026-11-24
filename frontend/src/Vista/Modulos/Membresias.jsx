@@ -9,8 +9,10 @@ import {
 } from 'lucide-react';
 import '../../CSS/Membresias.css';
 import Toast from '../Extras/Toast';
+import Paginacion from '../Extras/Paginacion';
 import { ModalFormMembresia, ModalRenovacionMembresia } from '../Extras/Modales/ModalesMembresia';
 import { useMembresias } from '../../Reutilizable/useMembresias';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 import { fn_dias_restantes, fn_estado_membresia } from '../../Reutilizable/objetosSQL';
 
 export const fnDiasRestantes = fn_dias_restantes;
@@ -59,6 +61,8 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
     fnDiasRestantes: calcDias,
     fnEstadoMembresia: calcEstado
   } = useMembresias({ loggedUser, onIrAPuntoVenta });
+
+  const paginacion = usePaginacion(membresiasFiltradas, 10);
 
   return (
     <div className="membresias-wrapper p-6 bg-zinc-950 min-h-screen text-gray-200">
@@ -141,14 +145,14 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
               </tr>
             </thead>
             <tbody className="gym-table-tbody">
-              {membresiasFiltradas.length === 0 ? (
+              {paginacion.datosPaginados.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="text-center py-10 text-gray-400 italic">
                     No se encontraron membresías con los criterios de búsqueda.
                   </td>
                 </tr>
               ) : (
-                membresiasFiltradas.map(m => {
+                paginacion.datosPaginados.map(m => {
                   const dias = calcDias(m.fecha_vencimiento);
                   const estado = calcEstado(m.fecha_inicio, m.fecha_vencimiento, m.estado);
                   const esActiva = m.estado === 'activa' || m.estado === 'Activo' || m.estado === 1;
@@ -220,6 +224,17 @@ export default function Membresias({ loggedUser, onIrAPuntoVenta }) {
             </tbody>
           </table>
         </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="membresías"
+        />
       </div>
 
       {/* Modales extraídos en `Vista/Extras/Modales/ModalesMembresia.jsx` */}

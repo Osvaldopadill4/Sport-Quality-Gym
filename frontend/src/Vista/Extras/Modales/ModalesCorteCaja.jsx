@@ -54,19 +54,6 @@ export function ModalAperturaTurno({
             </span>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
-              Observaciones (Máx. 200 car.):
-            </label>
-            <textarea
-              maxLength={200}
-              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-xs text-white focus:border-emerald-500 outline-none"
-              rows={2}
-              value={formApertura.observaciones}
-              onChange={(e) => setFormApertura({ ...formApertura, observaciones: e.target.value.slice(0, 200) })}
-            />
-          </div>
-
           <div className="pt-2 flex justify-end gap-3">
             <button
               type="button"
@@ -111,7 +98,7 @@ export function ModalCierreTurno({
         <div className="gym-modal-header sticky top-0 z-10 backdrop-blur-md">
           <h3 className="font-extrabold text-lg text-white flex items-center gap-2">
             <Calculator size={20} className="text-amber-400" />
-            Cierre de Turno #{corteActivo.id} (Arqueo)
+            Cierre y Arqueo de Turno
           </h3>
           <button onClick={() => setShowModalCierre(false)} className="text-zinc-400 hover:text-white">
             <X size={20} />
@@ -119,7 +106,7 @@ export function ModalCierreTurno({
         </div>
 
         <div className="p-6 space-y-5">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-zinc-950 p-4 rounded-2xl border border-zinc-800 text-center">
             <div>
               <span className="text-[10px] text-zinc-400 uppercase font-bold block">Fondo Inicial</span>
               <span className="text-sm sm:text-base font-extrabold text-white">${fondoActual.toFixed(2)}</span>
@@ -129,8 +116,16 @@ export function ModalCierreTurno({
               <span className="text-sm sm:text-base font-extrabold text-emerald-400">+${Number(metricasVentas.totalEfectivo || 0).toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Compras / Gastos</span>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Ventas Tarjeta</span>
+              <span className="text-sm sm:text-base font-extrabold text-blue-400">${Number(metricasVentas.totalTarjeta || 0).toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Gastos / Compras</span>
               <span className="text-sm sm:text-base font-extrabold text-red-400">-${Number(metricasVentas.totalGastos || 0).toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-zinc-400 uppercase font-bold block">Total Ventas</span>
+              <span className="text-sm sm:text-base font-extrabold text-zinc-200">${Number(metricasVentas.totalVentas || 0).toFixed(2)}</span>
             </div>
             <div>
               <span className="text-[10px] text-zinc-400 uppercase font-bold block">Monto Esperado</span>
@@ -226,7 +221,7 @@ export function ModalTicketCorte({ ticketCorte, setTicketCorte }) {
           <h2 className="text-base font-black tracking-wider">GYM SPORT QUALITY CENTER</h2>
           <p className="text-[10px] text-zinc-600 font-semibold uppercase">Comprobante Oficial de Corte Z</p>
           <div className="text-xs font-bold bg-zinc-200 py-1 px-3 rounded mt-2 inline-block">
-            Turno #{ticketCorte.id}
+            Corte de Turno Oficial
           </div>
         </div>
 
@@ -242,16 +237,16 @@ export function ModalTicketCorte({ ticketCorte, setTicketCorte }) {
             <strong>${Number(ticketCorte.monto_inicial || 0).toFixed(2)}</strong>
           </div>
           <div className="flex justify-between">
-            <span>Ventas Efectivo:</span>
-            <strong className="text-emerald-700">+${Number(ticketCorte.ventas_efectivo || 0).toFixed(2)}</strong>
+            <span>Ventas en Efectivo:</span>
+            <strong className="text-emerald-700">+${Number(ticketCorte.ventas_efectivo ?? ticketCorte.efectivo ?? 0).toFixed(2)}</strong>
           </div>
           <div className="flex justify-between">
-            <span>Compras / Gastos:</span>
-            <strong className="text-red-700">-${Number(ticketCorte.total_gastos || 0).toFixed(2)}</strong>
+            <span>Ventas con Tarjeta:</span>
+            <strong className="text-blue-700">${Number(ticketCorte.ventas_tarjeta ?? ticketCorte.tarjeta ?? 0).toFixed(2)}</strong>
           </div>
           <div className="flex justify-between">
-            <span>Ventas Tarjeta:</span>
-            <strong className="text-blue-700">${Number(ticketCorte.ventas_tarjeta || 0).toFixed(2)}</strong>
+            <span>Gastos / Compras:</span>
+            <strong className="text-red-700">-${Number(ticketCorte.total_gastos ?? ticketCorte.gastos ?? 0).toFixed(2)}</strong>
           </div>
           <div className="flex justify-between pt-1 border-t border-zinc-300">
             <span>Total Ventas Turno:</span>

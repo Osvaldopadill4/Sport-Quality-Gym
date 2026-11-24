@@ -1,5 +1,6 @@
 import { createDetalleVenta, getDetalleVentas } from './detalle_venta';
 import { getApiUrl } from '../config/apiConfig';
+import { getFechaHoraMexico } from '../Reutilizable/timeUtils';
 
 const API_URL = getApiUrl('venta');
 
@@ -83,8 +84,8 @@ export const getVenta = async () => {
                     id_cliente: v.id_cliente ?? meta.id_cliente ?? null,
                     id_modopago: v.id_modopago ?? (meta.id_modopago || (modoPagoNombre === 'Tarjeta' ? 2 : 1)),
                     metodo_pago: modoPagoNombre,
-                    cliente: meta.cliente || (v.id_cliente ? `Socio #${v.id_cliente}` : 'Público General'),
-                    empleado: meta.empleado || (v.id_usuario ? `Usuario #${v.id_usuario}` : 'Cajero'),
+                    cliente: meta.cliente || (v.id_cliente ? 'Socio Registrado' : 'Público General'),
+                    empleado: meta.empleado || 'Cajero de Turno',
                     subtotal: meta.subtotal ?? Number(v.total || 0),
                     descuento: meta.descuento ?? 0,
                     descuento_porcentaje: meta.descuento_porcentaje ?? 0,
@@ -131,7 +132,7 @@ export const createVenta = async (data) => {
 
     const fechaSQL = (data.fecha && /^\d{4}-\d{2}-\d{2}/.test(data.fecha))
         ? data.fecha
-        : new Date().toISOString().replace('T', ' ').slice(0, 19);
+        : getFechaHoraMexico();
 
     const modoPagoId = (data.id_modopago && Number(data.id_modopago))
         ? Number(data.id_modopago)

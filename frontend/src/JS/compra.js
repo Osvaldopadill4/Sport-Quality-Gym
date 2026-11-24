@@ -1,5 +1,6 @@
 import { createDetalleCompra, getDetalleCompras } from './detalle_compra';
 import { getApiUrl } from '../config/apiConfig';
+import { getFechaHoraMexico } from '../Reutilizable/timeUtils';
 
 const API_URL = getApiUrl('compra');
 
@@ -68,7 +69,7 @@ export const getCompras = async () => {
                     cantidad: cantidad,
                     costo_unitario: costoUnitario,
                     total: totalCompra,
-                    fecha: c.fecha || meta.fecha || new Date().toISOString().replace('T', ' ').slice(0, 19)
+                    fecha: c.fecha || meta.fecha || getFechaHoraMexico()
                 };
             });
 
@@ -90,7 +91,7 @@ export const createCompra = async (data) => {
     const cant = Number(data.cantidad) || 1;
     const costoUnit = Number(data.costo_unitario ?? data.costo) || 0;
     const totalCalc = Number(data.total) || (cant * costoUnit);
-    const fechaSQL = data.fecha || new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const fechaSQL = data.fecha || getFechaHoraMexico();
 
     const compraPayload = {
         id_usuario: data.id_usuario ? Number(data.id_usuario) : 1,

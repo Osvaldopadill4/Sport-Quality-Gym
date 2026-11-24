@@ -11,6 +11,7 @@ import {
   trg_actualizar_stock_venta,
   sp_renovar_membresia
 } from './objetosSQL';
+import { getFechaHoraMexico } from './timeUtils';
 
 /**
  * Hook Reutilizable `usePuntoVenta`:
@@ -312,9 +313,7 @@ export function usePuntoVenta({ loggedUser, renovacionPendiente, onRenovacionCom
 
     // 1. Generar folio con procedimiento `sp_generar_folio`
     const folioGenerado = sp_generar_folio();
-    const ahora = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const fechaSQL = `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())} ${pad(ahora.getHours())}:${pad(ahora.getMinutes())}:${pad(ahora.getSeconds())}`;
+    const fechaSQL = getFechaHoraMexico();
 
     const subtotalFinal = carritoNormalizado.reduce((sum, item) => sum + fn_calcular_subtotal_producto(item.precio, item.cant), 0);
     const montoDescuentoFinal = fn_calcular_descuento(subtotalFinal, descuentoPorcentaje);

@@ -403,7 +403,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     if (e && e.preventDefault) e.preventDefault();
 
     if (!formData.id_cliente || !formData.cliente_nombre) {
-      mostrarAlerta('Por favor selecciona un socio registrado de la base de datos', 'error');
+      mostrarAlerta('Por favor selecciona un socio activo del listado', 'error');
       return;
     }
 

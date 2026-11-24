@@ -16,8 +16,10 @@ import {
 import '../../CSS/PuntoVenta.css';
 import Toast from '../Extras/Toast';
 import ConfirmModal from '../Extras/ConfirmModal';
+import Paginacion from '../Extras/Paginacion';
 import ModalTicketVenta from '../Extras/Modales/ModalTicketVenta';
 import { usePuntoVenta } from '../../Reutilizable/usePuntoVenta';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 import {
   sp_generar_folio,
   fn_calcular_subtotal_producto,
@@ -64,6 +66,7 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
     metodo: 'Efectivo'
   });
   const [cargandoCobro, setCargandoCobro] = React.useState(false);
+  const paginacion = usePaginacion(productosFiltrados, 10);
 
   return (
     <div className="puntoventa-wrapper p-6 bg-zinc-950 min-h-screen text-gray-200">
@@ -95,55 +98,68 @@ export default function PuntoVenta({ loggedUser, renovacionPendiente, onRenovaci
             </div>
           </div>
 
-          <div className="overflow-x-auto overflow-y-auto bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 flex-1 max-h-[70vh]">
-            <table className="table table-zebra w-full min-w-[540px] text-sm">
-              <thead className="bg-zinc-800 text-gray-400 text-xs uppercase sticky top-0 z-10 border-b border-zinc-700">
-                <tr>
-                  <th className="py-3.5 px-4 text-left whitespace-nowrap">Producto</th>
-                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Categoría</th>
-                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Stock</th>
-                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Precio</th>
-                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {productosFiltrados.map(p => {
-                  const stockBajo = Number(p.stock) <= 5;
-                  return (
-                    <tr key={p.id} className="hover:bg-zinc-800/50 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-white">{p.nombre}</td>
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                        <span className="badge badge-outline badge-sm text-xs text-gray-300">
-                          {p.categoria || 'General'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center justify-center font-bold font-mono text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
-                          stockBajo
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        }`}>
-                          {p.stock} uds.
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap text-emerald-400 font-bold text-base">${p.precio}</td>
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => agregarAlCarrito(p)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black transition-all shadow-md active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
-                          disabled={Number(p.stock) <= 0}
-                        >
-                          <Plus size={15} className="shrink-0" /> Agregar
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {productosFiltrados.length === 0 && (
-                  <tr><td colSpan="5" className="text-center py-10 text-gray-400 italic">No se encontraron productos disponibles.</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div className="bg-zinc-900 rounded-2xl shadow-xl border border-zinc-800 flex-1 flex flex-col overflow-hidden">
+            <div className="overflow-x-auto overflow-y-auto flex-1 max-h-[64vh]">
+              <table className="table table-zebra w-full min-w-[540px] text-sm">
+                <thead className="bg-zinc-800 text-gray-400 text-xs uppercase sticky top-0 z-10 border-b border-zinc-700">
+                  <tr>
+                    <th className="py-3.5 px-4 text-left whitespace-nowrap">Producto</th>
+                    <th className="py-3.5 px-3 text-center whitespace-nowrap">Categoría</th>
+                    <th className="py-3.5 px-3 text-center whitespace-nowrap">Stock</th>
+                    <th className="py-3.5 px-3 text-center whitespace-nowrap">Precio</th>
+                    <th className="py-3.5 px-4 text-right whitespace-nowrap">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {paginacion.datosPaginados.map(p => {
+                    const stockBajo = Number(p.stock) <= 5;
+                    return (
+                      <tr key={p.id} className="hover:bg-zinc-800/50 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-white">{p.nombre}</td>
+                        <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                          <span className="badge badge-outline badge-sm text-xs text-gray-300">
+                            {p.categoria || 'General'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center font-bold font-mono text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
+                            stockBajo
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          }`}>
+                            {p.stock} uds.
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-3 text-center whitespace-nowrap text-emerald-400 font-bold text-base">${p.precio}</td>
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => agregarAlCarrito(p)}
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black transition-all shadow-md active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
+                            disabled={Number(p.stock) <= 0}
+                          >
+                            <Plus size={15} className="shrink-0" /> Agregar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {paginacion.datosPaginados.length === 0 && (
+                    <tr><td colSpan="5" className="text-center py-10 text-gray-400 italic">No se encontraron productos disponibles.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Paginacion
+              paginaActual={paginacion.paginaActual}
+              totalPaginas={paginacion.totalPaginas}
+              totalRegistros={paginacion.totalRegistros}
+              indiceInicio={paginacion.indiceInicio}
+              indiceFin={paginacion.indiceFin}
+              itemsPorPagina={paginacion.itemsPorPagina}
+              onPageChange={paginacion.setPaginaActual}
+              onItemsPerPageChange={paginacion.setItemsPorPagina}
+              etiqueta="productos"
+            />
           </div>
         </div>
 

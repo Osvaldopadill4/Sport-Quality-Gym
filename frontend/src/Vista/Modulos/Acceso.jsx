@@ -16,9 +16,11 @@ import {
 } from 'lucide-react';
 import '../../CSS/Acceso.css';
 import Toast from '../Extras/Toast';
+import Paginacion from '../Extras/Paginacion';
 import { AlertaFlashAcceso } from '../Extras/Modales/ModalesAcceso';
 import { ModalCamaraAcceso } from '../Extras/Modales/ModalCamaraAcceso';
 import { useAcceso } from '../../Reutilizable/useAcceso';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 
 export default function Acceso({ loggedUser }) {
   const {
@@ -45,6 +47,8 @@ export default function Acceso({ loggedUser }) {
     atencionesHoy,
     denegadosHoy
   } = useAcceso({ loggedUser });
+
+  const paginacion = usePaginacion(accesosFiltrados, 10);
 
   const [mostrarCamara, setMostrarCamara] = useState(false);
   const [cooldownRestante, setCooldownRestante] = useState(0);
@@ -314,14 +318,14 @@ export default function Acceso({ loggedUser }) {
                 </tr>
               </thead>
               <tbody>
-                {accesosFiltrados.length === 0 ? (
+                {paginacion.datosPaginados.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="text-center py-10 text-zinc-400">
                       No se encontraron registros de acceso con los criterios de búsqueda.
                     </td>
                   </tr>
                 ) : (
-                  accesosFiltrados.map((item) => (
+                  paginacion.datosPaginados.map((item) => (
                     <tr key={item.id} className="hover:bg-zinc-800/40 transition-colors">
                       <td>
                         <div className="flex items-center gap-3">
@@ -387,6 +391,17 @@ export default function Acceso({ loggedUser }) {
               </tbody>
             </table>
           </div>
+          <Paginacion
+            paginaActual={paginacion.paginaActual}
+            totalPaginas={paginacion.totalPaginas}
+            totalRegistros={paginacion.totalRegistros}
+            indiceInicio={paginacion.indiceInicio}
+            indiceFin={paginacion.indiceFin}
+            itemsPorPagina={paginacion.itemsPorPagina}
+            onPageChange={paginacion.setPaginaActual}
+            onItemsPerPageChange={paginacion.setItemsPorPagina}
+            etiqueta="accesos"
+          />
         </div>
       </div>
     </div>

@@ -26,7 +26,10 @@ import { getAcceso } from '../../JS/acceso';
 import { getCorteCaja } from '../../JS/corte_caja';
 import { getProductos } from '../../JS/producto';
 import { getVenta } from '../../JS/venta';
+import { getFechaMexico } from '../../Reutilizable/timeUtils';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 import Toast from '../Extras/Toast';
+import Paginacion from '../Extras/Paginacion';
 
 export default function Dashboard({ usuario, alCerrarSesion }) {
   const esAdmin = Number(usuario?.id_rol) === 1;
@@ -79,12 +82,13 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
     cargando: true
   });
   const [accesosRecientes, setAccesosRecientes] = useState([]);
+  const paginacionAccesos = usePaginacion(accesosRecientes, 5);
 
   // Carga de datos dinámicos desde el sistema
   const cargarDatosDashboard = useCallback(async () => {
     setStats(prev => ({ ...prev, cargando: true }));
     try {
-      const hoyStr = new Date().toISOString().split('T')[0];
+      const hoyStr = getFechaMexico();
 
       // Peticiones paralelas a los servicios del sistema
       const [resClientes, resAccesos, resCortes, resProductos, resVentas] = await Promise.allSettled([
@@ -112,7 +116,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       // Mapear socios para mostrar nombres reales en la tabla de accesos recientes
       const mapaClientes = new Map(clientes.map(c => [Number(c.id), c.nombre]));
       
-      const listaRecientes = accesos.slice(0, 5).map(acc => {
+      const listaRecientes = accesos.map(acc => {
         const idCl = Number(acc.id_cliente);
         const nombreDetectado = acc.cliente_nombre || (idCl ? (mapaClientes.get(idCl) || 'Socio Registrado') : 'Socio');
         return {
@@ -290,8 +294,8 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {accesosRecientes.length > 0 ? (
-                    accesosRecientes.map((acc, index) => (
+                  {paginacionAccesos.datosPaginados.length > 0 ? (
+                    paginacionAccesos.datosPaginados.map((acc, index) => (
                       <tr key={acc.id || index} className="border-base-300">
                         <td className="text-gray-200 font-medium">{acc.socio}</td>
                         <td className="text-gray-400 font-mono text-xs">{acc.hora}</td>
@@ -317,6 +321,19 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-2 rounded-xl overflow-hidden border border-zinc-800">
+              <Paginacion
+                paginaActual={paginacionAccesos.paginaActual}
+                totalPaginas={paginacionAccesos.totalPaginas}
+                totalRegistros={paginacionAccesos.totalRegistros}
+                indiceInicio={paginacionAccesos.indiceInicio}
+                indiceFin={paginacionAccesos.indiceFin}
+                itemsPorPagina={paginacionAccesos.itemsPorPagina}
+                onPageChange={paginacionAccesos.setPaginaActual}
+                etiqueta="accesos"
+                compacto
+              />
             </div>
             <div className="card-actions justify-end mt-4">
               <button 

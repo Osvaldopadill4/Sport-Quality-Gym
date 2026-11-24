@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getCorteCaja, getCorteActivo, abrirCorteCaja, cerrarCorteCaja } from '../JS/corte_caja';
+import { getCorteCaja, getCorteActivo, abrirCorteCaja, cerrarCorteCaja, calcularDesgloseCorte } from '../JS/corte_caja';
 import { getUsuarios } from '../JS/usuarios';
 import { getVenta } from '../JS/venta';
 import { getCompras } from '../JS/compra';
 import { sp_corte_caja_diario } from './objetosSQL';
+import { getFechaMexico, getFechaHoraMexico } from './timeUtils';
 
 /**
  * Hook Reutilizable `useCorteCaja`:
@@ -77,7 +78,7 @@ export function useCorteCaja({ loggedUser }) {
         ? comprasBD
         : JSON.parse(localStorage.getItem('gymton_compras') || '[]');
 
-      const hoyStr = new Date().toISOString().split('T')[0];
+      const hoyStr = getFechaMexico();
 
       let totalEfectivo = 0;
       let totalTarjeta = 0;
@@ -99,7 +100,7 @@ export function useCorteCaja({ loggedUser }) {
       fuenteCompras.forEach(c => {
         const fechaComp = (c.fecha || '').slice(0, 10);
         if (fechaComp === hoyStr || !c.fecha) {
-          totalGastos += Number(c.total) || 0;
+          totalGastos += Number(c.total) || (Number(c.cantidad || 0) * Number(c.costo_unitario || 0)) || 0;
         }
       });
 
@@ -114,6 +115,17 @@ export function useCorteCaja({ loggedUser }) {
     } catch {
       return { totalVentas: 0, totalEfectivo: 0, totalTarjeta: 0, totalGastos: 0 };
     }
+  }, [ventasBD, comprasBD]);
+
+  // Resuelve el desglose (efectivo, tarjeta, gastos) de cualquier corte de la tabla o ticket
+  const resolverDesgloseCorte = useCallback((corte) => {
+    const fuenteVentas = ventasBD.length > 0
+      ? ventasBD
+      : (() => { try { return JSON.parse(localStorage.getItem('gymton_ventas') || '[]'); } catch { return []; } })();
+    const fuenteCompras = comprasBD.length > 0
+      ? comprasBD
+      : (() => { try { return JSON.parse(localStorage.getItem('gymton_compras') || '[]'); } catch { return []; } })();
+    return calcularDesgloseCorte(corte, fuenteVentas, fuenteCompras);
   }, [ventasBD, comprasBD]);
 
   const cargarDatos = useCallback(async () => {
@@ -181,7 +193,7 @@ export function useCorteCaja({ loggedUser }) {
         id_usuario: usuarioActivo?.id || 1,
         cajero_nombre: nombreCajeroActivo,
         monto_inicial: 500,
-        fecha_apertura: new Date().toISOString().replace('T', ' ').slice(0, 19)
+        fecha_apertura: getFechaHoraMexico()
       };
 
       const resp = await abrirCorteCaja(datosApertura);
@@ -237,8 +249,8 @@ export function useCorteCaja({ loggedUser }) {
         setTicketCorte({
           id: corteActivo.id,
           cajero: nombreCajeroActivo,
-          fecha_apertura: corteActivo.fecha_apertura || new Date().toLocaleString(),
-          fecha_cierre: new Date().toLocaleString(),
+          fecha_apertura: corteActivo.fecha_apertura || getFechaHoraMexico(),
+          fecha_cierre: getFechaHoraMexico(),
           monto_inicial: fondoInicial,
           total_ventas: totalVentas,
           ventas_efectivo: totalEfectivo,
@@ -299,6 +311,7 @@ export function useCorteCaja({ loggedUser }) {
     formCierre,
     setFormCierre,
     metricasVentas,
+    resolverDesgloseCorte,
     fondoActual,
     dineroEsperadoEnCaja,
     sp_corte_caja_diario: () => sp_corte_caja_diario(cortes),

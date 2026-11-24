@@ -44,8 +44,8 @@ export function ModalFormMembresia({
             {clienteSeleccionadoModal ? (
               <div className="flex items-center justify-between p-3 bg-zinc-950 border border-emerald-500/50 rounded-xl">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0">
-                    #{clienteSeleccionadoModal.id}
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0 uppercase">
+                    {clienteSeleccionadoModal.nombre?.charAt(0) || 'S'}
                   </div>
                   <div className="truncate">
                     <span className="text-white text-sm font-bold block truncate">

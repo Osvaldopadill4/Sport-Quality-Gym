@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getVenta } from '../JS/venta';
 import { getCompras } from '../JS/compra';
-import { getCorteCaja } from '../JS/corte_caja';
+import { getCorteCaja, calcularDesgloseCorte } from '../JS/corte_caja';
 import { getProductos } from '../JS/producto';
 import { getClientes } from '../JS/cliente';
 import { getProveedores } from '../JS/proveedor';
@@ -274,12 +274,31 @@ export function useReportes({ loggedUser }) {
     return `Usuario #${cc.id_usuario || 1}`;
   }, [usuarios, loggedUser]);
 
+  const resolverDesgloseCorte = useCallback((cc) => {
+    return calcularDesgloseCorte(cc, ventas, compras);
+  }, [ventas, compras]);
+
+  const cortesFiltrados = useMemo(() => {
+    return cortes.filter(cc => {
+      if (!filtrarPorFecha(cc.fecha_cierre || cc.fecha_apertura || cc.fecha)) return false;
+      if (!busqueda) return true;
+      const b = busqueda.toLowerCase();
+      return (
+        String(cc.id).includes(b) ||
+        resolverCajeroCorte(cc).toLowerCase().includes(b) ||
+        String(cc.fecha_apertura || '').toLowerCase().includes(b) ||
+        String(cc.fecha_cierre || '').toLowerCase().includes(b)
+      );
+    });
+  }, [cortes, busqueda, filtrarPorFecha, resolverCajeroCorte]);
+
   return {
     tabActiva,
     setTabActiva,
     subFiltroVentas,
     setSubFiltroVentas,
     cortes,
+    cortesFiltrados,
     busqueda,
     setBusqueda,
     fechaInicio,
@@ -296,6 +315,7 @@ export function useReportes({ loggedUser }) {
     resolverNombreClienteVenta,
     resolverDatosCompra,
     resolverCajeroCorte,
+    resolverDesgloseCorte,
     handleImprimir: () => imprimirSeccion(tabActiva),
     imprimirVentas: () => imprimirSeccion('ventas'),
     imprimirCompras: () => imprimirSeccion('compras'),
