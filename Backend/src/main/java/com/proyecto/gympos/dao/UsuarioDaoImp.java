@@ -24,10 +24,7 @@ public class UsuarioDaoImp implements UsuarioDao {
     @Override
     public void eliminar(int id) {
         Usuario usuario = entityManager.find(Usuario.class, id);
-        if (usuario != null) {
-            usuario.setEstado("0");
-            entityManager.merge(usuario);
-        }
+        entityManager.remove(usuario);
     }
 
     @Override
@@ -45,7 +42,7 @@ public class UsuarioDaoImp implements UsuarioDao {
     public boolean verificarCredenciales(Usuario usuario) {
         String query = "FROM Usuario WHERE correo = :correo AND contrasena = :contrasena";
         System.out.println("Ejecutando query: " + query);
-        System.out.println("ParÃ¡metro - correo: " + usuario.getCorreo());
+        System.out.println("Parámetro - correo: " + usuario.getCorreo());
 
         List<Usuario> lista = entityManager.createQuery(query)
                 .setParameter("correo", usuario.getCorreo())
@@ -58,7 +55,7 @@ public class UsuarioDaoImp implements UsuarioDao {
             System.out.println("Usuario encontrado: " + lista.get(0).getNombre());
             return true;
         }
-        System.out.println("No se encontrÃ³ usuario con esas credenciales");
+        System.out.println("No se encontró usuario con esas credenciales");
         return false;
     }
 }

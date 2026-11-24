@@ -28,10 +28,7 @@ public class ClienteDaoImp implements ClienteDao {
     @Override
     public void eliminar(int id) {
         Cliente cliente = entityManager.find(Cliente.class, id);
-        if (cliente != null) {
-            cliente.setEstado("0");
-            entityManager.merge(cliente);
-        }
+        entityManager.remove(cliente);
     }
 
     @Override
@@ -48,7 +45,7 @@ public class ClienteDaoImp implements ClienteDao {
     public boolean verificarCredencialesCliente(Cliente cliente) {
         String query = "FROM Cliente WHERE telefono = :telefono AND contrasena = :contrasena";
         System.out.println("Ejecutando query: " + query);
-        System.out.println("ParÃ¡metro - correo: " + cliente.getTelefono());
+        System.out.println("Parámetro - correo: " + cliente.getTelefono());
 
         List<Cliente> lista = entityManager.createQuery(query)
                 .setParameter("telefono", cliente.getTelefono())
@@ -61,7 +58,7 @@ public class ClienteDaoImp implements ClienteDao {
             System.out.println("Cliente encontrado: " + lista.get(0).getNombre());
             return true;
         }
-        System.out.println("No se encontrÃ³ cliente con esas credenciales");
+        System.out.println("No se encontró cliente con esas credenciales");
         return false;
     }
 }

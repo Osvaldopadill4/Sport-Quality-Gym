@@ -9,20 +9,25 @@ import lombok.Setter;
 public class Ejercicio {
 
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter @Setter @Column(name = "id")
     private int id;
+
     @Getter @Setter @Column(name = "id_rutina")
     private int id_rutina;
+
     @Getter @Setter @Column(name = "nombre")
     private String nombre;
+
     @Getter @Setter @Column(name = "series")
-    private String fecha_inicio;
+    private int series;
+
     @Getter @Setter @Column(name = "repeticiones")
-    private String fecha_vencimiento;
+    private int repeticiones;
+
     @Getter @Setter @Column(name = "orden")
     private String orden;
+
     @Getter @Setter @Column(name = "estado")
     private String estado;
-
-    }
+}
