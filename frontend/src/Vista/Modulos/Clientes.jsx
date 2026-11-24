@@ -1,270 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X } from 'lucide-react';
+import React from 'react';
+import {
+  Search,
+  Plus,
+  Edit,
+  Power,
+  X,
+  Eye,
+  EyeOff,
+  QrCode,
+  Copy,
+  Check,
+  RefreshCw
+} from 'lucide-react';
 import '../../CSS/Clientes.css';
-import { getClientes, createCliente, updateCliente, deleteCliente } from '../../JS/cliente';
-import Toast from '../Componentes/Toast';
+import Toast from '../Extras/Toast';
+import ConfirmModal from '../Extras/ConfirmModal';
+import Paginacion from '../Extras/Paginacion';
+import { ModalFormCliente } from '../Extras/Modales/ModalesCatalogos';
+import { useClientes, esEstadoActivo as checkActivo } from '../../Reutilizable/useCatalogos';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
 
-export default function Clientes({ loggedUser }) {
-  const usuarioActivo = loggedUser || (() => {
-    try {
-      const u = localStorage.getItem('gymton_current_user');
-      return u ? JSON.parse(u) : null;
-    } catch {
-      return null;
-    }
-  })();
+export const esEstadoActivo = checkActivo;
 
-  const [clientes, setClientes] = useState([]);
-  const [filtro, setFiltro] = useState('todos');
-  
-  // useState para el buscador en tiempo real
-  const [busqueda, setBusqueda] = useState('');
+export default function Clientes({ loggedUser, onIrAPuntoVenta }) {
+  const {
+    usuarioActivo,
+    clientesFiltrados,
+    filtro,
+    setFiltro,
+    busqueda,
+    setBusqueda,
+    alerta,
+    setAlerta,
+    mostrarPasswords,
+    togglePasswordVisible,
+    copiadoToken,
+    copiarAlPortapapeles,
+    showModal,
+    setShowModal,
+    modalMode,
+    formData,
+    setFormData,
+    cargandoBD,
+    cargarDatos,
+    total,
+    activos,
+    inactivos,
+    paseInvitadoModal,
+    setPaseInvitadoModal,
+    handleToggleEstado,
+    openModal,
+    handleSave,
+    esEstadoActivo: esActivoFn,
+    generarUUID
+  } = useClientes({ loggedUser, onIrAPuntoVenta });
 
-  // useState para notificaciones / alertas
-  const [alerta, setAlerta] = useState(null);
-
-  // Estados del modal
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create');
-  const [formData, setFormData] = useState({
-    nombre: '',
-    telefono: '',
-    contacto_emergencia: '',
-    telefono_emergencia: '',
-    fecha_registro: '',
-    estado: 1
-  });
-
-  const mostrarAlerta = (mensaje, tipo = 'success') => {
-    setAlerta({ mensaje, tipo });
-  };
-
-  const guardarLocalmente = (nuevosClientes) => {
-    setClientes(nuevosClientes);
-    try {
-      localStorage.setItem('gymton_clientes', JSON.stringify(nuevosClientes));
-    } catch (e) {
-      console.error('Error guardando clientes en localStorage:', e);
-    }
-  };
-
-  const cargarDatos = () => {
-    getClientes().then((data) => {
-      if (Array.isArray(data) && data.length > 0) {
-        setClientes(data);
-        localStorage.setItem('gymton_clientes', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_clientes');
-        if (local) {
-          try {
-            setClientes(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        // Fallback por defecto si no hay conexión o tabla vacía
-        const fallback = [
-          {
-            id: 1,
-            nombre: 'Juan Pérez',
-            telefono: '555-1234',
-            contacto_emergencia: 'María Pérez',
-            telefono_emergencia: '555-4321',
-            fecha_registro: '2023-01-15',
-            estado: 1
-          },
-          {
-            id: 2,
-            nombre: 'Carolina Gómez',
-            telefono: '555-9876',
-            contacto_emergencia: 'Carlos Gómez',
-            telefono_emergencia: '555-6789',
-            fecha_registro: '2023-03-20',
-            estado: 1
-          }
-        ];
-        setClientes(fallback);
-        localStorage.setItem('gymton_clientes', JSON.stringify(fallback));
-      }
-    });
-  };
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const total = clientes.length;
-  const activos = clientes.filter(c => c.estado === 1 || c.estado === 'Activo').length;
-  const inactivos = total - activos;
-
-  const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
-    return 'Usuario';
-  };
-
-  // ACCIÓN: Poner en activo
-  const handlePonerEnActivo = async (c) => {
-    try {
-      const clienteActualizado = { ...c, estado: 1 };
-      await updateCliente(c.id, clienteActualizado);
-      const nuevaLista = clientes.map(item => item.id === c.id ? clienteActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
-    } catch (error) {
-      console.error('Error al poner en activo:', error);
-      mostrarAlerta('Error al poner en activo al cliente', 'error');
-    }
-  };
-
-  // ACCIÓN: Dar de baja (desactivar)
-  const handleDarDeBaja = async (c) => {
-    try {
-      const clienteActualizado = { ...c, estado: 0 };
-      await updateCliente(c.id, clienteActualizado);
-      const nuevaLista = clientes.map(item => item.id === c.id ? clienteActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Dado de baja correctamente', 'info');
-    } catch (error) {
-      console.error('Error al dar de baja:', error);
-      mostrarAlerta('Error al desactivar al cliente', 'error');
-    }
-  };
-
-  // Alternador de estado rápido
-  const handleToggleEstado = (c) => {
-    const esActivo = c.estado === 1 || c.estado === 'Activo';
-    if (esActivo) {
-      handleDarDeBaja(c);
-    } else {
-      handlePonerEnActivo(c);
-    }
-  };
-
-  // ACCIÓN: Eliminar
-  const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
-      try {
-        await deleteCliente(id);
-        const nuevaLista = clientes.filter(c => c.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-      } catch (error) {
-        console.error('Error eliminando:', error);
-        mostrarAlerta('Error al eliminar el cliente', 'error');
-      }
-    }
-  };
-
-  // Abrir Modal para Agregar o Editar
-  const openModal = (mode, cliente = null) => {
-    setModalMode(mode);
-    if (mode === 'edit' && cliente) {
-      setFormData({
-        id: cliente.id,
-        nombre: cliente.nombre || '',
-        telefono: cliente.telefono || '',
-        contacto_emergencia: cliente.contacto_emergencia || '',
-        telefono_emergencia: cliente.telefono_emergencia || '',
-        fecha_registro: cliente.fecha_registro || '',
-        estado: (cliente.estado === 1 || cliente.estado === 'Activo') ? 1 : 0
-      });
-    } else {
-      const hoy = new Date().toISOString().split('T')[0];
-      setFormData({
-        nombre: '',
-        telefono: '',
-        contacto_emergencia: '',
-        telefono_emergencia: '',
-        fecha_registro: hoy,
-        estado: 1
-      });
-    }
-    setShowModal(true);
-  };
-
-  // ACCIONES: Agregar (create) y Guardar (update)
-  const handleSave = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-
-    // Validaciones
-    if (!formData.nombre.trim()) {
-      mostrarAlerta('Por favor ingresa el nombre del cliente', 'error');
-      return;
-    }
-
-    try {
-      if (modalMode === 'create') {
-        // ACCIÓN: Agregar
-        const res = await createCliente(formData);
-        const nuevoCliente = (res && res.id) ? res : { ...formData, id: Date.now() };
-        const nuevaLista = [nuevoCliente, ...clientes];
-        guardarLocalmente(nuevaLista);
-        setShowModal(false);
-        mostrarAlerta('Registro completado correctamente', 'success');
-      } else {
-        // ACCIÓN: Guardar cambios (Editar)
-        await updateCliente(formData.id, formData);
-        const nuevaLista = clientes.map(item => item.id === formData.id ? { ...item, ...formData } : item);
-        guardarLocalmente(nuevaLista);
-        setShowModal(false);
-        mostrarAlerta('Datos actualizados correctamente', 'success');
-      }
-    } catch (error) {
-      console.error('Error guardando cliente:', error);
-      mostrarAlerta('Ocurrió un error al procesar la solicitud', 'error');
-    }
-  };
-
-  // FILTRO EN TIEMPO REAL: .filter() con useState de búsqueda y pestañas
-  const clientesFiltrados = clientes.filter((c) => {
-    // 1. Filtro por pestaña de estado
-    const coincideEstado =
-      filtro === 'todos' ? true :
-      filtro === 'activos' ? (c.estado === 1 || c.estado === 'Activo') :
-      (c.estado === 0 || c.estado === 'Inactivo');
-
-    // 2. Filtro en tiempo real por búsqueda de texto
-    const termino = busqueda.toLowerCase().trim();
-    if (!termino) return coincideEstado;
-
-    const nombre = (c.nombre || '').toLowerCase();
-    const telefono = (c.telefono || '').toLowerCase();
-    const contactoEmergencia = (c.contacto_emergencia || '').toLowerCase();
-    const telEmergencia = (c.telefono_emergencia || '').toLowerCase();
-    const fechaRegistro = (c.fecha_registro || '').toLowerCase();
-
-    const coincideBusqueda =
-      nombre.includes(termino) ||
-      telefono.includes(termino) ||
-      contactoEmergencia.includes(termino) ||
-      telEmergencia.includes(termino) ||
-      fechaRegistro.includes(termino);
-
-    return coincideEstado && coincideBusqueda;
-  });
+  const paginacion = usePaginacion(clientesFiltrados, 10);
 
   return (
     <div className="clientes-wrapper">
-      {/* Toast Alert flotante */}
       <Toast alerta={alerta} onClose={() => setAlerta(null)} />
 
       {/* Top Header */}
       <div className="clientes-header">
-        <h1 className="clientes-title">Gestión de Clientes</h1>
+        <div>
+          <h1 className="clientes-title">Gestión de Clientes / Socios</h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Incluye credenciales de acceso para App Móvil y Token QR para torniquetes.
+          </p>
+        </div>
         <div className="clientes-top-actions">
-          {/* Buscador en tiempo real con useState y filter */}
           <div className="clientes-search-container">
             <div className="clientes-search-icon">
               <Search size={20} />
             </div>
             <input
               type="text"
+              maxLength={50}
               className="clientes-search-input"
-              placeholder="Buscar clientes por nombre, teléfono..."
+              placeholder="Buscar por nombre, teléfono, token QR..."
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button
@@ -287,7 +103,7 @@ export default function Clientes({ loggedUser }) {
                 {usuarioActivo ? `${usuarioActivo.nombre} ${usuarioActivo.apellido || ''}`.trim() : 'Usuario Activo'}
               </div>
               <div className="clientes-profile-role">
-                {usuarioActivo ? getRolName(usuarioActivo.id_rol) : 'Administrador'}
+                Recepción Gymton
               </div>
             </div>
           </div>
@@ -316,216 +132,199 @@ export default function Clientes({ loggedUser }) {
             Inactivos ({inactivos})
           </button>
         </div>
-        <button className="clientes-btn-nuevo" onClick={() => openModal('create')}>
-          <Plus size={16} /> Nuevo Cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost text-emerald-400 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-1.5"
+            onClick={() => cargarDatos(true)}
+            title="Actualizar datos"
+          >
+            <RefreshCw size={14} className={cargandoBD ? 'animate-spin' : ''} />
+            <span>Actualizar</span>
+          </button>
+          <button className="clientes-btn-nuevo" onClick={() => openModal('create')}>
+            <Plus size={16} /> Nuevo Cliente
+          </button>
+        </div>
       </div>
 
-      {/* Tabla de Clientes */}
-      <div className="clientes-table-container">
-        <table className="clientes-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Teléfono</th>
-              <th>Contacto Emergencia</th>
-              <th>Tel. Emergencia</th>
-              <th>Fecha Registro</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Opciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientesFiltrados.length === 0 ? (
+      {/* Tabla de Clientes con Tema Negro Unificado */}
+      <div className="gym-table-card">
+        <div className="gym-table-scroll">
+          <table className="gym-table table-fixed min-w-[950px]">
+            <thead className="gym-table-thead">
               <tr>
-                <td colSpan="7" className="table-empty-row">
-                  {busqueda
-                    ? `No se encontraron clientes con el término "${busqueda}"`
-                    : 'No hay clientes registrados'}
-                </td>
+                <th className="gym-table-th w-[18%]">Cliente</th>
+                <th className="gym-table-th w-[12%]">Teléfono</th>
+                <th className="gym-table-th w-[13%]">Contraseña (Móvil)</th>
+                <th className="gym-table-th w-[14%]">Token QR / UUID</th>
+                <th className="gym-table-th w-[14%]">Contacto Emerg.</th>
+                <th className="gym-table-th w-[11%]">Tel. Emerg.</th>
+                <th className="gym-table-th w-[10%]">Estado</th>
+                <th className="gym-table-th w-[8%] text-right">Opciones</th>
               </tr>
-            ) : (
-              clientesFiltrados.map((c) => {
-                const esActivo = c.estado === 1 || c.estado === 'Activo';
-                return (
-                  <tr key={c.id}>
-                    <td className="clientes-td-user">
-                      <span className="clientes-td-name">{c.nombre}</span>
-                    </td>
-                    <td className="clientes-td-text">{c.telefono || 'N/A'}</td>
-                    <td className="clientes-td-text">{c.contacto_emergencia || 'N/A'}</td>
-                    <td className="clientes-td-text">{c.telefono_emergencia || 'N/A'}</td>
-                    <td className="clientes-td-text">{c.fecha_registro || 'N/A'}</td>
-                    <td>
-                      {esActivo ? (
-                        <span className="clientes-badge activo">Activo</span>
-                      ) : (
-                        <span className="clientes-badge inactivo">Inactivo</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="clientes-table-actions">
-                        {/* Opción Guardar / Editar */}
-                        <button
-                          className="clientes-action-btn edit"
-                          title="Editar datos del cliente"
-                          onClick={() => openModal('edit', c)}
-                        >
-                          <Edit size={16} />
-                        </button>
+            </thead>
+            <tbody className="gym-table-tbody">
+              {paginacion.datosPaginados.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="text-center py-8 text-gray-400 italic">
+                    {busqueda
+                      ? `No se encontraron clientes con el término "${busqueda}"`
+                      : 'No hay clientes registrados'}
+                  </td>
+                </tr>
+              ) : (
+                paginacion.datosPaginados.map((c) => {
+                  const esActivo = esActivoFn(c.estado);
+                  const passwordVisible = mostrarPasswords[c.id];
+                  return (
+                    <tr key={c.id} className="gym-table-tr">
+                      <td className="gym-table-td font-bold text-white">
+                        <span>{c.nombre}</span>
+                      </td>
 
-                        {/* Opción Poner en activo / Dar de baja */}
-                        <button
-                          className={`clientes-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
-                          onClick={() => handleToggleEstado(c)}
-                        >
-                          <Power size={16} />
-                        </button>
+                      <td className="gym-table-td text-gray-300 font-mono text-xs">{c.telefono || 'N/A'}</td>
 
-                        {/* Opción Eliminar */}
-                        <button
-                          className="clientes-action-btn delete"
-                          title="Eliminar cliente"
-                          onClick={() => handleEliminar(c.id)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      <td className="gym-table-td">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs px-2 py-0.5 bg-zinc-800 text-zinc-200 rounded border border-zinc-700">
+                            {passwordVisible ? (c.contrasena || 'Sin asignar') : '••••••••'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisible(c.id)}
+                            className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
+                            title={passwordVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
+                          >
+                            {passwordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </td>
 
-        {/* Paginación / Resumen */}
-        <div className="clientes-pagination">
-          <span className="clientes-pagination-text">
-            Mostrando {clientesFiltrados.length} de {total} clientes
-            {busqueda && ` (filtrado por "${busqueda}")`}
-          </span>
-          <div className="clientes-pagination-buttons">
-            <button className="clientes-page-btn prev">Anterior</button>
-            <button className="clientes-page-btn next">Siguiente</button>
-          </div>
+                      <td className="gym-table-td">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/30 flex items-center gap-1">
+                            <QrCode size={13} />
+                            <span>{c.token_qr ? (c.token_qr.length > 12 ? c.token_qr.slice(0, 12) + '...' : c.token_qr) : 'Sin Token'}</span>
+                          </span>
+                          {c.token_qr && (
+                            <button
+                              type="button"
+                              onClick={() => copiarAlPortapapeles(c.token_qr, c.id)}
+                              className="text-gray-400 hover:text-emerald-400 p-1 transition-colors"
+                              title="Copiar Token QR"
+                            >
+                              {copiadoToken === c.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="gym-table-td text-gray-400 text-xs">{c.contacto_emergencia || 'N/A'}</td>
+                      <td className="gym-table-td text-gray-400 font-mono text-xs">{c.telefono_emergencia || 'N/A'}</td>
+
+                      <td className="gym-table-td">
+                        {esActivo ? (
+                          <span className="clientes-badge activo">Activo</span>
+                        ) : (
+                          <span className="clientes-badge inactivo">Inactivo</span>
+                        )}
+                      </td>
+
+                      <td className="gym-table-td text-right">
+                        <div className="clientes-table-actions justify-end">
+                          <button
+                            className="clientes-action-btn edit"
+                            title="Editar datos del cliente"
+                            onClick={() => openModal('edit', c)}
+                          >
+                            <Edit size={16} />
+                          </button>
+
+                          <button
+                            className={`clientes-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
+                            title={esActivo ? 'Desactivar cliente' : 'Activar cliente'}
+                            onClick={() => handleToggleEstado(c)}
+                          >
+                            <Power size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="clientes"
+        />
       </div>
 
-      {/* Modal para Agregar y Guardar (Editar) */}
-      <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
-          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-            <h3 className="font-bold text-lg text-base-content">
-              {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={20} />
-            </button>
+      {/* Modal extraído en `Vista/Extras/Modales/ModalesCatalogos.jsx` */}
+      <ModalFormCliente
+        showModal={showModal}
+        setShowModal={setShowModal}
+        modalMode={modalMode}
+        formData={formData}
+        setFormData={setFormData}
+        handleSave={handleSave}
+        generarUUID={generarUUID}
+      />
+
+      <ConfirmModal
+        isOpen={paseInvitadoModal?.isOpen}
+        title="¿Cobrar Pase de Invitado en Caja?"
+        message={
+          <div className="space-y-3 text-left pt-1">
+            <p className="text-sm text-zinc-300">
+              El socio <strong className="text-emerald-400">{paseInvitadoModal?.cliente?.nombre}</strong> ha sido registrado exitosamente en el sistema.
+            </p>
+            <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 text-xs text-zinc-400 space-y-1.5">
+              <div className="flex justify-between items-center">
+                <span>Plan sugerido:</span>
+                <span className="text-white font-bold">{paseInvitadoModal?.plan?.nombre || 'Individual (1 Día)'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Costo en Caja:</span>
+                <span className="text-emerald-400 font-bold font-mono text-sm">${paseInvitadoModal?.plan?.precio || 30}.00</span>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-400">
+              ¿Deseas enviar a este nuevo socio a Caja para cobrar su pase y activar su acceso al gimnasio?
+            </p>
           </div>
-
-          <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Nombre Completo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="input input-bordered w-full"
-                  placeholder="Ej. Juan Pérez"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. 555-1234"
-                  value={formData.telefono || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Contacto de Emergencia
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. María Pérez"
-                  value={formData.contacto_emergencia || ''}
-                  onChange={(e) => setFormData({ ...formData, contacto_emergencia: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono de Emergencia
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. 555-4321"
-                  value={formData.telefono_emergencia || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Fecha de Registro
-                </label>
-                <input
-                  type="date"
-                  className="input input-bordered w-full"
-                  value={formData.fecha_registro || ''}
-                  onChange={(e) => setFormData({ ...formData, fecha_registro: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Estado
-                </label>
-                <select
-                  className="input input-bordered w-full"
-                  value={formData.estado}
-                  onChange={(e) => setFormData({ ...formData, estado: Number(e.target.value) })}
-                >
-                  <option value={1}>Activo</option>
-                  <option value={0}>Inactivo</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="btn btn-ghost"
-              >
-                Cancelar
-              </button>
-              <button type="submit" className="btn btn-primary">
-                {modalMode === 'create' ? 'Agregar Cliente' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+        }
+        confirmText="Ir a Cobrar a Caja ($30)"
+        cancelText="Solo Registrar (Sin Cobro)"
+        tipo="success"
+        onConfirm={() => {
+          if (!paseInvitadoModal?.cliente) return;
+          const payloadCobro = {
+            cliente_id: paseInvitadoModal.cliente.id,
+            cliente_nombre: paseInvitadoModal.cliente.nombre,
+            id_plan: paseInvitadoModal.plan?.id || 5,
+            plan_nombre: paseInvitadoModal.plan?.nombre || 'Individual (1 Día)',
+            precio: paseInvitadoModal.plan?.precio || 30,
+            duracion_dias: 1,
+            es_nueva: true
+          };
+          setPaseInvitadoModal({ isOpen: false, cliente: null, plan: null });
+          if (onIrAPuntoVenta) {
+            onIrAPuntoVenta(payloadCobro);
+          }
+        }}
+        onCancel={() => setPaseInvitadoModal({ isOpen: false, cliente: null, plan: null })}
+      />
     </div>
   );
 }

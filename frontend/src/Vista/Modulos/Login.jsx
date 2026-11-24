@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../../CSS/Login.css';
+import { getApiUrl } from '../../config/apiConfig';
 
 export default function Login({ alIniciarSesion }) {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ export default function Login({ alIniciarSesion }) {
         contrasena: password
       };
 
-      const request = await fetch('http://localhost:8080/api/login', {
+      const request = await fetch(getApiUrl('login'), {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -50,7 +51,8 @@ export default function Login({ alIniciarSesion }) {
           setProgress(p);
           if (p >= 100) {
             clearInterval(interval);
-            alIniciarSesion(respuesta);
+            if (respuesta) respuesta.id_rol = Number(respuesta.id_rol);
+alIniciarSesion(respuesta);
           }
         }, 30); // 1.5 segundos en total
 
@@ -67,9 +69,10 @@ export default function Login({ alIniciarSesion }) {
           : email;
         const nombreFormateado = nombreLocal.charAt(0).toUpperCase() + nombreLocal.slice(1);
 
+        const esEmpleado = email.toLowerCase().includes('empleado') || email.toLowerCase().includes('recep') || email.toLowerCase().includes('caja');
         const usuarioDemo = {
-          id: 1,
-          id_rol: 1,
+          id: esEmpleado ? 2 : 1,
+          id_rol: esEmpleado ? 2 : 1,
           nombre: nombreFormateado,
           apellido: '',
           correo: email,
@@ -99,12 +102,7 @@ export default function Login({ alIniciarSesion }) {
         {/* Panel Izquierdo (Oscuro) */}
         <div className="login-left-panel">
           <div>
-            <div className="login-logo-container">
-              <div className="login-logo-icon">
-                <div className="login-logo-inner"></div>
-              </div>
-              <span className="login-logo-text">GymPOS</span>
-            </div>
+            <div className="login-logo-container flex items-center gap-3"><img src="/logo-gym.png" alt="Logo Gym Sport" className="w-12 h-12 object-contain" /><div><span className="login-logo-text block text-white font-black text-xl leading-none">GYM SPORT</span><span className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Quality Center</span></div></div>
             <h1 className="login-title">
               Potencia tu gimnasio, simplifica tu caja.
             </h1>
@@ -325,6 +323,7 @@ export default function Login({ alIniciarSesion }) {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    maxLength={100}
                     placeholder="usuario@gympos.com"
                     className="login-input"
                   />
@@ -339,6 +338,7 @@ export default function Login({ alIniciarSesion }) {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    maxLength={50}
                     placeholder="••••••••••••"
                     className="login-input"
                   />

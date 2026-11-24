@@ -1,538 +1,406 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Power, X } from 'lucide-react';
+import React from 'react';
+import {
+  Search,
+  Plus,
+  Edit,
+  Power,
+  X,
+  UserCog,
+  Users,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  UserCheck,
+  Mail,
+  Phone
+} from 'lucide-react';
 import '../../CSS/Usuarios.css';
-import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from '../../JS/usuarios';
-import Toast from '../Componentes/Toast';
+import Toast from '../Extras/Toast';
+import Paginacion from '../Extras/Paginacion';
+import { ModalFormUsuario } from '../Extras/Modales/ModalesCatalogos';
+import { useUsuarios, esEstadoActivo as checkActivo } from '../../Reutilizable/useCatalogos';
+import { usePaginacion } from '../../Reutilizable/usePaginacion';
+
+export const esEstadoActivo = checkActivo;
 
 export default function Usuarios({ loggedUser }) {
-  const usuarioActivo = loggedUser || (() => {
-    try {
-      const u = localStorage.getItem('gymton_current_user');
-      return u ? JSON.parse(u) : null;
-    } catch {
-      return null;
-    }
-  })();
+  const {
+    usuarioActivo,
+    usuarios = [],
+    usuariosFiltrados,
+    filtro,
+    setFiltro,
+    busqueda,
+    setBusqueda,
+    alerta,
+    setAlerta,
+    showModal,
+    setShowModal,
+    modalMode,
+    formData,
+    setFormData,
+    total,
+    activos,
+    inactivos,
+    esUsuarioId1,
+    getRolName,
+    mostrarAlerta,
+    handleToggleEstado,
+    openModal,
+    handleSave,
+    esEstadoActivo: esActivoFn
+  } = useUsuarios({ loggedUser });
 
-  const [usuarios, setUsuarios] = useState([]);
-  const [filtro, setFiltro] = useState('todos');
-  
-  // useState para el buscador en tiempo real
-  const [busqueda, setBusqueda] = useState('');
+  const paginacion = usePaginacion(usuariosFiltrados, 10);
 
-  // useState para notificaciones / alertas
-  const [alerta, setAlerta] = useState(null);
-
-  // Estados del modal
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create');
-  const [formData, setFormData] = useState({
-    id_rol: 2,
-    nombre: '',
-    apellido: '',
-    telefono: '',
-    correo: '',
-    contrasena: '',
-    estado: 1
-  });
-
-  const mostrarAlerta = (mensaje, tipo = 'success') => {
-    setAlerta({ mensaje, tipo });
-  };
-
-  const guardarLocalmente = (nuevosUsuarios) => {
-    setUsuarios(nuevosUsuarios);
-    try {
-      localStorage.setItem('gymton_usuarios', JSON.stringify(nuevosUsuarios));
-    } catch (e) {
-      console.error('Error guardando en localStorage:', e);
-    }
-  };
-
-  const cargarDatos = () => {
-    getUsuarios().then((data) => {
-      if (Array.isArray(data) && data.length > 0) {
-        setUsuarios(data);
-        localStorage.setItem('gymton_usuarios', JSON.stringify(data));
-      } else {
-        const local = localStorage.getItem('gymton_usuarios');
-        if (local) {
-          try {
-            setUsuarios(JSON.parse(local));
-            return;
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        // Fallback por defecto si no hay conexión
-        const fallback = [
-          { id: 1, id_rol: 1, nombre: 'Sofía', apellido: 'Martínez', telefono: '+56 9 8765 4321', correo: 'sofia.mtz@gmail.com', estado: 1 },
-          { id: 2, id_rol: 2, nombre: 'Alejandro', apellido: 'Silva', telefono: '+56 9 1234 5678', correo: 'ale.silva@outlook.com', estado: 1 }
-        ];
-        setUsuarios(fallback);
-        localStorage.setItem('gymton_usuarios', JSON.stringify(fallback));
-      }
-    });
-  };
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const total = usuarios.length;
-  const activos = usuarios.filter(u => u.estado === 1 || u.estado === 'Activo').length;
-  const inactivos = total - activos;
-
-  const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
-    return 'Usuario';
-  };
-
-  // ACCIÓN: Poner en activo
-  const handlePonerEnActivo = async (u) => {
-    try {
-      const usuarioActualizado = { ...u, estado: 1 };
-      await updateUsuario(u.id, usuarioActualizado);
-      const nuevaLista = usuarios.map(item => item.id === u.id ? usuarioActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Puesto en activo correctamente', 'success');
-    } catch (error) {
-      console.error('Error al poner en activo:', error);
-      mostrarAlerta('Error al poner en activo al usuario', 'error');
-    }
-  };
-
-  // ACCIÓN: Dar de baja (desactivar)
-  const handleDarDeBaja = async (u) => {
-    try {
-      const usuarioActualizado = { ...u, estado: 0 };
-      await updateUsuario(u.id, usuarioActualizado);
-      const nuevaLista = usuarios.map(item => item.id === u.id ? usuarioActualizado : item);
-      guardarLocalmente(nuevaLista);
-      mostrarAlerta('Dado de baja correctamente', 'info');
-    } catch (error) {
-      console.error('Error al dar de baja:', error);
-      mostrarAlerta('Error al desactivar al usuario', 'error');
-    }
-  };
-
-  // Alternador de estado rápido
-  const handleToggleEstado = (u) => {
-    const esActivo = u.estado === 1 || u.estado === 'Activo';
-    if (esActivo) {
-      handleDarDeBaja(u);
-    } else {
-      handlePonerEnActivo(u);
-    }
-  };
-
-  // ACCIÓN: Eliminar
-  const handleEliminar = async (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este usuario?')) {
-      try {
-        await deleteUsuario(id);
-        const nuevaLista = usuarios.filter(u => u.id !== id);
-        guardarLocalmente(nuevaLista);
-        mostrarAlerta('Registro eliminado correctamente', 'success');
-      } catch (error) {
-        console.error('Error eliminando:', error);
-        mostrarAlerta('Error al eliminar el usuario', 'error');
-      }
-    }
-  };
-
-  // Abrir Modal para Agregar o Editar
-  const openModal = (mode, usuario = null) => {
-    setModalMode(mode);
-    if (mode === 'edit' && usuario) {
-      setFormData({
-        id: usuario.id,
-        id_rol: usuario.id_rol || 2,
-        nombre: usuario.nombre || '',
-        apellido: usuario.apellido || '',
-        telefono: usuario.telefono || '',
-        correo: usuario.correo || '',
-        contrasena: usuario.contrasena || '',
-        estado: (usuario.estado === 1 || usuario.estado === 'Activo') ? 1 : 0
-      });
-    } else {
-      setFormData({
-        id_rol: 2,
-        nombre: '',
-        apellido: '',
-        telefono: '',
-        correo: '',
-        contrasena: '',
-        estado: 1
-      });
-    }
-    setShowModal(true);
-  };
-
-  // ACCIONES: Agregar (create) y Guardar (update)
-  const handleSave = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-
-    // Validaciones
-    if (!formData.nombre.trim()) {
-      mostrarAlerta('Por favor ingresa el nombre', 'error');
-      return;
-    }
-    if (!formData.correo.trim()) {
-      mostrarAlerta('Por favor ingresa el correo', 'error');
-      return;
-    }
-
-    try {
-      if (modalMode === 'create') {
-        // ACCIÓN: Agregar
-        const res = await createUsuario(formData);
-        const nuevoUsuario = (res && res.id) ? res : { ...formData, id: Date.now() };
-        const nuevaLista = [nuevoUsuario, ...usuarios];
-        guardarLocalmente(nuevaLista);
-        setShowModal(false);
-        mostrarAlerta('Registro completado correctamente', 'success');
-      } else {
-        // ACCIÓN: Guardar cambios (Editar)
-        await updateUsuario(formData.id, formData);
-        const nuevaLista = usuarios.map(u => u.id === formData.id ? { ...u, ...formData } : u);
-        guardarLocalmente(nuevaLista);
-        setShowModal(false);
-        mostrarAlerta('Datos actualizados correctamente', 'success');
-      }
-    } catch (error) {
-      console.error('Error al guardar usuario:', error);
-      mostrarAlerta('Ocurrió un error al procesar la solicitud', 'error');
-    }
-  };
-
-  // FILTRO EN TIEMPO REAL: .filter() con useState de búsqueda y pestañas
-  const usuariosFiltrados = usuarios.filter((u) => {
-    // 1. Filtro por pestaña de estado
-    const coincideEstado =
-      filtro === 'todos' ? true :
-      filtro === 'activos' ? (u.estado === 1 || u.estado === 'Activo') :
-      (u.estado === 0 || u.estado === 'Inactivo');
-
-    // 2. Filtro en tiempo real por búsqueda de texto
-    const termino = busqueda.toLowerCase().trim();
-    if (!termino) return coincideEstado;
-
-    const nombreCompleto = `${u.nombre || ''} ${u.apellido || ''}`.toLowerCase();
-    const correo = (u.correo || '').toLowerCase();
-    const telefono = (u.telefono || '').toLowerCase();
-    const rol = getRolName(u.id_rol).toLowerCase();
-
-    const coincideBusqueda =
-      nombreCompleto.includes(termino) ||
-      correo.includes(termino) ||
-      telefono.includes(termino) ||
-      rol.includes(termino);
-
-    return coincideEstado && coincideBusqueda;
-  });
+  // Cálculo de distribución de roles
+  const totalAdmins = (usuarios.length > 0 ? usuarios : usuariosFiltrados).filter(
+    (u) => Number(u.id_rol) === 1
+  ).length;
+  const totalPersonal = total - totalAdmins;
 
   return (
-    <div className="usuarios-wrapper">
-      {/* Toast Alert flotante */}
-      <Toast alerta={alerta} onClose={() => setAlerta(null)} />
+    <div className="usuarios-wrapper p-4 md:p-6 bg-zinc-950 min-h-screen text-gray-200">
+      {alerta && (
+        <Toast
+          mensaje={alerta.mensaje}
+          tipo={alerta.tipo}
+          onClose={() => setAlerta(null)}
+        />
+      )}
 
-      {/* Top Header */}
-      <div className="usuarios-header">
-        <h1 className="usuarios-title">Gestión de Usuarios</h1>
-        <div className="usuarios-top-actions">
-          {/* Buscador en tiempo real con useState y filter */}
-          <div className="usuarios-search-container">
-            <div className="usuarios-search-icon">
-              <Search size={20} />
-            </div>
+      {/* ======================================================== */}
+      {/* NIVEL 1: CABECERA PRINCIPAL CON ACCIÓN PRIMARIA          */}
+      {/* ======================================================== */}
+      <div className="gym-header-box flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-zinc-900 border border-zinc-800 p-5 rounded-2xl shadow-xl mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
+            <UserCog className="w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">
+              Gestión de Usuarios y Personal
+            </h1>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Administra cuentas de cajeros, administradores y personal con roles y control de acceso seguro.
+            </p>
+          </div>
+        </div>
+
+        {/* Buscador y Botón de Acción Principal */}
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="relative flex-1 sm:w-72">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              className="usuarios-search-input"
-              placeholder="Buscar usuarios por nombre, correo, rol..."
+              maxLength={50}
+              className="w-full pl-9 pr-9 py-2 bg-zinc-950 border border-zinc-700 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              placeholder="Buscar por nombre, correo, rol..."
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(e) => setBusqueda(e.target.value.slice(0, 50))}
             />
             {busqueda && (
               <button
                 type="button"
-                className="usuarios-search-clear"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 onClick={() => setBusqueda('')}
                 title="Limpiar búsqueda"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             )}
           </div>
 
-          <div className="usuarios-terminal-badge">
-            <span className="usuarios-terminal-dot"></span> Terminal Activo
+          <button
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm rounded-xl border-none shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+            onClick={() => openModal('create')}
+          >
+            <Plus size={18} strokeWidth={2.5} />
+            <span>Nuevo Usuario</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* NIVEL 2: TARJETAS KPI DE RESUMEN Y ESTADÍSTICAS          */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Total Cuentas */}
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div className="p-3 bg-zinc-800 border border-zinc-700/60 rounded-xl text-indigo-400">
+            <Users size={22} />
           </div>
-          <div className="usuarios-profile">
-            <div className="usuarios-profile-info">
-              <div className="usuarios-profile-name">
-                {usuarioActivo ? `${usuarioActivo.nombre} ${usuarioActivo.apellido || ''}`.trim() : 'Usuario Activo'}
-              </div>
-              <div className="usuarios-profile-role">
-                {usuarioActivo ? getRolName(usuarioActivo.id_rol) : 'Administrador'}
-              </div>
+          <div>
+            <div className="text-2xl font-black text-white">{total}</div>
+            <div className="text-xs text-gray-400 font-medium">Total de Usuarios</div>
+          </div>
+        </div>
+
+        {/* Activos */}
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
+            <CheckCircle2 size={22} />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-emerald-400">{activos}</div>
+            <div className="text-xs text-gray-400 font-medium">Usuarios Activos</div>
+          </div>
+        </div>
+
+        {/* Inactivos */}
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400">
+            <XCircle size={22} />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-rose-400">{inactivos}</div>
+            <div className="text-xs text-gray-400 font-medium">Usuarios Inactivos</div>
+          </div>
+        </div>
+
+        {/* Distribución de Roles */}
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+            <ShieldCheck size={22} />
+          </div>
+          <div>
+            <div className="text-lg font-black text-amber-300">
+              {totalAdmins} <span className="text-xs font-normal text-gray-400">Admin</span> · {totalPersonal}{' '}
+              <span className="text-xs font-normal text-gray-400">Personal</span>
             </div>
+            <div className="text-xs text-gray-400 font-medium">Roles del Sistema</div>
           </div>
         </div>
       </div>
 
-      {/* Tabs y Botón de Agregar Nuevo */}
-      <div className="usuarios-filters-bar">
-        <div className="usuarios-filters">
+      {/* ======================================================== */}
+      {/* NIVEL 3: FILTROS POR ESTADO + TABLA ESTILIZADA EN NEGRO   */}
+      {/* ======================================================== */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 bg-zinc-900/80 p-1 border border-zinc-800 rounded-xl">
           <button
-            className={`usuarios-filter-btn ${filtro === 'todos' ? 'active' : 'inactive'}`}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              filtro === 'todos'
+                ? 'bg-zinc-800 text-white shadow-sm'
+                : 'text-gray-400 hover:text-white'
+            }`}
             onClick={() => setFiltro('todos')}
           >
             Todos ({total})
           </button>
           <button
-            className={`usuarios-filter-btn ${filtro === 'activos' ? 'active' : 'inactive'}`}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              filtro === 'activos'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                : 'text-gray-400 hover:text-white'
+            }`}
             onClick={() => setFiltro('activos')}
           >
             Activos ({activos})
           </button>
           <button
-            className={`usuarios-filter-btn ${filtro === 'inactivos' ? 'active' : 'inactive'}`}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              filtro === 'inactivos'
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-sm'
+                : 'text-gray-400 hover:text-white'
+            }`}
             onClick={() => setFiltro('inactivos')}
           >
             Inactivos ({inactivos})
           </button>
         </div>
-        <button className="usuarios-btn-nuevo" onClick={() => openModal('create')}>
-          <Plus size={16} /> Nuevo Usuario
-        </button>
+
+        {usuarioActivo && (
+          <div className="text-xs text-gray-400 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Sesión: <strong className="text-gray-200">{usuarioActivo.nombre}</strong> (
+            {getRolName(usuarioActivo.id_rol)})
+          </div>
+        )}
       </div>
 
-      {/* Tabla de Usuarios */}
-      <div className="usuarios-table-container">
-        <table className="usuarios-table">
-          <thead>
-            <tr>
-              <th>Usuario</th>
-              <th>Correo</th>
-              <th>Teléfono</th>
-              <th>Rol</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Opciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuariosFiltrados.length === 0 ? (
+      {/* Tabla con Estilo Negro Unificado */}
+      <div className="gym-table-card">
+        <div className="gym-table-scroll">
+          <table className="gym-table table-fixed min-w-[850px]">
+            <thead className="gym-table-thead">
               <tr>
-                <td colSpan="6" className="table-empty-row">
-                  {busqueda
-                    ? `No se encontraron usuarios con el término "${busqueda}"`
-                    : 'No hay usuarios registrados'}
-                </td>
+                <th className="gym-table-th w-[28%]">Usuario</th>
+                <th className="gym-table-th w-[26%]">Correo Electrónico</th>
+                <th className="gym-table-th w-[16%]">Teléfono</th>
+                <th className="gym-table-th w-[14%]">Rol Asignado</th>
+                <th className="gym-table-th w-[8%] text-center">Estado</th>
+                <th className="gym-table-th w-[8%] text-right">Acciones</th>
               </tr>
-            ) : (
-              usuariosFiltrados.map((u) => {
-                const esActivo = u.estado === 1 || u.estado === 'Activo';
-                return (
-                  <tr key={u.id}>
-                    <td className="usuarios-td-user">
-                      <span className="usuarios-td-name">
-                        {u.nombre} {u.apellido}
-                      </span>
-                    </td>
-                    <td className="usuarios-td-text">{u.correo}</td>
-                    <td className="usuarios-td-text">{u.telefono || 'N/A'}</td>
-                    <td className="usuarios-td-text">{getRolName(u.id_rol)}</td>
-                    <td>
-                      {esActivo ? (
-                        <span className="usuarios-badge activo">Activo</span>
-                      ) : (
-                        <span className="usuarios-badge inactivo">Inactivo</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="usuarios-table-actions">
-                        {/* Opción Guardar / Editar */}
-                        <button
-                          className="usuarios-action-btn edit"
-                          title="Editar datos del usuario"
-                          onClick={() => openModal('edit', u)}
-                        >
-                          <Edit size={16} />
-                        </button>
+            </thead>
+            <tbody className="gym-table-tbody">
+              {paginacion.datosPaginados.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-10 text-gray-400 italic">
+                    {busqueda
+                      ? `No se encontraron usuarios que coincidan con "${busqueda}"`
+                      : 'No hay usuarios registrados'}
+                  </td>
+                </tr>
+              ) : (
+                paginacion.datosPaginados.map((u) => {
+                  const esActivo = esActivoFn(u.estado);
+                  const esAdmin = Number(u.id_rol) === 1;
+                  const iniciales = `${(u.nombre || '')[0] || ''}${(u.apellido || '')[0] || ''}`.toUpperCase();
 
-                        {/* Opción Poner en activo / Dar de baja */}
-                        <button
-                          className={`usuarios-action-btn ${esActivo ? 'power-off' : 'power-on'}`}
-                          title={esActivo ? 'Dar de baja' : 'Poner en activo'}
-                          onClick={() => handleToggleEstado(u)}
-                        >
-                          <Power size={16} />
-                        </button>
+                  return (
+                    <tr key={u.id} className="gym-table-tr">
+                      {/* Usuario con Avatar e iniciales */}
+                      <td className="gym-table-td">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs border ${
+                              esAdmin
+                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                                : 'bg-zinc-800 border-zinc-700 text-gray-300'
+                            }`}
+                          >
+                            {iniciales || 'U'}
+                          </div>
+                          <div className="truncate">
+                            <div className="font-bold text-white text-sm truncate">
+                              {u.nombre} {u.apellido}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
 
-                        {/* Opción Eliminar */}
-                        <button
-                          className="usuarios-action-btn delete"
-                          title="Eliminar usuario"
-                          onClick={() => handleEliminar(u.id)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      {/* Correo */}
+                      <td className="gym-table-td text-gray-300 font-mono text-xs">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Mail size={13} className="text-gray-500 flex-shrink-0" />
+                          <span className="truncate">{u.correo}</span>
+                        </div>
+                      </td>
 
-        {/* Paginación / Resumen */}
-        <div className="usuarios-pagination">
-          <span className="usuarios-pagination-text">
-            Mostrando {usuariosFiltrados.length} de {total} usuarios
-            {busqueda && ` (filtrado por "${busqueda}")`}
-          </span>
-          <div className="usuarios-pagination-buttons">
-            <button className="usuarios-page-btn prev">Anterior</button>
-            <button className="usuarios-page-btn next">Siguiente</button>
-          </div>
+                      {/* Teléfono */}
+                      <td className="gym-table-td text-gray-300 font-mono text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Phone size={13} className="text-gray-500 flex-shrink-0" />
+                          <span>{u.telefono || 'Sin teléfono'}</span>
+                        </div>
+                      </td>
+
+                      {/* Rol con Badge distintivo */}
+                      <td className="gym-table-td">
+                        {esAdmin ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                            <ShieldCheck size={12} />
+                            <span>{getRolName(u.id_rol)}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-zinc-800 border border-zinc-700 text-gray-300">
+                            <UserCheck size={12} />
+                            <span>{getRolName(u.id_rol)}</span>
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Estado */}
+                      <td className="gym-table-td text-center">
+                        {esActivo ? (
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-zinc-800 border border-zinc-700 text-gray-500">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="gym-table-td text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              !esUsuarioId1
+                                ? 'opacity-30 cursor-not-allowed border-zinc-800 text-gray-600'
+                                : 'bg-zinc-800 border-zinc-700 text-gray-300 hover:text-white hover:border-emerald-500/50'
+                            }`}
+                            title={
+                              esUsuarioId1
+                                ? 'Editar datos del usuario'
+                                : 'Restringido: Solo el Administrador Principal puede modificar datos'
+                            }
+                            onClick={() => {
+                              if (!esUsuarioId1) {
+                                mostrarAlerta(
+                                  'Restricción: Únicamente el Administrador Principal tiene autorización para modificar usuarios.',
+                                  'error'
+                                );
+                                return;
+                              }
+                              openModal('edit', u);
+                            }}
+                          >
+                            <Edit size={14} />
+                          </button>
+
+                          <button
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              !esUsuarioId1
+                                ? 'opacity-30 cursor-not-allowed border-zinc-800 text-gray-600'
+                                : esActivo
+                                ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20'
+                                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                            }`}
+                            title={
+                              !esUsuarioId1
+                                ? 'Restringido: Solo el Administrador Principal puede modificar estado'
+                                : esActivo
+                                ? 'Desactivar usuario'
+                                : 'Activar usuario'
+                            }
+                            onClick={() => {
+                              if (!esUsuarioId1) {
+                                mostrarAlerta(
+                                  'Restricción: Únicamente el Administrador Principal tiene autorización para modificar el estado de usuarios.',
+                                  'error'
+                                );
+                                return;
+                              }
+                              handleToggleEstado(u);
+                            }}
+                          >
+                            <Power size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
+        <Paginacion
+          paginaActual={paginacion.paginaActual}
+          totalPaginas={paginacion.totalPaginas}
+          totalRegistros={paginacion.totalRegistros}
+          indiceInicio={paginacion.indiceInicio}
+          indiceFin={paginacion.indiceFin}
+          itemsPorPagina={paginacion.itemsPorPagina}
+          onPageChange={paginacion.setPaginaActual}
+          onItemsPerPageChange={paginacion.setItemsPorPagina}
+          etiqueta="usuarios"
+        />
       </div>
 
-      {/* Modal para Agregar y Guardar (Editar) */}
-      <dialog className={`modal ${showModal ? 'modal-open' : ''}`}>
-        <div className="modal-box bg-base-100 p-0 overflow-hidden max-w-md flex flex-col max-h-[90vh]">
-          <div className="px-6 py-4 border-b border-base-200 flex justify-between items-center bg-base-200">
-            <h3 className="font-bold text-lg text-base-content">
-              {modalMode === 'create' ? 'Nuevo Usuario' : 'Editar Usuario'}
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
-            <div className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="input input-bordered w-full"
-                  placeholder="Ej. Sofía"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Apellido
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="Ej. Martínez"
-                  value={formData.apellido || ''}
-                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Correo Electrónico *
-                </label>
-                <input
-                  type="email"
-                  required
-                  className="input input-bordered w-full"
-                  placeholder="ejemplo@gymton.com"
-                  value={formData.correo || ''}
-                  onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  className="input input-bordered w-full"
-                  placeholder="+56 9 1234 5678"
-                  value={formData.telefono || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                />
-              </div>
-
-              {modalMode === 'create' && (
-                <div>
-                  <label className="block text-sm font-medium text-base-content mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    className="input input-bordered w-full"
-                    placeholder="••••••••"
-                    value={formData.contrasena || ''}
-                    onChange={(e) => setFormData({ ...formData, contrasena: e.target.value })}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Rol del Usuario
-                </label>
-                <select
-                  className="input input-bordered w-full"
-                  value={formData.id_rol}
-                  onChange={(e) => setFormData({ ...formData, id_rol: Number(e.target.value) })}
-                >
-                  <option value={1}>Administrador</option>
-                  <option value={2}>Recepcionista</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-base-content mb-1">
-                  Estado
-                </label>
-                <select
-                  className="input input-bordered w-full"
-                  value={formData.estado}
-                  onChange={(e) => setFormData({ ...formData, estado: Number(e.target.value) })}
-                >
-                  <option value={1}>Activo</option>
-                  <option value={0}>Inactivo</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-base-200 flex justify-end gap-3 bg-base-200">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="btn btn-ghost"
-              >
-                Cancelar
-              </button>
-              <button type="submit" className="btn btn-primary">
-                {modalMode === 'create' ? 'Agregar Usuario' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+      {/* Modal Formulario Usuario */}
+      <ModalFormUsuario
+        showModal={showModal}
+        setShowModal={setShowModal}
+        modalMode={modalMode}
+        formData={formData}
+        setFormData={setFormData}
+        handleSave={handleSave}
+      />
     </div>
   );
 }

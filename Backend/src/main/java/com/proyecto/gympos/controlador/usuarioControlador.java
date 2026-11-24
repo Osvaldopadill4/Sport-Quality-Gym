@@ -14,7 +14,7 @@ public class usuarioControlador {
     @Autowired
     private UsuarioDao usuarioDao;
 
-    //Datos de usuario
+    //Datos de usuario ejemplo
     @RequestMapping(value = "api/usuario/{id}", method = RequestMethod.GET)
     public Usuario getUsuario(@PathVariable int id) {
         Usuario usuario = new Usuario();

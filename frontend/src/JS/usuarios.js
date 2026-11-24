@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:8080/api/usuario';
+import { getApiUrl } from '../config/apiConfig';
+
+const API_URL = getApiUrl('usuario');
 
 export const getUsuarios = async () => {
   try {

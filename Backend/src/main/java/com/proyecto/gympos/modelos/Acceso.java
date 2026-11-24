@@ -1,49 +1,23 @@
 package com.proyecto.gympos.modelos;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "acceso")
 public class Acceso {
-    private String id_acceso;
-    private String id_cliente;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Getter @Setter @Column(name = "id")
+    private int id;
+    @Getter @Setter @Column(name = "id_cliente")
+    private int id_cliente;
+    @Getter @Setter @Column(name = "fecha")
     private String fecha;
+    @Getter @Setter @Column(name = "hora")
     private String hora;
+    @Getter @Setter @Column(name = "resultado")
     private String resultado;
-
-    public String getId_acceso() {
-        return id_acceso;
-    }
-
-    public void setId_acceso(String id_acceso) {
-        this.id_acceso = id_acceso;
-    }
-
-    public String getId_cliente() {
-        return id_cliente;
-    }
-
-    public void setId_cliente(String id_cliente) {
-        this.id_cliente = id_cliente;
-    }
-
-    public String getFecha() {
-        return fecha;
-    }
-
-    public void setFecha(String fecha) {
-        this.fecha = fecha;
-    }
-
-    public String getHora() {
-        return hora;
-    }
-
-    public void setHora(String hora) {
-        this.hora = hora;
-    }
-
-    public String getResultado() {
-        return resultado;
-    }
-
-    public void setResultado(String resultado) {
-        this.resultado = resultado;
-    }
 }
