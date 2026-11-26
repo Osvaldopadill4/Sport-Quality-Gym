@@ -121,7 +121,6 @@ export function AlertaFlashAcceso({ alertaFlash, setAlertaFlash, tiempoRestanteF
   );
 }
 
-// Módulo de simulación removido: el sistema ahora valida exclusivamente contra la base de datos real en MySQL
 export function ModalSimuladorMovil() {
   return null;
 }

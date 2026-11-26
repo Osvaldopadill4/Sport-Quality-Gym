@@ -68,7 +68,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     }
   }, []);
 
-  // Mapas indexados en memoria para resoluciÃ³n instantÃ¡nea O(1)
+  // Mapas indexados en memoria para resolución instantánea O(1)
   const clientesMap = useMemo(
     () => new Map((clientesCatalogo || []).map((c) => [Number(c.id), c])),
     [clientesCatalogo]
@@ -92,7 +92,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     (m) => {
       if (!m) return 'Plan';
       const p = planesMap.get(Number(m.id_plan));
-      return p?.nombre || m.plan_nombre || 'Plan EstÃ¡ndar';
+      return p?.nombre || m.plan_nombre || 'Plan Estándar';
     },
     [planesMap]
   );
@@ -141,7 +141,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
         setPlanesCatalogo(planesFiltrados.length > 0 ? planesFiltrados : resPlanes.value);
       }
 
-      // 1. Preferir la vista SQL de clientes y membresÃ­as con JOIN si estÃ¡ disponible
+      // 1. Preferir la vista SQL de clientes y membresías con JOIN si está disponible
       if (resVista.status === 'fulfilled' && Array.isArray(resVista.value) && resVista.value.length > 0) {
         const vistaMembresias = resVista.value
           .filter((v) => v.id_membresia)
@@ -161,16 +161,16 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
         }
       }
 
-      // 2. Endpoint estÃ¡ndar /api/membresia
+      // 2. Endpoint estándar /api/membresia
       if (resMem.status === 'fulfilled' && Array.isArray(resMem.value) && resMem.value.length > 0) {
         guardarLocalmente(resMem.value);
         return;
       }
     } catch (e) {
-      console.warn('Error al cargar catÃ¡logo de membresÃ­as:', e);
+      console.warn('Error al cargar catálogo de membresías:', e);
     }
 
-    // Fallback a LocalStorage si el servidor estÃ¡ en arranque
+    // Fallback a LocalStorage si el servidor está en arranque
     const local = localStorage.getItem('gymton_membresias');
     if (local) {
       try {
@@ -185,7 +185,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     cargarDatos();
   }, [cargarDatos]);
 
-  // RenovaciÃ³n de membresÃ­a usando el procedimiento `sp_renovar_membresia`
+  // Renovación de membresía usando el procedimiento `sp_renovar_membresia`
   const abrirModalRenovacion = (m) => {
     const clienteNombreReal = obtenerNombreCliente(m);
     const planNombreReal = obtenerNombrePlan(m);
@@ -193,7 +193,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
 
     if (!resultadoSP.exito) {
       mostrarAlerta(
-        `RestricciÃ³n: No se puede renovar el plan "${planNombreReal}" para ${clienteNombreReal} porque acumularÃ­a ${resultadoSP.diasAcumulados} dÃ­as de vigencia (lÃ­mite: 500 dÃ­as).`,
+        `Restricción: No se puede renovar el plan "${planNombreReal}" para ${clienteNombreReal} porque acumularía ${resultadoSP.diasAcumulados} días de vigencia (límite: 500 días).`,
         'error'
       );
       return;
@@ -238,7 +238,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     if (onIrAPuntoVenta) {
       onIrAPuntoVenta(payload);
     } else {
-      mostrarAlerta('RenovaciÃ³n enviada al Punto de Venta para cobro.', 'info');
+      mostrarAlerta('Renovación enviada al Punto de Venta para cobro.', 'info');
     }
   };
 
@@ -285,7 +285,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       await createVenta({
         folio: folioGen,
         id_usuario: loggedUser?.id || 1,
-        empleado: loggedUser ? `${loggedUser.nombre} ${loggedUser.apellido || ''}`.trim() : 'RecepciÃ³n',
+        empleado: loggedUser ? `${loggedUser.nombre} ${loggedUser.apellido || ''}`.trim() : 'Recepción',
         id_cliente: Number(renovacionTarget.id_cliente),
         cliente: clienteNombreReal,
         fecha: ahora.toISOString().replace('T', ' ').slice(0, 19),
@@ -295,13 +295,13 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
         descuento_porcentaje: 0,
         total: precioCobrado,
         es_membresia: true,
-        tipo_venta: 'MembresÃ­a',
+        tipo_venta: 'Membresía',
         detalles: [
           {
             id_producto: null,
             id_plan: Number(renovacionTarget.id_plan),
             es_membresia: true,
-            articulo: `RenovaciÃ³n: Plan ${planNombreReal} (${renovacionTarget.duracion} dÃ­as)`,
+            articulo: `Renovación: Plan ${planNombreReal} (${renovacionTarget.duracion} días)`,
             cantidad: 1,
             precio_unitario: precioCobrado,
             subtotal: precioCobrado
@@ -309,11 +309,11 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
         ]
       });
     } catch (errVenta) {
-      console.warn('Error registrando venta de renovaciÃ³n:', errVenta);
+      console.warn('Error registrando venta de renovación:', errVenta);
     }
 
     mostrarAlerta(
-      `Pago registrado y membresÃ­a renovada para ${clienteNombreReal}.`,
+      `Pago registrado y membresía renovada para ${clienteNombreReal}.`,
       'success'
     );
     setRenovacionTarget(null);
@@ -342,7 +342,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
     setConfirmModal({
       isOpen: true,
       id,
-      nombre: nombre || 'esta membresÃ­a'
+      nombre: nombre || 'esta membresía'
     });
   };
 
@@ -354,10 +354,10 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       await deleteMembresias(id);
       const nuevaLista = membresias.filter((m) => m.id !== id);
       guardarLocalmente(nuevaLista);
-      mostrarAlerta('MembresÃ­a eliminada correctamente', 'success');
+      mostrarAlerta('Membresía eliminada correctamente', 'success');
       cargarDatos();
     } catch {
-      mostrarAlerta('Error al eliminar membresÃ­a', 'error');
+      mostrarAlerta('Error al eliminar membresía', 'error');
     }
   };
 
@@ -407,7 +407,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       return;
     }
 
-    // Si es creaciÃ³n de membresÃ­a o cambio de plan: Transferir a Caja para cobrar primero
+    // Si es creación de membresía o cambio de plan: Transferir a Caja para cobrar primero
     const esCambioDePlan = modalMode === 'edit' && formData.id_plan_original && Number(formData.id_plan) !== Number(formData.id_plan_original);
 
     if (modalMode === 'create' || esCambioDePlan) {
@@ -435,15 +435,15 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       } else {
         mostrarAlerta(
           esCambioDePlan
-            ? 'ActualizaciÃ³n de membresÃ­a enviada a Caja. Proceda a cobrar el nuevo plan en Punto de Venta.'
-            : 'MembresÃ­a enviada al Punto de Venta. Proceda a cobrar el ticket en Caja.',
+            ? 'Actualización de membresía enviada a Caja. Proceda a cobrar el nuevo plan en Punto de Venta.'
+            : 'Membresía enviada al Punto de Venta. Proceda a cobrar el ticket en Caja.',
           'info'
         );
       }
       return;
     }
 
-    // Modo EdiciÃ³n
+    // Modo Edición
     if (!formData.fecha_vencimiento || formData.fecha_vencimiento < formData.fecha_inicio) {
       mostrarAlerta('La fecha de vencimiento no puede ser anterior a la de inicio', 'error');
       return;
@@ -451,7 +451,7 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
 
     const diasVigencia = fn_dias_restantes(formData.fecha_vencimiento);
     if (diasVigencia > 500) {
-      mostrarAlerta(`RestricciÃ³n: No se permite asignar mÃ¡s de 500 dÃ­as (${diasVigencia} dÃ­as calculados).`, 'error');
+      mostrarAlerta(`Restricción: No se permite asignar más de 500 días (${diasVigencia} días calculados).`, 'error');
       return;
     }
 
@@ -462,15 +462,15 @@ export function useMembresias({ loggedUser, onIrAPuntoVenta }) {
       await updateMembresias(payload.id, payload);
       const lista = membresias.map((m) => (Number(m.id) === Number(payload.id) ? { ...m, ...payload } : m));
       guardarLocalmente(lista);
-      mostrarAlerta('MembresÃ­a actualizada correctamente', 'success');
+      mostrarAlerta('Membresía actualizada correctamente', 'success');
       setShowModal(false);
       cargarDatos();
     } catch {
-      mostrarAlerta('Error al guardar datos de la membresÃ­a', 'error');
+      mostrarAlerta('Error al guardar datos de la membresía', 'error');
     }
   };
 
-  // CÃ¡lculo en una sola pasada de estadÃ­sticas y filtro O(n)
+  // Cálculo en una sola pasada de estadísticas y filtro O(n)
   const { membresiasFiltradas, total, activasCount, porVencerCount, vencidasCount } = useMemo(() => {
     let act = 0;
     let porV = 0;

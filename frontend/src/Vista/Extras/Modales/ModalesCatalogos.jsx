@@ -46,16 +46,16 @@ export function ModalFormCliente({
 
             <div>
               <label className="block text-sm font-medium text-base-content mb-1">
-                Teléfono * (Solo números, máx. 11 dígitos)
+                Teléfono * (Solo números, máx. 10 dígitos)
               </label>
               <input
                 type="tel"
                 required
-                maxLength={11}
+                maxLength={10}
                 className="input input-bordered w-full font-mono"
                 placeholder="Ej. 3471012962"
                 value={formData.telefono || ''}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })}
               />
             </div>
 
@@ -116,15 +116,15 @@ export function ModalFormCliente({
               </div>
               <div>
                 <label className="block text-sm font-medium text-base-content mb-1">
-                  Teléfono Emergencia (Máx. 11 núm.)
+                  Teléfono Emergencia (Máx. 10 núm.)
                 </label>
                 <input
                   type="tel"
-                  maxLength={11}
+                  maxLength={10}
                   className="input input-bordered w-full font-mono"
                   placeholder="Ej. 3471012962"
                   value={formData.telefono_emergencia || ''}
-                  onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                  onChange={(e) => setFormData({ ...formData, telefono_emergencia: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                 />
               </div>
             </div>
@@ -360,15 +360,15 @@ export function ModalFormProveedor({
             </div>
             <div>
               <label className="block text-sm font-medium text-base-content mb-1">
-                Teléfono (Solo números, máx. 11 dígitos)
+                Teléfono (Solo números, máx. 10 dígitos)
               </label>
               <input
                 type="tel"
-                maxLength={11}
+                maxLength={10}
                 className="input input-bordered w-full font-mono"
                 placeholder="Ej. 3471012962"
                 value={formData.telefono || ''}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })}
               />
             </div>
             <div>
@@ -468,15 +468,15 @@ export function ModalFormUsuario({
 
             <div>
               <label className="block text-sm font-medium text-base-content mb-1">
-                Teléfono (Solo números, máx. 11 dígitos)
+                Teléfono (Solo números, máx. 10 dígitos)
               </label>
               <input
                 type="tel"
-                maxLength={11}
+                maxLength={10}
                 className="input input-bordered w-full font-mono"
                 placeholder="Ej. 3471012962"
                 value={formData.telefono || ''}
-                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value.replace(/\D/g, '').slice(0, 10) })}
               />
             </div>
 
@@ -504,11 +504,11 @@ export function ModalFormUsuario({
                 value={formData.id_rol}
                 onChange={(e) => setFormData({ ...formData, id_rol: Number(e.target.value) })}
               >
-                <option value={2}>Recepcionista / Empleado (ID 2)</option>
-                <option value={3}>Inventario (ID 3)</option>
+                <option value={2}>Recepcionista</option>
+                <option value={3}>Empleado</option>
               </select>
               <span className="text-[11px] text-zinc-400 mt-1 block">
-                Carga exclusiva de roles operativos: ID 2 (Recepcionista) e ID 3 (Inventario).
+                Carga exclusiva de roles operativos: Recepcionista y Empleado.
               </span>
             </div>
 

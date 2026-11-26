@@ -200,10 +200,10 @@ export function useProductos(loggedUser) {
         }
       }
       const fallback = [
-        { id: 1, nombre: 'ProteÃ­na Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
+        { id: 1, nombre: 'Proteína Whey Isolate', categoria: 'Suplementos', descripcion: '2kg Vainilla Gold Standard', precio: 1250, stock: 18, stock_minimo: 5, estado: 1 },
         { id: 2, nombre: 'Creatina Monohidratada', categoria: 'Suplementos', descripcion: 'Creapure 300g Micronizada', precio: 550, stock: 4, stock_minimo: 6, estado: 1 },
-        { id: 3, nombre: 'Bebida EnergÃ©tica Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
-        { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'AlgodÃ³n reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
+        { id: 3, nombre: 'Bebida Energética Pre-Workout', categoria: 'Bebidas', descripcion: 'Lata 473ml Sabor Blue Berry', precio: 65, stock: 35, stock_minimo: 10, estado: 1 },
+        { id: 4, nombre: 'Correas de Levantamiento (Straps)', categoria: 'Accesorios', descripcion: 'Algodón reforzado antideslizante', precio: 220, stock: 12, stock_minimo: 3, estado: 1 },
         { id: 5, nombre: 'Shaker Mezclador 700ml', categoria: 'Accesorios', descripcion: 'Vaso con bola mezcladora de acero', precio: 140, stock: 2, stock_minimo: 5, estado: 0 },
         { id: 6, nombre: 'Creatina Julio', categoria: 'Snacks', descripcion: 'Te va a hacer un tinaco man', precio: 100, stock: 498, stock_minimo: 5, estado: 1 }
       ];
@@ -222,8 +222,10 @@ export function useProductos(loggedUser) {
   const bajoStockCount = productos.filter((p) => esInventarioBajo(p)).length;
 
   const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
+    const rolNum = Number(id_rol);
+    if (rolNum === 1) return 'Administrador';
+    if (rolNum === 2) return 'Recepcionista';
+    if (rolNum === 3) return 'Empleado';
     return 'Usuario';
   };
 

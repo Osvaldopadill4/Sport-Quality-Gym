@@ -54,7 +54,7 @@ export function ModalCamaraAcceso({
           if (setCooldownRestante) {
             setCooldownRestante(10);
           }
-          // Cerrar la cámara inmediatamente para liberar recursos del navegador
+          // Cerrar la cámara inmediatamente para liberar recursos
           if (onCloseRef.current) {
             onCloseRef.current();
           }

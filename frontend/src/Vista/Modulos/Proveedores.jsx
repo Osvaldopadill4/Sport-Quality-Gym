@@ -105,12 +105,12 @@ export default function Proveedores({ loggedUser }) {
           <table className="gym-table table-fixed min-w-[800px]">
             <thead className="gym-table-thead">
               <tr>
-                <th className="gym-table-th w-[24%]">Empresa</th>
+                <th className="gym-table-th w-[22%]">Empresa</th>
                 <th className="gym-table-th w-[20%]">Contacto</th>
                 <th className="gym-table-th w-[22%]">Correo</th>
                 <th className="gym-table-th w-[16%]">Teléfono</th>
                 <th className="gym-table-th w-[10%]">Estado</th>
-                <th className="gym-table-th w-[8%] text-right">Opciones</th>
+                <th className="gym-table-th w-[10%] text-right">Opciones</th>
               </tr>
             </thead>
             <tbody className="gym-table-tbody">

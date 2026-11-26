@@ -26,14 +26,13 @@ import { getAcceso } from '../../JS/acceso';
 import { getCorteCaja } from '../../JS/corte_caja';
 import { getProductos } from '../../JS/producto';
 import { getVenta } from '../../JS/venta';
-import { getFechaMexico } from '../../Reutilizable/timeUtils';
-import { usePaginacion } from '../../Reutilizable/usePaginacion';
+import { getFechaMexico, convertirFechaHoraUtcAMexico } from '../../Reutilizable/timeUtils';
 import Toast from '../Extras/Toast';
-import Paginacion from '../Extras/Paginacion';
 
 export default function Dashboard({ usuario, alCerrarSesion }) {
-  const esAdmin = Number(usuario?.id_rol) === 1;
-  const modulosPermitidosRecepcionista = ['caja', 'acceso', 'productos', 'membresia'];
+  const idRol = Number(usuario?.id_rol || usuario?.rol_id || usuario?.rol);
+  const esAdmin = idRol === 1;
+  const modulosPermitidosRecepcionista = ['caja', 'acceso', 'productos', 'membresia', 'clientes'];
 
   // Si es recepcionista, su módulo inicial debe ser 'caja' o 'acceso' ya que no tiene acceso a 'inicio' (dashboard admin)
   const [activeModule, setActiveModule] = useState(() => {
@@ -45,7 +44,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
   const handleCambiarModulo = (modulo) => {
     if (!esAdmin && !modulosPermitidosRecepcionista.includes(modulo)) {
       setAlerta({
-        mensaje: 'Acceso denegado: Tu rol de recepcionista solo permite abrir Productos, Membresías, Acceso y Venta (Caja). Los demás módulos son exclusivos para Administrador.',
+        mensaje: 'Acceso denegado: Tu rol de recepcionista solo permite abrir Productos, Membresías, Acceso, Clientes y Venta (Caja). Los demás módulos son exclusivos para Administrador.',
         tipo: 'error'
       });
       return;
@@ -82,7 +81,6 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
     cargando: true
   });
   const [accesosRecientes, setAccesosRecientes] = useState([]);
-  const paginacionAccesos = usePaginacion(accesosRecientes, 5);
 
   // Carga de datos dinámicos desde el sistema
   const cargarDatosDashboard = useCallback(async () => {
@@ -109,21 +107,18 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       const activos = clientes.filter(c => c.estado === '1' || c.estado === 1 || String(c.estado).toLowerCase() === 'activo');
       const inactivos = clientes.length - activos.length;
 
-      // 2. Accesos del día de hoy
-      const accesosDeHoy = accesos.filter(a => a.fecha === hoyStr);
-      const totalAccesosCount = accesosDeHoy.length > 0 ? accesosDeHoy.length : accesos.length;
-
       // Mapear socios para mostrar nombres reales en la tabla de accesos recientes
       const mapaClientes = new Map(clientes.map(c => [Number(c.id), c.nombre]));
       
       const listaRecientes = accesos.map(acc => {
         const idCl = Number(acc.id_cliente);
         const nombreDetectado = acc.cliente_nombre || (idCl ? (mapaClientes.get(idCl) || 'Socio Registrado') : 'Socio');
+        const { fecha: fechaMx, hora: horaMx } = convertirFechaHoraUtcAMexico(acc.fecha, acc.hora);
         return {
           id: acc.id,
           socio: nombreDetectado,
-          hora: acc.hora || 'Reciente',
-          fecha: acc.fecha || hoyStr,
+          hora: acc.hora ? horaMx : 'Reciente',
+          fecha: fechaMx || hoyStr,
           resultado: acc.resultado || 'CONCEDIDO',
           color: (acc.resultado === 'CONCEDIDO' || acc.resultado === 'Permitido') 
             ? 'success' 
@@ -132,6 +127,10 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
             : 'warning'
         };
       });
+
+      // 2. Accesos del día de hoy (ya convertidos a zona horaria de México)
+      const accesosDeHoy = listaRecientes.filter(a => a.fecha === hoyStr);
+      const totalAccesosCount = accesosDeHoy.length > 0 ? accesosDeHoy.length : listaRecientes.length;
 
       // 3. Ventas de hoy por método de pago y tipo
       let ventasHoyTotal = 0;
@@ -168,19 +167,17 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
       const pctMem = vMembresia + vTienda === 0 ? 50 : Math.round((vMembresia / baseM) * 100);
       const pctTda = vMembresia + vTienda === 0 ? 50 : Math.max(0, 100 - pctMem);
 
-      // 4. Ingresos (Corte de caja o cálculo de ventas del día)
+      // 4. Ingresos reales de hoy (Corte de caja de hoy o total de ventas reales del día)
       let ingresosCalculados = 0;
       cortes.forEach(c => {
-        if (c.fecha === hoyStr || !c.fecha) {
+        if (String(c.fecha || '').startsWith(hoyStr)) {
           ingresosCalculados += Number(c.total || c.monto || c.monto_final || 0);
         }
       });
 
-      // Si no hay corte pero hubo ventas registradas hoy, tomar el total de ventas reales
+      // Si no hay corte registrado hoy, tomar el total de ventas reales del día
       if (ingresosCalculados === 0 && ventasHoyTotal > 0) {
         ingresosCalculados = ventasHoyTotal;
-      } else if (ingresosCalculados === 0 && activos.length > 0) {
-        ingresosCalculados = activos.length * 350;
       }
 
       setStats({
@@ -242,7 +239,7 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
           <div className="stat-figure text-emerald-400">
             <Banknote className="w-8 h-8" />
           </div>
-          <div className="stat-title text-gray-400">Ingresos Estimados Hoy</div>
+          <div className="stat-title text-gray-400">Ingresos de Hoy</div>
           <div className="stat-value text-emerald-400">
             ${stats.ingresosHoy.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
@@ -294,8 +291,8 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginacionAccesos.datosPaginados.length > 0 ? (
-                    paginacionAccesos.datosPaginados.map((acc, index) => (
+                  {accesosRecientes.length > 0 ? (
+                    accesosRecientes.slice(0, 5).map((acc, index) => (
                       <tr key={acc.id || index} className="border-base-300">
                         <td className="text-gray-200 font-medium">{acc.socio}</td>
                         <td className="text-gray-400 font-mono text-xs">{acc.hora}</td>
@@ -321,19 +318,6 @@ export default function Dashboard({ usuario, alCerrarSesion }) {
                   )}
                 </tbody>
               </table>
-            </div>
-            <div className="mt-2 rounded-xl overflow-hidden border border-zinc-800">
-              <Paginacion
-                paginaActual={paginacionAccesos.paginaActual}
-                totalPaginas={paginacionAccesos.totalPaginas}
-                totalRegistros={paginacionAccesos.totalRegistros}
-                indiceInicio={paginacionAccesos.indiceInicio}
-                indiceFin={paginacionAccesos.indiceFin}
-                itemsPorPagina={paginacionAccesos.itemsPorPagina}
-                onPageChange={paginacionAccesos.setPaginaActual}
-                etiqueta="accesos"
-                compacto
-              />
             </div>
             <div className="card-actions justify-end mt-4">
               <button 

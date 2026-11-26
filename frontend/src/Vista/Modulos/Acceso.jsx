@@ -201,7 +201,7 @@ export default function Acceso({ loggedUser }) {
               <TrendingUp size={22} />
             </div>
             <div>
-              <span className="stat-label">Total Accesos Hoy</span>
+              <span className="stat-label">Total Accesos</span>
               <h3 className="stat-number text-white">{totalHoy}</h3>
               <span className="stat-hint text-zinc-400">Entradas al gym</span>
             </div>

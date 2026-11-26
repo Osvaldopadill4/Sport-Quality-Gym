@@ -91,7 +91,7 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
       try {
         const cached = JSON.parse(local);
         if (Array.isArray(cached) && cached.length > 0) {
-          const sinMock = cached.filter(c => c.nombre !== 'Juan PÃ©rez' && c.nombre !== 'Carolina GÃ³mez');
+          const sinMock = cached.filter(c => c.nombre !== 'Juan Pérez' && c.nombre !== 'Carolina Gómez');
           if (sinMock.length > 0) {
             setClientes(sinMock);
             return;
@@ -218,20 +218,20 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
       return;
     }
     if (!formData.telefono || formData.telefono.trim().length === 0) {
-      mostrarAlerta('Por favor ingresa el telÃ©fono del cliente', 'error');
+      mostrarAlerta('Por favor ingresa el teléfono del cliente', 'error');
       return;
     }
     const telLimpio = formData.telefono.replace(/\D/g, '');
-    if (telLimpio.length > 11) {
-      mostrarAlerta('El telÃ©fono solo permite un mÃ¡ximo de 11 caracteres numÃ©ricos', 'error');
+    if (telLimpio.length > 10) {
+      mostrarAlerta('El teléfono solo permite un máximo de 10 caracteres numéricos', 'error');
       return;
     }
     if (!formData.contrasena || formData.contrasena.trim().length === 0) {
-      mostrarAlerta('Por favor ingresa la contraseÃ±a para el cliente', 'error');
+      mostrarAlerta('Por favor ingresa la contraseña para el cliente', 'error');
       return;
     }
     if (formData.contrasena.length > 10) {
-      mostrarAlerta('La contraseÃ±a no puede exceder 10 caracteres', 'error');
+      mostrarAlerta('La contraseña no puede exceder 10 caracteres', 'error');
       return;
     }
     if (formData.contacto_emergencia && formData.contacto_emergencia.trim().length > 20) {
@@ -240,8 +240,8 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
     }
     if (formData.telefono_emergencia) {
       const telEmergLimpio = formData.telefono_emergencia.replace(/\D/g, '');
-      if (telEmergLimpio.length > 11) {
-        mostrarAlerta('El telÃ©fono de emergencia solo permite un mÃ¡ximo de 11 caracteres numÃ©ricos', 'error');
+      if (telEmergLimpio.length > 10) {
+        mostrarAlerta('El teléfono de emergencia solo permite un máximo de 10 caracteres numéricos', 'error');
         return;
       }
     }
@@ -271,7 +271,7 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
 
         if (!nuevoClienteId) nuevoClienteId = Date.now();
 
-        let plan1Dia = { id: 5, nombre: 'Individual (1 DÃ­a)', duracion_dias: 1, precio: 30 };
+        let plan1Dia = { id: 5, nombre: 'Individual (1 Día)', duracion_dias: 1, precio: 30 };
         try {
           const planesBD = await getPlanes();
           if (Array.isArray(planesBD) && planesBD.length > 0) {
@@ -302,7 +302,7 @@ export function useClientes({ loggedUser, onIrAPuntoVenta }) {
         await cargarDatos();
       }
     } catch {
-      mostrarAlerta('OcurriÃ³ un error al procesar la solicitud en el servidor', 'error');
+      mostrarAlerta('Ocurrió un error al procesar la solicitud en el servidor', 'error');
       if (modalMode === 'create') {
         const nuevo = { ...formData, id: Date.now(), estado: esEstadoActivo(formData.estado) ? "1" : "0" };
         guardarLocalmente([nuevo, ...clientes]);
@@ -430,7 +430,7 @@ export function usePlanes({ loggedUser }) {
               p.nombre.toLowerCase().includes('semanal') ? 'Semanal' :
               p.nombre.toLowerCase().includes('mensual') ? 'Popular' :
               p.nombre.toLowerCase().includes('anual') ? 'Mejor Valor' :
-              p.nombre.toLowerCase().includes('estudian') ? 'Estudiante' : 'Pase 1 DÃ­a'
+              p.nombre.toLowerCase().includes('estudian') ? 'Estudiante' : 'Pase 1 Día'
             )
           }));
           setPlanes(adaptados);
@@ -446,11 +446,11 @@ export function usePlanes({ loggedUser }) {
         } catch {}
       }
       const planesIniciales = [
-        { id: 1, nombre: 'Semanal', precio: 150, duracion_dias: 7, tipo_plan: 'Semanal', descripcion: 'Acceso total durante 7 dÃ­as continuos al Ã¡rea de pesas y cardio.', beneficios: 'Sin inscripciÃ³n, lockers incluidos, acceso en horario completo', estado: 1 },
-        { id: 2, nombre: 'Mensual', precio: 350, duracion_dias: 30, tipo_plan: 'Popular', descripcion: 'Acceso ilimitado por 1 mes (30 dÃ­as). El plan mÃ¡s solicitado.', beneficios: 'Acceso completo, lockers, valoraciÃ³n fÃ­sica inicial', estado: 1 },
-        { id: 3, nombre: 'Anual', precio: 2100, duracion_dias: 365, tipo_plan: 'Mejor Valor', descripcion: 'MembresÃ­a anual completa. Solo $175 MXN al mes. MÃ¡ximo ahorro.', beneficios: 'Acceso ilimitado 365 dÃ­as, playera conmemorativa, 2 pases de invitado al mes', estado: 1 },
+        { id: 1, nombre: 'Semanal', precio: 150, duracion_dias: 7, tipo_plan: 'Semanal', descripcion: 'Acceso total durante 7 días continuos al área de pesas y cardio.', beneficios: 'Sin inscripción, lockers incluidos, acceso en horario completo', estado: 1 },
+        { id: 2, nombre: 'Mensual', precio: 350, duracion_dias: 30, tipo_plan: 'Popular', descripcion: 'Acceso ilimitado por 1 mes (30 días). El plan más solicitado.', beneficios: 'Acceso completo, lockers, valoración física inicial', estado: 1 },
+        { id: 3, nombre: 'Anual', precio: 2100, duracion_dias: 365, tipo_plan: 'Mejor Valor', descripcion: 'Membresía anual completa. Solo $175 MXN al mes. Máximo ahorro.', beneficios: 'Acceso ilimitado 365 días, playera conmemorativa, 2 pases de invitado al mes', estado: 1 },
         { id: 4, nombre: 'Estudiantil', precio: 200, duracion_dias: 30, tipo_plan: 'Estudiante', descripcion: 'Tarifa preferencial de $200 MXN/mes con credencial de estudiante vigente.', beneficios: 'Acceso en horario estudiantil flexible, pesas y cardio completo', estado: 1 },
-        { id: 5, nombre: 'Invitado', precio: 30, duracion_dias: 1, tipo_plan: 'Pase 1 DÃ­a', descripcion: 'Pase temporal de cortesÃ­a o prueba por 24 horas para acceso a torniquetes.', beneficios: 'Acceso de prueba 1 dÃ­a, inducciÃ³n con instructor', estado: 1 }
+        { id: 5, nombre: 'Invitado', precio: 30, duracion_dias: 1, tipo_plan: 'Pase 1 Día', descripcion: 'Pase temporal de cortesía o prueba por 24 horas para acceso a torniquetes.', beneficios: 'Acceso de prueba 1 día, inducción con instructor', estado: 1 }
       ];
       setPlanes(planesIniciales);
       localStorage.setItem('gymton_planes', JSON.stringify(planesIniciales));
@@ -466,8 +466,10 @@ export function usePlanes({ loggedUser }) {
   const inactivos = total - activos;
 
   const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
+    const rolNum = Number(id_rol);
+    if (rolNum === 1) return 'Administrador';
+    if (rolNum === 2) return 'Recepcionista';
+    if (rolNum === 3) return 'Empleado';
     return 'Usuario';
   };
 
@@ -561,23 +563,23 @@ export function usePlanes({ loggedUser }) {
       return;
     }
     if (formData.descripcion && formData.descripcion.trim().length > 100) {
-      mostrarAlerta('La descripciÃ³n no puede exceder 100 caracteres', 'error');
+      mostrarAlerta('La descripción no puede exceder 100 caracteres', 'error');
       return;
     }
     if (formData.precio === '' || isNaN(Number(formData.precio)) || Number(formData.precio) < 0) {
-      mostrarAlerta('Ingresa un precio vÃ¡lido en MXN', 'error');
+      mostrarAlerta('Ingresa un precio válido en MXN', 'error');
       return;
     }
     if (Number(formData.precio) > 9999 || String(Math.floor(Number(formData.precio))).length > 4) {
-      mostrarAlerta('El costo del plan no puede tener mÃ¡s de 4 cifras (mÃ¡x. $9,999 MXN)', 'error');
+      mostrarAlerta('El costo del plan no puede tener más de 4 cifras (máx. $9,999 MXN)', 'error');
       return;
     }
     if (!formData.duracion_dias || parseInt(formData.duracion_dias) <= 0) {
-      mostrarAlerta('La duraciÃ³n en dÃ­as debe ser mayor a 0', 'error');
+      mostrarAlerta('La duración en días debe ser mayor a 0', 'error');
       return;
     }
     if (parseInt(formData.duracion_dias) > 365) {
-      mostrarAlerta('La duraciÃ³n del plan no puede pasar de los 365 dÃ­as', 'error');
+      mostrarAlerta('La duración del plan no puede pasar de los 365 días', 'error');
       return;
     }
 
@@ -710,7 +712,7 @@ export function useProveedores({ loggedUser }) {
         const fallback = [
           { id: 1, nombre: 'Carlos Ortiz', nombre_empresa: 'Suplementos GymFit MX', telefono: '555-0192', correo: 'contacto@gymfit.com', estado: 1 },
           { id: 2, nombre: 'Ana Morales', nombre_empresa: 'Equipamiento IronForce', telefono: '555-8832', correo: 'ventas@ironforce.com', estado: 1 },
-          { id: 3, nombre: 'Jorge Luna', nombre_empresa: 'Bebidas e HidrataciÃ³n Sport', telefono: '555-4311', correo: 'distribucion@sportdrink.mx', estado: 0 }
+          { id: 3, nombre: 'Jorge Luna', nombre_empresa: 'Bebidas e Hidratación Sport', telefono: '555-4311', correo: 'distribucion@sportdrink.mx', estado: 0 }
         ];
         setProveedores(fallback);
         localStorage.setItem('gymton_proveedores', JSON.stringify(fallback));
@@ -723,20 +725,21 @@ export function useProveedores({ loggedUser }) {
   }, []);
 
   const total = proveedores.length;
-  const activos = proveedores.filter(p => p.estado === 1 || p.estado === 'Activo').length;
+  const activos = proveedores.filter(p => esEstadoActivo(p.estado)).length;
   const inactivos = total - activos;
   const esUsuarioId1 = Number(usuarioActivo?.id) === 1;
 
   const getRolName = (id_rol) => {
-    if (id_rol === 1) return 'Administrador';
-    if (id_rol === 2) return 'Recepcionista';
-    if (id_rol === 3) return 'Inventario';
+    const rolNum = Number(id_rol);
+    if (rolNum === 1) return 'Administrador';
+    if (rolNum === 2) return 'Recepcionista';
+    if (rolNum === 3) return 'Empleado';
     return 'Usuario';
   };
 
   const handleToggleEstado = async (p) => {
-    const esActivo = p.estado === 1 || p.estado === 'Activo';
-    const proveedorActualizado = { ...p, estado: esActivo ? 0 : 1 };
+    const esActivo = esEstadoActivo(p.estado);
+    const proveedorActualizado = { ...p, estado: esActivo ? '0' : '1' };
     const nuevaLista = proveedores.map(item => item.id === p.id ? proveedorActualizado : item);
     setProveedores(nuevaLista);
     guardarLocalmente(nuevaLista);
@@ -753,7 +756,7 @@ export function useProveedores({ loggedUser }) {
 
   const pedirConfirmacionEliminar = (id, nombre) => {
     if (!esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para eliminar registros de la tabla proveedores.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla proveedores.', 'error');
       return;
     }
     setConfirmModal({ isOpen: true, id, nombre: nombre || 'este proveedor' });
@@ -761,7 +764,7 @@ export function useProveedores({ loggedUser }) {
 
   const confirmarEliminar = async () => {
     if (!esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para eliminar registros de la tabla proveedores.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla proveedores.', 'error');
       return;
     }
     const id = confirmModal.id;
@@ -814,14 +817,14 @@ export function useProveedores({ loggedUser }) {
     if (formData.correo && formData.correo.trim()) {
       const correoLimpio = formData.correo.trim().toLowerCase();
       if (!correoLimpio.includes('@') || !correoLimpio.includes('.com')) {
-        mostrarAlerta('El correo electrÃ³nico debe ser vÃ¡lido y contener "@" y ".com"', 'error');
+        mostrarAlerta('El correo electrónico debe ser válido y contener "@" y ".com"', 'error');
         return;
       }
     }
     if (formData.telefono) {
       const telLimpio = formData.telefono.replace(/\D/g, '');
-      if (telLimpio.length > 11) {
-        mostrarAlerta('El telÃ©fono solo permite un mÃ¡ximo de 11 caracteres numÃ©ricos', 'error');
+      if (telLimpio.length > 10) {
+        mostrarAlerta('El teléfono solo permite un máximo de 10 caracteres numéricos', 'error');
         return;
       }
     }
@@ -846,10 +849,11 @@ export function useProveedores({ loggedUser }) {
   };
 
   const proveedoresFiltrados = proveedores.filter(p => {
+    const activo = esEstadoActivo(p.estado);
     const coincideEstado =
       filtro === 'todos' ? true :
-      filtro === 'activos' ? (p.estado === 1 || p.estado === 'Activo') :
-      (p.estado === 0 || p.estado === 'Inactivo');
+      filtro === 'activos' ? activo :
+      !activo;
 
     const termino = busqueda.toLowerCase().trim();
     if (!termino) return coincideEstado;
@@ -974,13 +978,13 @@ export function useUsuarios({ loggedUser }) {
     const rolNum = Number(id_rol);
     if (rolNum === 1) return 'Administrador';
     if (rolNum === 2) return 'Recepcionista';
-    if (rolNum === 3) return 'Inventario';
+    if (rolNum === 3) return 'Empleado';
     return 'Usuario';
   };
 
   const handleToggleEstado = async (u) => {
     if (!esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para modificar datos de la tabla usuarios.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
       return;
     }
     const esActivo = esEstadoActivo(u.estado);
@@ -998,7 +1002,7 @@ export function useUsuarios({ loggedUser }) {
 
   const pedirConfirmacionEliminar = (id, nombre) => {
     if (!esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para eliminar registros de la tabla usuarios.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla usuarios.', 'error');
       return;
     }
     setConfirmModal({ isOpen: true, id, nombre: nombre || 'este usuario' });
@@ -1006,7 +1010,7 @@ export function useUsuarios({ loggedUser }) {
 
   const confirmarEliminar = async () => {
     if (!esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para eliminar registros de la tabla usuarios.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para eliminar registros de la tabla usuarios.', 'error');
       return;
     }
     const id = confirmModal.id;
@@ -1025,7 +1029,7 @@ export function useUsuarios({ loggedUser }) {
 
   const openModal = (mode, usuario = null) => {
     if (mode === 'edit' && !esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para modificar datos de la tabla usuarios.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
       return;
     }
     setModalMode(mode);
@@ -1050,7 +1054,7 @@ export function useUsuarios({ loggedUser }) {
     if (e && e.preventDefault) e.preventDefault();
 
     if (modalMode === 'edit' && !esUsuarioId1) {
-      mostrarAlerta('RestricciÃ³n: Ãšnicamente el usuario con ID=1 tiene autorizaciÃ³n para modificar datos de la tabla usuarios.', 'error');
+      mostrarAlerta('Restricción: Únicamente el usuario con ID=1 tiene autorización para modificar datos de la tabla usuarios.', 'error');
       setShowModal(false);
       return;
     }
@@ -1071,18 +1075,18 @@ export function useUsuarios({ loggedUser }) {
 
     const correoLimpio = (formData.correo || '').trim().toLowerCase();
     if (!correoLimpio) {
-      mostrarAlerta('Por favor ingresa el correo electrÃ³nico', 'error');
+      mostrarAlerta('Por favor ingresa el correo electrónico', 'error');
       return;
     }
     if (!correoLimpio.includes('@') || !correoLimpio.includes('.com')) {
-      mostrarAlerta('El correo debe ser vÃ¡lido y contener "@" y ".com"', 'error');
+      mostrarAlerta('El correo debe ser válido y contener "@" y ".com"', 'error');
       return;
     }
 
     if (formData.telefono) {
       const telLimpio = formData.telefono.replace(/\D/g, '');
-      if (telLimpio.length > 11) {
-        mostrarAlerta('El telÃ©fono solo permite un mÃ¡ximo de 11 caracteres numÃ©ricos', 'error');
+      if (telLimpio.length > 10) {
+        mostrarAlerta('El teléfono solo permite un máximo de 10 caracteres numéricos', 'error');
         return;
       }
     }
@@ -1106,7 +1110,7 @@ export function useUsuarios({ loggedUser }) {
         await cargarDatos();
       }
     } catch {
-      mostrarAlerta('OcurriÃ³ un error al procesar la solicitud en el servidor', 'error');
+      mostrarAlerta('Ocurrió un error al procesar la solicitud en el servidor', 'error');
       if (modalMode === 'create') {
         const nuevo = { ...formData, id: Date.now(), estado: esEstadoActivo(formData.estado) ? "1" : "0" };
         guardarLocalmente([nuevo, ...usuarios]);

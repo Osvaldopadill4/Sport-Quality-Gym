@@ -1,9 +1,23 @@
 import React from 'react';
 import { Menu, User } from 'lucide-react';
 
+const MODULE_TITLES = {
+  inicio: 'Inicio',
+  caja: 'Punto de Venta / Caja',
+  corte: 'Corte de Caja',
+  acceso: 'Acceso / Torniquetes',
+  productos: 'Productos',
+  membresia: 'Membresía',
+  planes: 'Planes',
+  clientes: 'Clientes',
+  proveedores: 'Proveedores',
+  usuarios: 'Usuarios',
+  reportes: 'Reportes',
+};
+
 export default function Topbar({ onMenuClick, activeModule, usuario }) {
   // Formatear el nombre del módulo activo para mostrarlo
-  const moduleName = activeModule.charAt(0).toUpperCase() + activeModule.slice(1);
+  const moduleName = MODULE_TITLES[activeModule] || (activeModule.charAt(0).toUpperCase() + activeModule.slice(1).replace('-', ' '));
 
   // Obtener usuario actual (prop o localStorage)
   const usuarioActivo = usuario || (() => {
@@ -20,7 +34,7 @@ export default function Topbar({ onMenuClick, activeModule, usuario }) {
     : 'Usuario';
 
   const idRol = Number(usuarioActivo?.id_rol || usuarioActivo?.rol_id || usuarioActivo?.rol);
-  const rol = idRol === 1 ? 'Administrador' : idRol === 2 ? 'Empleado' : 'En línea';
+  const rol = idRol === 1 ? 'Administrador' : idRol === 2 ? 'Recepcionista' : idRol === 3 ? 'Empleado' : 'En línea';
 
   return (
     <header className="flex items-center justify-between h-16 px-6 bg-zinc-950 border-b border-zinc-800 shadow-sm">
@@ -31,8 +45,8 @@ export default function Topbar({ onMenuClick, activeModule, usuario }) {
         >
           <Menu className="w-6 h-6" />
         </button>
-        <h1 className="text-xl font-bold text-gray-100 capitalize">
-          {moduleName.replace('-', ' ')}
+        <h1 className="text-xl font-bold text-gray-100">
+          {moduleName}
         </h1>
       </div>
       <div className="flex items-center gap-4">

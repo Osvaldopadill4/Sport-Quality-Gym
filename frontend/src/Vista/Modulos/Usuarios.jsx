@@ -26,7 +26,6 @@ export const esEstadoActivo = checkActivo;
 export default function Usuarios({ loggedUser }) {
   const {
     usuarioActivo,
-    usuarios = [],
     usuariosFiltrados,
     filtro,
     setFiltro,
@@ -53,12 +52,6 @@ export default function Usuarios({ loggedUser }) {
 
   const paginacion = usePaginacion(usuariosFiltrados, 10);
 
-  // Cálculo de distribución de roles
-  const totalAdmins = (usuarios.length > 0 ? usuarios : usuariosFiltrados).filter(
-    (u) => Number(u.id_rol) === 1
-  ).length;
-  const totalPersonal = total - totalAdmins;
-
   return (
     <div className="usuarios-wrapper p-4 md:p-6 bg-zinc-950 min-h-screen text-gray-200">
       {alerta && (
@@ -69,9 +62,8 @@ export default function Usuarios({ loggedUser }) {
         />
       )}
 
-      {/* ======================================================== */}
-      {/* NIVEL 1: CABECERA PRINCIPAL CON ACCIÓN PRIMARIA          */}
-      {/* ======================================================== */}
+      {/* NIVEL 1: CABECERA PRINCIPAL CON ACCIÓN PRIMARIA     */}
+
       <div className="gym-header-box flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-zinc-900 border border-zinc-800 p-5 rounded-2xl shadow-xl mb-6">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
@@ -121,10 +113,9 @@ export default function Usuarios({ loggedUser }) {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* NIVEL 2: TARJETAS KPI DE RESUMEN Y ESTADÍSTICAS          */}
-      {/* ======================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* NIVEL 2: TARJETAS DE RESUMEN Y ESTADÍSTICAS          */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {/* Total Cuentas */}
         <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
           <div className="p-3 bg-zinc-800 border border-zinc-700/60 rounded-xl text-indigo-400">
@@ -157,25 +148,10 @@ export default function Usuarios({ loggedUser }) {
             <div className="text-xs text-gray-400 font-medium">Usuarios Inactivos</div>
           </div>
         </div>
-
-        {/* Distribución de Roles */}
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4 shadow-lg">
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <div className="text-lg font-black text-amber-300">
-              {totalAdmins} <span className="text-xs font-normal text-gray-400">Admin</span> · {totalPersonal}{' '}
-              <span className="text-xs font-normal text-gray-400">Personal</span>
-            </div>
-            <div className="text-xs text-gray-400 font-medium">Roles del Sistema</div>
-          </div>
-        </div>
       </div>
 
-      {/* ======================================================== */}
       {/* NIVEL 3: FILTROS POR ESTADO + TABLA ESTILIZADA EN NEGRO   */}
-      {/* ======================================================== */}
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 bg-zinc-900/80 p-1 border border-zinc-800 rounded-xl">
           <button
@@ -219,7 +195,6 @@ export default function Usuarios({ loggedUser }) {
         )}
       </div>
 
-      {/* Tabla con Estilo Negro Unificado */}
       <div className="gym-table-card">
         <div className="gym-table-scroll">
           <table className="gym-table table-fixed min-w-[850px]">

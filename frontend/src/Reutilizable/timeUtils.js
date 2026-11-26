@@ -57,8 +57,40 @@ export function getHoraMexico(date = new Date()) {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false
+    hourCycle: 'h23'
   }).format(d);
+}
+
+/**
+ * Convierte una fecha ("YYYY-MM-DD") y hora ("HH:mm:ss") almacenadas por el servidor MySQL
+ * en Railway (zona horaria UTC+1 / CET, +7 horas respecto a México)
+ * a su fecha y hora equivalente en America/Mexico_City (UTC-6).
+ * @param {string} fechaServidor
+ * @param {string} horaServidor
+ * @returns {{ fecha: string, hora: string }}
+ */
+export function convertirFechaHoraUtcAMexico(fechaServidor, horaServidor) {
+  if (!fechaServidor || !horaServidor) {
+    return {
+      fecha: fechaServidor || getFechaMexico(),
+      hora: horaServidor || '00:00:00'
+    };
+  }
+  const fechaSolo = String(fechaServidor).trim().slice(0, 10);
+  const partesHora = String(horaServidor).trim().split(':');
+  const hh = (partesHora[0] || '00').padStart(2, '0');
+  const mm = (partesHora[1] || '00').padStart(2, '0');
+  const ss = (partesHora[2] || '00').slice(0, 2).padStart(2, '0');
+
+  const fechaObj = new Date(`${fechaSolo}T${hh}:${mm}:${ss}+01:00`);
+  if (isNaN(fechaObj.getTime())) {
+    return { fecha: fechaSolo, hora: `${hh}:${mm}:${ss}` };
+  }
+
+  return {
+    fecha: getFechaMexico(fechaObj),
+    hora: getHoraMexico(fechaObj)
+  };
 }
 
 /**

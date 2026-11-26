@@ -32,8 +32,8 @@ export default function Sidebar({ isOpen, setIsOpen, activeModule, setActiveModu
 
   const idRol = Number(user?.id_rol || user?.rol_id || user?.rol);
   const esAdmin = idRol === 1;
-  // Restricciones estrictas para Empleados (id_rol === 2): Únicamente Productos, Punto de Venta (caja), Acceso y Membresías
-  const modulosPermitidosEmpleado = ['productos', 'caja', 'acceso', 'membresia'];
+  // Restricciones estrictas para Empleados (id_rol === 2): Únicamente Productos, Punto de Venta (caja), Acceso, Clientes y Membresías
+  const modulosPermitidosEmpleado = ['productos', 'caja', 'acceso', 'membresia', 'clientes'];
 
   const itemsVisibles = esAdmin 
     ? MENU_ITEMS 
@@ -68,7 +68,7 @@ export default function Sidebar({ isOpen, setIsOpen, activeModule, setActiveModu
           <div className="truncate">
             <span className="text-white block truncate">{user?.nombre || 'Usuario'}</span>
             <span className={esAdmin ? 'text-emerald-400 text-[11px]' : 'text-blue-400 text-[11px]'}>
-              {esAdmin ? (Number(user?.id) === 1 ? 'Administrador Principal' : 'Administrador') : 'Empleado'}
+              {esAdmin ? (Number(user?.id) === 1 ? 'Administrador Principal' : 'Administrador') : idRol === 2 ? 'Recepcionista' : 'Empleado'}
             </span>
           </div>
         </div>

@@ -5,7 +5,7 @@ import {
 } from '../JS/acceso';
 import { getClientes } from '../JS/cliente';
 import { getReporteAccesos, getReporteEstadoMembresias } from '../JS/reportes_api';
-import { getFechaMexico, getHoraMexico } from './timeUtils';
+import { getFechaMexico, getHoraMexico, convertirFechaHoraUtcAMexico } from './timeUtils';
 
 export function useAcceso(paramUser) {
   const usuarioActivo = (paramUser && paramUser.loggedUser) || paramUser || (() => {
@@ -109,14 +109,16 @@ export function useAcceso(paramUser) {
             color = 'yellow';
           }
 
+          const { fecha: fechaMx, hora: horaMx } = convertirFechaHoraUtcAMexico(row.fecha, row.hora);
+
           return {
             id: row.id_acceso || row.id || Date.now() + Math.random(),
             id_cliente: row.id_cliente,
             uuid: socio?.uuid || `SOCIO-${row.id_cliente}`,
             cliente_nombre: row.cliente || socio?.nombre || 'Socio Registrado',
             plan: socio?.plan || 'Membresía General',
-            fecha: row.fecha || getFechaMexico(),
-            hora: row.hora || '00:00:00',
+            fecha: fechaMx,
+            hora: horaMx,
             resultado: esConcedido ? 'Permitido' : (row.resultado || 'Rechazado'),
             color,
             dias_restantes: dias
@@ -134,14 +136,15 @@ export function useAcceso(paramUser) {
         const formateados = fallbackData.map((row) => {
           const socio = mapSocios.get(Number(row.id_cliente));
           const esConcedido = ['PERMITIDO', 'CONCEDIDO', 'Permitido'].includes(row.resultado);
+          const { fecha: fechaMx, hora: horaMx } = convertirFechaHoraUtcAMexico(row.fecha, row.hora);
           return {
             id: row.id || Date.now() + Math.random(),
             id_cliente: row.id_cliente,
             uuid: socio?.uuid || `SOCIO-${row.id_cliente}`,
             cliente_nombre: socio?.nombre || 'Socio Registrado',
             plan: socio?.plan || 'Membresía General',
-            fecha: row.fecha,
-            hora: row.hora,
+            fecha: fechaMx,
+            hora: horaMx,
             resultado: esConcedido ? 'Permitido' : 'Rechazado',
             color: esConcedido ? 'green' : 'red',
             dias_restantes: socio?.dias_restantes ?? 30
